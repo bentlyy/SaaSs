@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Inventario Pro · Control de stock</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <a href="#app" class="skip-link">Ir al contenido</a>
+
+  <!-- ==== LOGIN / REGISTRO ==== -->
+  <section id="auth-view" class="auth-wrap hidden" aria-label="Acceso">
+    <div class="auth-card">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        </span>
+        <h1>Inventario<span>Pro</span></h1>
+        <p>Control de stock, artículos y movimientos</p>
+      </div>
+
+      <div class="seg" role="tablist">
+        <button class="seg-btn active" role="tab" aria-selected="true" data-tab="login">Entrar</button>
+        <button class="seg-btn" role="tab" aria-selected="false" data-tab="register">Crear cuenta</button>
+      </div>
+
+      <form id="login-form" class="auth-form" novalidate>
+        <label class="field">
+          <span>Nombre corto del almacén</span>
+          <input name="slug" placeholder="mi-almacen" required autocomplete="username" />
+        </label>
+        <label class="field">
+          <span>Correo</span>
+          <input name="email" type="email" placeholder="tucorreo@mail.com" required autocomplete="email" />
+        </label>
+        <label class="field">
+          <span>Contraseña</span>
+          <input name="password" type="password" required autocomplete="current-password" />
+        </label>
+        <button type="submit" class="btn primary block">Entrar</button>
+        <p class="form-error" role="alert" data-err></p>
+      </form>
+
+      <form id="register-form" class="auth-form hidden" novalidate>
+        <label class="field">
+          <span>Nombre del almacén o negocio</span>
+          <input name="businessName" placeholder="Bodega Central" required />
+        </label>
+        <label class="field">
+          <span>Nombre corto (URL)</span>
+          <input name="slug" placeholder="mi-almacen" required minlength="3" />
+          <small class="hint">minúsculas, números y guiones</small>
+        </label>
+        <div class="form-grid two">
+          <label class="field">
+            <span>Tu nombre</span>
+            <input name="ownerName" required placeholder="Sofía Ramírez" />
+          </label>
+          <label class="field">
+            <span>Correo</span>
+            <input name="email" type="email" required placeholder="tucorreo@mail.com" />
+          </label>
+        </div>
+        <label class="field">
+          <span>Contraseña (mínimo 6)</span>
+          <input name="password" type="password" required minlength="6" />
+        </label>
+        <button type="submit" class="btn primary block">Crear mi cuenta</button>
+        <p class="form-error" role="alert" data-err></p>
+      </form>
+    </div>
+  </section>
+
+  <!-- ==== APP ==== -->
+  <div id="app" class="app hidden">
+    <aside id="sidebar" class="sidebar" aria-label="Menú principal">
+      <div class="sidebar-top">
+        <div class="brand small">
+          <span class="brand-mark sm" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          </span>
+          <h1>Inventario<span>Pro</span></h1>
+        </div>
+        <button id="nav-close" class="icon-btn sidebar-only" aria-label="Cerrar menú">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <nav class="nav">
+        <p class="nav-label">Operación</p>
+        <button class="nav-btn active" data-view="dashboard" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          <span>Inicio</span>
+        </button>
+        <button class="nav-btn" data-view="articulos" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          <span>Artículos</span>
+        </button>
+        <button class="nav-btn" data-view="movimientos" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          <span>Movimientos</span>
+        </button>
+
+        <p class="nav-label">Negocio</p>
+        <button class="nav-btn" data-view="config" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+          <span>Configuración</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-foot">
+        <div class="user-card">
+          <span id="user-avatar" class="avatar" aria-hidden="true">?</span>
+          <div class="user-meta">
+            <p id="user-chip"></p>
+            <p id="user-tenant" class="tenant-name"></p>
+          </div>
+        </div>
+        <button id="logout-btn" class="btn dark ghost small" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span>Salir</span>
+        </button>
+      </div>
+    </aside>
+
+    <div id="overlay" class="overlay" hidden></div>
+
+    <div class="main-shell">
+      <header class="topbar">
+        <button id="nav-open" class="icon-btn" aria-label="Abrir menú">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        </button>
+        <div class="topbar-title">
+          <h1 id="view-title">Inicio</h1>
+          <p id="view-sub" class="muted"></p>
+        </div>
+        <div class="topbar-actions">
+          <button id="quick-new" class="btn primary" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Nuevo artículo</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="main">
+        <!-- INICIO / DASHBOARD -->
+        <section data-view-pane="dashboard">
+          <div class="metrics" id="dash-metrics"></div>
+          <div class="dash-grid">
+            <div class="panel">
+              <div class="panel-head">
+                <h3>Artículos por agotarse</h3>
+                <button class="btn ghost small" data-go-articulos type="button">Ver todo</button>
+              </div>
+              <div id="dash-low" class="upcoming-list"></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h3>Últimos movimientos</h3></div>
+              <div id="dash-moves" class="upcoming-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ARTÍCULOS -->
+        <section data-view-pane="articulos" class="hidden">
+          <div class="page-head">
+            <div class="toolbar grow">
+              <label class="field search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input id="articulos-search" type="search" placeholder="Buscar por nombre o SKU…" aria-label="Buscar artículo" />
+              </label>
+            </div>
+            <div class="toolbar">
+              <p class="low-hint stack-warn" id="articulos-hint">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span>Bajo stock:</span> <b id="articulos-low">0</b>
+              </p>
+              <button class="btn primary" id="articulos-new" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>Artículo</span>
+              </button>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="table-wrap">
+              <table class="table">
+                <thead><tr>
+                  <th>Artículo</th><th>SKU</th><th>Existencia</th><th>Mínimo</th><th>Precio</th><th>Estado</th><th class="th-actions">Acciones</th>
+                </tr></thead>
+                <tbody id="articulos-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- MOVIMIENTOS -->
+        <section data-view-pane="movimientos" class="hidden">
+          <div class="page-head">
+            <div class="toolbar grow">
+              <label class="field compact">
+                <select id="moves-item" aria-label="Filtrar por artículo">
+                  <option value="">Todos los artículos</option>
+                </select>
+              </label>
+              <label class="field compact">
+                <select id="moves-type" aria-label="Filtrar por tipo">
+                  <option value="">Entradas y salidas</option>
+                  <option value="in">Solo entradas</option>
+                  <option value="out">Solo salidas</option>
+                </select>
+              </label>
+            </div>
+            <div class="toolbar">
+              <button class="btn primary" id="moves-new" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>Movimiento</span>
+              </button>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="table-wrap">
+              <table class="table">
+                <thead><tr>
+                  <th>Fecha</th><th>Artículo</th><th>Tipo</th><th>Cantidad</th><th>Motivo</th><th>Usuario</th>
+                </tr></thead>
+                <tbody id="moves-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- CONFIG -->
+        <section data-view-pane="config" class="hidden">
+          <div class="page-head"><div class="toolbar"><h2>Configuración</h2></div></div>
+          <form id="config-form" class="config-form panel-form" novalidate>
+            <div class="form-grid two">
+              <label class="field"><span>Nombre del almacén</span><input name="name" /></label>
+              <label class="field"><span>Teléfono</span><input name="phone" /></label>
+            </div>
+            <label class="field"><span>Dirección</span><input name="address" /></label>
+            <div class="form-grid two">
+              <label class="field"><span>Moneda</span><input name="currency" maxlength="3" placeholder="$" /></label>
+              <label class="field"><span>Zona horaria</span><input name="timezone" placeholder="America/Mexico_City" /></label>
+            </div>
+            <div class="row-actions">
+              <button type="submit" class="btn primary">Guardar cambios</button>
+            </div>
+            <p class="form-error" role="alert" data-err></p>
+          </form>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- ==== MODAL GENÉRICO ==== -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-content">
+      <div class="modal-head">
+        <h3 id="modal-title"></h3>
+        <button class="icon-btn" data-close aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

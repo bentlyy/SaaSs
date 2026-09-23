@@ -10,7 +10,8 @@ operar. Un solo código base (core) multi-tenant alimenta varios productos verti
 ├── products/
 │   ├── peluqueria/           ← Producto #1: agenda y gestión para peluquerías/barberías
 │   ├── deportes/             ← Producto #2: reservas por bloque para centros deportivos
-│   └── talleres/             ← Producto #3: órdenes de trabajo e inventario de piezas
+│   ├── talleres/             ← Producto #3: órdenes de trabajo e inventario de piezas
+│   └── inventario/           ← Producto #4: control de stock con movimientos trazables
 └── package.json              ← npm workspaces
 ```
 
@@ -21,7 +22,7 @@ operar. Un solo código base (core) multi-tenant alimenta varios productos verti
 | 1 | Agenda para peluquerías | ✅ MVP completo | branding + seed |
 | 2 | Reservas para centros deportivos | ✅ MVP completo | módulo de recursos/canchas + reservas por bloque |
 | 3 | Gestión de talleres | ✅ MVP completo | módulo de órdenes de trabajo + piezas que consumen inventario |
-| 4 | Control de inventario | ⬜ | módulo standalone |
+| 4 | Control de inventario | ✅ MVP completo | módulo standalone de artículos + movimientos (endpoint `/movements` con filtros y trazabilidad) |
 | 5 | Cotizaciones | ⬜ | módulo standalone |
 | 6 | Generación de documentos | ⬜ | módulo standalone |
 | 7 | Recordatorios WhatsApp/email | ⬜ | pasarela + panel de envíos |
@@ -84,6 +85,20 @@ Al abrir/editar/cancelar una orden, las piezas asignadas se descuentan o devuelv
 automáticamente al inventario (con movimiento de stock trazable). Estados de orden:
 Recibida, Presupuestada, En proceso, Completada y Cancelada.
 
+## Probar el MVP (inventario)
+
+```bash
+npm run seed:inventario   # crea el almacén demo
+npm run dev:inventario    # http://localhost:3003
+```
+
+Credenciales demo: **slug** `demo-inventario` · **email** `demo@inventario.com` · **contraseña** `demo1234`
+
+Demo: 12 artículos con SKU, precio y mínimo de reorden; historial de movimientos
+trazable (entradas/salidas con usuario, fecha y motivo) y filtros por tipo y
+artículo; avisos de bajo stock y valor del inventario. El endpoint
+`GET /api/inventory/movements` acepta `itemId`, `type=in|out` y `limit`.
+
 ## Comandos
 
 | Comando | Qué hace |
@@ -94,6 +109,8 @@ Recibida, Presupuestada, En proceso, Completada y Cancelada.
 | `npm run seed:deportes` | siembra datos demo del centro deportivo |
 | `npm run dev:talleres` | arranca talleres en modo watch |
 | `npm run seed:talleres` | siembra datos demo del taller |
+| `npm run dev:inventario` | arranca inventario en modo watch |
+| `npm run seed:inventario` | siembra datos demo del almacén |
 | `npm run test` | tests del core (vitest) |
 | `npm run build` | compila core + productos a `dist/` |
 | `npm start` (en el producto) | corre la versión compilada |

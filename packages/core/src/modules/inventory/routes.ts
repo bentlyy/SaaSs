@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { and, asc, eq, lt, lte } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, lt, lte } from 'drizzle-orm';
 import { getDb, schema } from '../../db/index.js';
 import { asyncHandler, AppError } from '../../utils/http.js';
 import { authRequired } from '../../middleware/auth.js';
@@ -45,6 +45,44 @@ inventoryRouter.get(
   }),
 );
 
+inventoryRouter.get(
+  '/movements',
+  asyncHandler(async (req, res) => {
+    const { db } = getDb();
+    const tenantId = req.session.tenantId;
+    const conditions = [eq(schema.inventoryMovements.tenant_id, tenantId)];
+    if (req.query.itemId) conditions.push(eq(schema.inventoryMovements.item_id, String(req.query.itemId)));
+    const type = String(req.query.type ?? '');
+    if (type === 'in') conditions.push(gt(schema.inventoryMovements.delta, 0));
+    if (type === 'out') conditions.push(lt(schema.inventoryMovements.delta, 0));
+    const limit = Math.min(Math.max(Number(req.query.limit ?? 200) || 200, 1), 500);
+
+    const rows = db.select().from(schema.inventoryMovements)
+      .where(and(...conditions))
+      .orderBy(desc(schema.inventoryMovements.created_at), desc(schema.inventoryMovements.id))
+      .limit(limit)
+      .all();
+
+    const itemIds = [...new Set(rows.map((r) => r.item_id))];
+    const items = itemIds.length ? db.select().from(schema.inventoryItems)
+      .where(inArray(schema.inventoryItems.id, itemIds)).all() : [];
+    const itemMap = new Map(items.map((i) => [i.id, { name: i.name, unit: i.unit }]));
+
+    const userIds = [...new Set(rows.map((r) => r.user_id).filter((x): x is string => Boolean(x)))];
+    const users = userIds.length ? db.select().from(schema.users)
+      .where(inArray(schema.users.id, userIds)).all() : [];
+    const userMap = new Map(users.map((u) => [u.id, u.name]));
+
+    return res.json({
+      movements: rows.map((r) => ({
+        ...r,
+        item: itemMap.get(r.item_id) ?? null,
+        user: r.user_id && userMap.get(r.user_id) ? { id: r.user_id, name: userMap.get(r.user_id)! } : null,
+      })),
+    });
+  }),
+);
+
 inventoryRouter.post(
   '/',
   asyncHandler(async (req, res) => {
@@ -80,7 +118,7 @@ inventoryRouter.put(
 );
 
 const movementSchema = z.object({
-  delta: z.number().int().min(1).max(1_000_000),
+  delta: z.number().int().min(-1_000_000).max(1_000_000).refine((v) => v !== 0, 'El delta no puede ser cero'),
   reason: z.string().min(1).max(200),
 });
 
