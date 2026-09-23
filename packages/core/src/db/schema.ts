@@ -128,7 +128,7 @@ export const reminderLogs = sqliteTable('reminder_logs', {
 export const documents = sqliteTable('documents', {
   id: id(),
   tenant_id: tenantCol(),
-  type: text('type', { enum: ['cotizacion', 'recibo'] }).notNull().default('cotizacion'),
+  type: text('type', { enum: ['cotizacion', 'recibo', 'factura', 'nota_venta'] }).notNull().default('cotizacion'),
   number: text('number').notNull(),
   customer_id: text('customer_id').references(() => customers.id, { onDelete: 'set null' }),
   customer_snapshot: text('customer_snapshot').notNull(),

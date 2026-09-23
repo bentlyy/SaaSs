@@ -12,7 +12,8 @@ operar. Un solo código base (core) multi-tenant alimenta varios productos verti
 │   ├── deportes/             ← Producto #2: reservas por bloque para centros deportivos
 │   ├── talleres/             ← Producto #3: órdenes de trabajo e inventario de piezas
 │   ├── inventario/           ← Producto #4: control de stock con movimientos trazables
-│   └── cotizaciones/         ← Producto #5: presupuestos y recibos profesionales en PDF
+│   ├── cotizaciones/         ← Producto #5: presupuestos y recibos profesionales en PDF
+│   └── documentos/           ← Producto #6: generación de documentos (facturas, notas, etc.)
 └── package.json              ← npm workspaces
 ```
 
@@ -25,7 +26,7 @@ operar. Un solo código base (core) multi-tenant alimenta varios productos verti
 | 3 | Gestión de talleres | ✅ MVP completo | módulo de órdenes de trabajo + piezas que consumen inventario |
 | 4 | Control de inventario | ✅ MVP completo | módulo standalone de artículos + movimientos (endpoint `/movements` con filtros y trazabilidad) |
 | 5 | Cotizaciones | ✅ MVP completo | módulo standalone de documentos: cotizaciones + recibos con estados y PDF |
-| 6 | Generación de documentos | ⬜ | módulo standalone |
+| 6 | Generación de documentos | ✅ MVP completo | módulo de documentos ampliado: 4 tipos (factura, nota de venta, cotización, recibo) + catálogo de conceptos con precio |
 | 7 | Recordatorios WhatsApp/email | ⬜ | pasarela + panel de envíos |
 | 8 | Gestión de clientes | ⬜ | CRM liviano |
 
@@ -114,6 +115,20 @@ Borrador → Enviada → Aceptada/Rechazada y recibos de cobros. Cada documento 
 PDF listo para descargar/entregar con encabezado del negocio (nombre, dirección,
 teléfono), detalle de líneas y totales con impuesto.
 
+## Probar el MVP (documentos)
+
+```bash
+npm run seed:documentos   # crea el despacho demo
+npm run dev:documentos    # http://localhost:3005
+```
+
+Credenciales demo: **slug** `demo-docupro` · **email** `demo@docupro.com` · **contraseña** `demo1234`
+
+Demo: 5 clientes, catálogo de 8 conceptos con precio y 7 documentos de los **4 tipos**
+(factura `F-`, nota de venta `NV-`, cotización `C-` y recibo `R-`) con estados y PDF
+descargable. Al crear un documento puedes agregar líneas desde el catálogo o manuales,
+con impuesto % y encabezado del negocio en el PDF (nombre, dirección y teléfono).
+
 ## Comandos
 
 | Comando | Qué hace |
@@ -128,6 +143,8 @@ teléfono), detalle de líneas y totales con impuesto.
 | `npm run seed:inventario` | siembra datos demo del almacén |
 | `npm run dev:cotizaciones` | arranca cotizaciones en modo watch |
 | `npm run seed:cotizaciones` | siembra datos demo del despacho |
+| `npm run dev:documentos` | arranca documentos (DocuPro) en modo watch |
+| `npm run seed:documentos` | siembra datos demo de documentos |
 | `npm run test` | tests del core (vitest) |
 | `npm run build` | compila core + productos a `dist/` |
 | `npm start` (en el producto) | corre la versión compilada |

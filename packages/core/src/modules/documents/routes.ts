@@ -16,8 +16,15 @@ const lineSchema = z.object({
   price: z.number().nonnegative(), // en unidades monetarias (USD/MXN...)
 });
 
+export const documentKinds = {
+  cotizacion: { prefix: 'C-', label: 'Cotización' },
+  recibo: { prefix: 'R-', label: 'Recibo' },
+  factura: { prefix: 'F-', label: 'Factura' },
+  nota_venta: { prefix: 'NV-', label: 'Nota de venta' },
+} as const;
+
 const documentSchema = z.object({
-  type: z.enum(['cotizacion', 'recibo']).default('cotizacion'),
+  type: z.enum(['cotizacion', 'recibo', 'factura', 'nota_venta']).default('cotizacion'),
   title: z.string().min(1).max(120).optional(),
   customerId: z.string().min(1),
   lines: z.array(lineSchema).min(1, 'Agrega al menos una línea'),
@@ -51,7 +58,7 @@ documentsRouter.post(
     const tax = Math.round(subtotal * (input.taxPercent / 100));
 
     const insert = sqlite.transaction(() => {
-      const number = `${input.type === 'recibo' ? 'R' : 'C'}-${Date.now().toString(36).toUpperCase()}`;
+      const number = `${documentKinds[input.type].prefix}${Date.now().toString(36).toUpperCase()}`;
       return db.insert(schema.documents).values({
         tenant_id: tenantId,
         type: input.type,
@@ -62,7 +69,7 @@ documentsRouter.post(
           phone: customer.phone,
           email: customer.email,
         }),
-        title: input.title ?? (input.type === 'recibo' ? 'Recibo' : 'Cotización'),
+        title: input.title ?? documentKinds[input.type].label,
         lines: JSON.stringify(input.lines),
         subtotal,
         tax,

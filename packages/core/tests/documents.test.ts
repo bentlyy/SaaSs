@@ -98,6 +98,29 @@ describe('documents (cotizaciones/recibos)', () => {
     expect(doc.total).toBe(1201);
   });
 
+  it('crea facturas con numeración y título propios', async () => {
+    const { customer } = await register('docs-invoice');
+    const res = await post('/api/documents', { ...quote(customer.id), type: 'factura', taxPercent: 16 });
+    expect(res.status).toBe(201);
+    const { document: doc } = await res.json();
+    expect(doc.type).toBe('factura');
+    expect(doc.number.startsWith('F-')).toBe(true);
+    expect(doc.title).toBe('Factura');
+    expect(doc.subtotal).toBe(1201);
+    expect(doc.tax).toBeCloseTo(192.16, 2);
+  });
+
+  it('crea notas de venta con numeración y título propios', async () => {
+    const { customer } = await register('docs-sale');
+    const res = await post('/api/documents', { ...quote(customer.id), type: 'nota_venta', taxPercent: 0 });
+    expect(res.status).toBe(201);
+    const { document: doc } = await res.json();
+    expect(doc.type).toBe('nota_venta');
+    expect(doc.number.startsWith('NV-')).toBe(true);
+    expect(doc.title).toBe('Nota de venta');
+    expect(doc.total).toBe(1201);
+  });
+
   it('permite un título personalizado', async () => {
     const { customer } = await register('docs-title');
     const res = await post('/api/documents', { ...quote(customer.id), title: 'Servicio programado' });
