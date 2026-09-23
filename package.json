@@ -1,0 +1,18 @@
+{
+  "name": "saas-mini",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "products/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w peluqueria",
+    "build": "npm run build -w @saas-mini/core && npm run build -w peluqueria",
+    "seed": "npm run seed -w peluqueria",
+    "test": "npm run test -w @saas-mini/core",
+    "typecheck": "npm run typecheck -ws --if-present"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Peluquería · Agenda</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <!-- ==== LOGIN / REGISTRO ==== -->
+  <section id="auth-view" class="auth-wrap hidden">
+    <div class="auth-card">
+      <div class="brand"><span>💇</span><h1>Peluquería<span>Pro</span></h1><p>Agenda y gestión para tu negocio</p></div>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="login">Entrar</button>
+        <button class="tab-btn" data-tab="register">Crear cuenta</button>
+      </div>
+      <form id="login-form" class="auth-form">
+        <label>Nombre corto del negocio
+          <input name="slug" placeholder="mi-peluqueria" required />
+        </label>
+        <label>Correo
+          <input name="email" type="email" placeholder="tucorreo@mail.com" required />
+        </label>
+        <label>Contraseña
+          <input name="password" type="password" required />
+        </label>
+        <button type="submit" class="btn primary">Entrar</button>
+        <p class="form-error" data-err></p>
+      </form>
+      <form id="register-form" class="auth-form hidden">
+        <label>Nombre del negocio
+          <input name="businessName" placeholder="Estética Glow" required />
+        </label>
+        <label>Nombre corto (URL)
+          <input name="slug" placeholder="estetica-glow" required minlength="3" />
+        </label>
+        <label>Tu nombre
+          <input name="ownerName" required placeholder="María Owner" />
+        </label>
+        <label>Correo
+          <input name="email" type="email" required placeholder="tucorreo@mail.com" />
+        </label>
+        <label>Contraseña (mínimo 6)
+          <input name="password" type="password" required minlength="6" />
+        </label>
+        <button type="submit" class="btn primary">Crear mi cuenta</button>
+        <p class="form-error" data-err></p>
+      </form>
+    </div>
+  </section>
+
+  <!-- ==== APP ==== -->
+  <div id="app" class="app hidden">
+    <aside class="sidebar">
+      <div class="brand small"><h1><span>💇</span> Peluquería<span>Pro</span></h1></div>
+      <nav>
+        <button class="nav-btn active" data-view="agenda">📅 Agenda</button>
+        <button class="nav-btn" data-view="clientes">👥 Clientes</button>
+        <button class="nav-btn" data-view="servicios">💈 Servicios</button>
+        <button class="nav-btn" data-view="empleados">✂️ Empleados</button>
+        <button class="nav-btn" data-view="inventario">📦 Inventario</button>
+        <button class="nav-btn" data-view="documentos">🧾 Documentos</button>
+        <button class="nav-btn" data-view="config">⚙️ Configuración</button>
+      </nav>
+      <div class="sidebar-foot">
+        <p id="user-chip"></p>
+        <button id="logout-btn" class="btn ghost small">Salir</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <!-- AGENDA -->
+      <section data-view-pane="agenda">
+        <div class="page-head">
+          <h2>Agenda</h2>
+          <div class="toolbar">
+            <button class="btn ghost" id="agenda-prev">←</button>
+            <button class="btn ghost" id="agenda-today">Hoy</button>
+            <button class="btn ghost" id="agenda-next">→</button>
+            <span id="agenda-range" class="range-label"></span>
+            <button class="btn primary" id="agenda-new">+ Nueva cita</button>
+          </div>
+        </div>
+        <div id="agenda-grid" class="agenda-grid"></div>
+      </section>
+
+      <!-- CLIENTES -->
+      <section data-view-pane="clientes" class="hidden">
+        <div class="page-head">
+          <h2>Clientes</h2>
+          <div class="toolbar">
+            <input id="clientes-search" class="input" placeholder="Buscar…" />
+            <button class="btn primary" id="clientes-new">+ Cliente</button>
+          </div>
+        </div>
+        <p class="low-hint" id="clientes-count"></p>
+        <table class="table"><thead><tr>
+          <th>Nombre</th><th>Teléfono</th><th>Correo</th><th>Notas</th><th></th>
+        </tr></thead><tbody id="clientes-tbody"></tbody></table>
+      </section>
+
+      <!-- SERVICIOS -->
+      <section data-view-pane="servicios" class="hidden">
+        <div class="page-head">
+          <h2>Servicios</h2>
+          <button class="btn primary" id="servicios-new">+ Servicio</button>
+        </div>
+        <table class="table"><thead><tr>
+          <th>Nombre</th><th>Duración</th><th>Precio</th><th>Estado</th><th></th>
+        </tr></thead><tbody id="servicios-tbody"></tbody></table>
+      </section>
+
+      <!-- EMPLEADOS -->
+      <section data-view-pane="empleados" class="hidden">
+        <div class="page-head">
+          <h2>Empleados</h2>
+          <button class="btn primary" id="empleados-new">+ Empleado</button>
+        </div>
+        <table class="table"><thead><tr>
+          <th>Nombre</th><th>Teléfono</th><th>Servicios</th><th>Estado</th><th></th>
+        </tr></thead><tbody id="empleados-tbody"></tbody></table>
+      </section>
+
+      <!-- INVENTARIO -->
+      <section data-view-pane="inventario" class="hidden">
+        <div class="page-head">
+          <h2>Inventario</h2>
+          <button class="btn primary" id="inventario-new">+ Artículo</button>
+        </div>
+        <p class="low-hint" id="inventario-hint">
+          <span>⚠️ Bajo stock:</span> <span id="inventario-low">0</span>
+        </p>
+        <table class="table"><thead><tr>
+          <th>Nombre</th><th>SKU</th><th>Cantidad</th><th>Mínimo</th><th>Unidad</th><th>Precio</th><th></th>
+        </tr></thead><tbody id="inventario-tbody"></tbody></table>
+      </section>
+
+      <!-- DOCUMENTOS -->
+      <section data-view-pane="documentos" class="hidden">
+        <div class="page-head">
+          <h2>Documentos</h2>
+          <button class="btn primary" id="documentos-new">+ Nueva cotización</button>
+        </div>
+        <table class="table"><thead><tr>
+          <th>No.</th><th>Tipo</th><th>Cliente</th><th>Total</th><th>Estado</th><th></th>
+        </tr></thead><tbody id="documentos-tbody"></tbody></table>
+      </section>
+
+      <!-- CONFIG -->
+      <section data-view-pane="config" class="hidden">
+        <div class="page-head"><h2>Configuración</h2></div>
+        <form id="config-form" class="config-form">
+          <label>Nombre del negocio<input name="name" /></label>
+          <label>Teléfono<input name="phone" /></label>
+          <label>Dirección<input name="address" /></label>
+          <label>Moneda<input name="currency" maxlength="3" placeholder="$" /></label>
+          <label>Zona horaria<input name="timezone" placeholder="America/Mexico_City" /></label>
+          <label>Recordar con (horas antes)
+            <input name="reminderHours" type="number" min="1" max="168" />
+          </label>
+          <fieldset>
+            <legend>Recordatorios</legend>
+            <label class="check"><input name="emailEnabled" type="checkbox" /> Enviar por email</label>
+          </fieldset>
+          <hr />
+          <h3>WhatsApp (webhook)</h3>
+          <label class="muted">Conecta una pasarela (Twilio, 360dialog, WATI…). La URL recibe {to, text}.</label>
+          <label>Webhook<input name="whatsappWebhook" placeholder="https://..." /></label>
+          <label>Token de acceso<input name="whatsappToken" /></label>
+          <button type="submit" class="btn primary">Guardar</button>
+          <p class="form-error" data-err></p>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <!-- ==== MODAL GENÉRICO ==== -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <h3 id="modal-title"></h3>
+        <button class="btn ghost small" data-close>✕</button>
+      </div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="toasts" class="toasts"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
