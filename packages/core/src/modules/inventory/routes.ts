@@ -130,7 +130,7 @@ inventoryRouter.delete(
   }),
 );
 
-function getOwned(db: ReturnType<typeof getDb>['db'], tenantId: string, id: string) {
+export function getOwned(db: ReturnType<typeof getDb>['db'], tenantId: string, id: string) {
   const row = db.select().from(schema.inventoryItems)
     .where(and(eq(schema.inventoryItems.id, id), eq(schema.inventoryItems.tenant_id, tenantId)))
     .get();

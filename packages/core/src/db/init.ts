@@ -157,6 +157,41 @@ CREATE TABLE IF NOT EXISTS inventory_movements (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS work_orders (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  number INTEGER NOT NULL,
+  customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE RESTRICT,
+  staff_id TEXT REFERENCES staff(id) ON DELETE SET NULL,
+  vehicle_make TEXT NOT NULL,
+  vehicle_model TEXT NOT NULL,
+  vehicle_plate TEXT NOT NULL,
+  vehicle_year INTEGER,
+  vehicle_odo INTEGER,
+  status TEXT NOT NULL DEFAULT 'received',
+  estimated_delivery TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS work_order_services (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  order_id TEXT NOT NULL REFERENCES work_orders(id) ON DELETE CASCADE,
+  service_id TEXT NOT NULL REFERENCES services(id) ON DELETE RESTRICT,
+  price_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS work_order_parts (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  order_id TEXT NOT NULL REFERENCES work_orders(id) ON DELETE CASCADE,
+  item_id TEXT NOT NULL REFERENCES inventory_items(id) ON DELETE RESTRICT,
+  qty INTEGER NOT NULL DEFAULT 1,
+  unit_price_at INTEGER NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_customers_tenant ON customers(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_services_tenant ON services(tenant_id);
@@ -168,6 +203,10 @@ CREATE INDEX IF NOT EXISTS idx_appointments_resource ON appointments(resource_id
 CREATE INDEX IF NOT EXISTS idx_reminder_logs_appt ON reminder_logs(appointment_id);
 CREATE INDEX IF NOT EXISTS idx_documents_tenant ON documents(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_tenant ON inventory_items(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_work_orders_tenant ON work_orders(tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_work_orders_customer ON work_orders(customer_id);
+CREATE INDEX IF NOT EXISTS idx_work_order_services_order ON work_order_services(order_id);
+CREATE INDEX IF NOT EXISTS idx_work_order_parts_order ON work_order_parts(order_id);
 `;
 
 function ensureColumn(sqlite: Database.Database, table: string, column: string, ddl: string) {

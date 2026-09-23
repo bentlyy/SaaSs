@@ -9,7 +9,8 @@ operar. Un solo código base (core) multi-tenant alimenta varios productos verti
 │   └── core/                 ← Núcleo reutilizable (Node + TS + Express + Drizzle/SQLite)
 ├── products/
 │   ├── peluqueria/           ← Producto #1: agenda y gestión para peluquerías/barberías
-│   └── deportes/             ← Producto #2: reservas por bloque para centros deportivos
+│   ├── deportes/             ← Producto #2: reservas por bloque para centros deportivos
+│   └── talleres/             ← Producto #3: órdenes de trabajo e inventario de piezas
 └── package.json              ← npm workspaces
 ```
 
@@ -19,7 +20,7 @@ operar. Un solo código base (core) multi-tenant alimenta varios productos verti
 |---|----------|--------|--------------------|
 | 1 | Agenda para peluquerías | ✅ MVP completo | branding + seed |
 | 2 | Reservas para centros deportivos | ✅ MVP completo | módulo de recursos/canchas + reservas por bloque |
-| 3 | Gestión de talleres | ⬜ | órdenes de trabajo + inventario con piezas |
+| 3 | Gestión de talleres | ✅ MVP completo | módulo de órdenes de trabajo + piezas que consumen inventario |
 | 4 | Control de inventario | ⬜ | módulo standalone |
 | 5 | Cotizaciones | ⬜ | módulo standalone |
 | 6 | Generación de documentos | ⬜ | módulo standalone |
@@ -69,6 +70,20 @@ Demo: 5 canchas/instalaciones (Fútbol 7/11, Basquetbol, Frontón, Sala de Yoga)
 reservas por bloque con detección de solape por cancha (409) y vistas de canchas
 como recursos (color, capacidad y precio/hora).
 
+## Probar el MVP (talleres)
+
+```bash
+npm run seed:talleres   # crea el taller demo
+npm run dev:talleres    # http://localhost:3002
+```
+
+Credenciales demo: **slug** `demo-talleres` · **email** `demo@talleres.com` · **contraseña** `demo1234`
+
+Demo: 3 mecánicos, 6 labores, 5 clientes, 8 piezas en inventario y 6 órdenes de trabajo.
+Al abrir/editar/cancelar una orden, las piezas asignadas se descuentan o devuelven
+automáticamente al inventario (con movimiento de stock trazable). Estados de orden:
+Recibida, Presupuestada, En proceso, Completada y Cancelada.
+
 ## Comandos
 
 | Comando | Qué hace |
@@ -77,6 +92,8 @@ como recursos (color, capacidad y precio/hora).
 | `npm run seed` | siembra datos demo |
 | `npm run dev:deportes` | arranca deportes en modo watch |
 | `npm run seed:deportes` | siembra datos demo del centro deportivo |
+| `npm run dev:talleres` | arranca talleres en modo watch |
+| `npm run seed:talleres` | siembra datos demo del taller |
 | `npm run test` | tests del core (vitest) |
 | `npm run build` | compila core + productos a `dist/` |
 | `npm start` (en el producto) | corre la versión compilada |

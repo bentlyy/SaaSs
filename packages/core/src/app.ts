@@ -14,6 +14,7 @@ import { appointmentsRouter } from './modules/appointments/routes.js';
 import { documentsRouter } from './modules/documents/routes.js';
 import { inventoryRouter } from './modules/inventory/routes.js';
 import { resourcesRouter } from './modules/resources/routes.js';
+import { workordersRouter } from './modules/workorders/routes.js';
 import { dashboardRouter } from './modules/dashboard/routes.js';
 
 export interface ProductConfig {
@@ -21,7 +22,7 @@ export interface ProductConfig {
   product: string;
   /** Carpeta pública estática (UI del producto). Se sirve en `/`. */
   staticDir?: string;
-  routers?: Partial<Record<'customers' | 'services' | 'staff' | 'appointments' | 'documents' | 'inventory' | 'resources' | 'dashboard', boolean>>;
+  routers?: Partial<Record<'customers' | 'services' | 'staff' | 'appointments' | 'documents' | 'inventory' | 'resources' | 'workorders' | 'dashboard', boolean>>;
 }
 
 const defaultRouters: Required<NonNullable<ProductConfig['routers']>> = {
@@ -32,6 +33,7 @@ const defaultRouters: Required<NonNullable<ProductConfig['routers']>> = {
   documents: true,
   inventory: true,
   resources: false,
+  workorders: false,
   dashboard: true,
 };
 
@@ -74,6 +76,7 @@ export function createApp(product: ProductConfig): Express {
   if (routers.documents) app.use('/api/documents', documentsRouter);
   if (routers.inventory) app.use('/api/inventory', inventoryRouter);
   if (routers.resources) app.use('/api/resources', resourcesRouter);
+  if (routers.workorders) app.use('/api/workorders', workordersRouter);
   if (routers.dashboard) app.use('/api/dashboard', dashboardRouter);
 
   app.use(notFound);
