@@ -17,13 +17,14 @@ import { resourcesRouter } from './modules/resources/routes.js';
 import { workordersRouter } from './modules/workorders/routes.js';
 import { dashboardRouter } from './modules/dashboard/routes.js';
 import { remindersRouter } from './modules/reminders/routes.js';
+import { followupsRouter } from './modules/followups/routes.js';
 
 export interface ProductConfig {
   name: string;
   product: string;
   /** Carpeta pública estática (UI del producto). Se sirve en `/`. */
   staticDir?: string;
-  routers?: Partial<Record<'customers' | 'services' | 'staff' | 'appointments' | 'documents' | 'inventory' | 'resources' | 'workorders' | 'reminders' | 'dashboard', boolean>>;
+  routers?: Partial<Record<'customers' | 'services' | 'staff' | 'appointments' | 'documents' | 'inventory' | 'resources' | 'workorders' | 'reminders' | 'followups' | 'dashboard', boolean>>;
 }
 
 const defaultRouters: Required<NonNullable<ProductConfig['routers']>> = {
@@ -36,6 +37,7 @@ const defaultRouters: Required<NonNullable<ProductConfig['routers']>> = {
   resources: false,
   workorders: false,
   reminders: false,
+  followups: false,
   dashboard: true,
 };
 
@@ -81,6 +83,7 @@ export function createApp(product: ProductConfig): Express {
   if (routers.workorders) app.use('/api/workorders', workordersRouter);
   if (routers.dashboard) app.use('/api/dashboard', dashboardRouter);
   if (routers.reminders) app.use('/api/reminders', remindersRouter);
+  if (routers.followups) app.use('/api/followups', followupsRouter);
 
   app.use(notFound);
   app.use(errorHandler);

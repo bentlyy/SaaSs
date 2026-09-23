@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { and, asc, eq, like } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, like, or } from 'drizzle-orm';
 import { getDb, schema } from '../../db/index.js';
 import { asyncHandler, AppError } from '../../utils/http.js';
 import { authRequired } from '../../middleware/auth.js';
@@ -45,6 +45,44 @@ customersRouter.post(
       ...normalize(input),
     }).returning().get();
     return res.status(201).json({ customer: row });
+  }),
+);
+
+customersRouter.get(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    const { db } = getDb();
+    const existing = getOwned(db, req.session.tenantId, req.params.id);
+    const tenantId = req.session.tenantId;
+    const now = new Date().toISOString();
+
+    const visits = db.select({ id: schema.appointments.id, start_at: schema.appointments.start_at, status: schema.appointments.status, notes: schema.appointments.notes })
+      .from(schema.appointments)
+      .where(and(eq(schema.appointments.tenant_id, tenantId), eq(schema.appointments.customer_id, existing.id), eq(schema.appointments.status, 'done')))
+      .orderBy(desc(schema.appointments.start_at))
+      .all();
+    const nextVisit = db.select({ id: schema.appointments.id, start_at: schema.appointments.start_at, status: schema.appointments.status })
+      .from(schema.appointments)
+      .where(and(eq(schema.appointments.tenant_id, tenantId), eq(schema.appointments.customer_id, existing.id),
+        gte(schema.appointments.start_at, now), or(eq(schema.appointments.status, 'pending'), eq(schema.appointments.status, 'confirmed'))))
+      .orderBy(asc(schema.appointments.start_at))
+      .get();
+    const pendingFollowups = db.select({ id: schema.followups.id, title: schema.followups.title, due_date: schema.followups.due_date })
+      .from(schema.followups)
+      .where(and(eq(schema.followups.tenant_id, tenantId), eq(schema.followups.customer_id, existing.id), eq(schema.followups.status, 'pending')))
+      .orderBy(asc(schema.followups.due_date))
+      .limit(20)
+      .all();
+
+    return res.json({
+      customer: {
+        ...existing,
+        visits: visits.length,
+        lastVisit: visits[0]?.start_at ?? null,
+        nextVisit: nextVisit?.start_at ?? null,
+        followupsPending: pendingFollowups,
+      },
+    });
   }),
 );
 

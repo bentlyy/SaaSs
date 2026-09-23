@@ -14,7 +14,8 @@ operar. Un solo código base (core) multi-tenant alimenta varios productos verti
 │   ├── inventario/           ← Producto #4: control de stock con movimientos trazables
 │   ├── cotizaciones/         ← Producto #5: presupuestos y recibos profesionales en PDF
 │   ├── documentos/           ← Producto #6: generación de documentos (facturas, notas, etc.)
-│   └── recordatorios/        ← Producto #7: recordatorios automáticos WhatsApp/email
+│   ├── recordatorios/        ← Producto #7: recordatorios automáticos WhatsApp/email
+│   └── crm/                  ← Producto #8: gestión de clientes con etiquetas y seguimientos
 └── package.json              ← npm workspaces
 ```
 
@@ -29,7 +30,7 @@ operar. Un solo código base (core) multi-tenant alimenta varios productos verti
 | 5 | Cotizaciones | ✅ MVP completo | módulo standalone de documentos: cotizaciones + recibos con estados y PDF |
 | 6 | Generación de documentos | ✅ MVP completo | módulo de documentos ampliado: 4 tipos (factura, nota de venta, cotización, recibo) + catálogo de conceptos con precio |
 | 7 | Recordatorios WhatsApp/email | ✅ MVP completo | panel de envíos: canales (SMTP + webhook), histórico `reminder_logs` y API `/api/reminders` |
-| 8 | Gestión de clientes | ⬜ | CRM liviano |
+| 8 | Gestión de clientes | ✅ MVP completo | CRM liviano: módulo standalone de seguimientos (`/api/followups`) con estado, fecha límite y vencimientos |
 
 Todos comparten **clientes, agenda/reservas, recordatorios, cotizaciones, documentos
 e inventario**: al construir un producto vertical solo se eligen módulos activos,
@@ -147,6 +148,23 @@ prueba por Email o WhatsApp. Configura SMTP en `.env` y el webhook de WhatsApp p
 negocio en Configuración. El webhook recibe `{ to, text }` con
 `Authorization: Bearer <token>` (Twilio, 360dialog, WATI, plataforma propia).
 
+## Probar el MVP (CRM / gestión de clientes)
+
+```bash
+npm run seed:crm   # crea el negocio demo
+npm run dev:crm    # http://localhost:3007
+```
+
+Credenciales demo: **slug** `demo-crm` · **email** `demo@crmpro.com` · **contraseña** `demo1234`
+
+Demo: 8 clientes con etiquetas (vip, nuevo, frecuente, mayorista, pendiente…), 10
+visitas (6 realizadas + 4 próximas) y 6 seguimientos de contacto. El dashboard
+resume la cartera (clientes con email/teléfono, vencidos, visitas a 30 días y
+próximas). Los seguimientos soportan estado (pendiente/hecho/cancelado), fecha
+límite y detección automática de vencidos; por cliente se consulta su resumen con
+historial de visitas y seguimientos abiertos (`GET /api/customers/:id` y
+`GET /api/followups/stats`).
+
 ## Comandos
 
 | Comando | Qué hace |
@@ -165,6 +183,8 @@ negocio en Configuración. El webhook recibe `{ to, text }` con
 | `npm run seed:documentos` | siembra datos demo de documentos |
 | `npm run dev:recordatorios` | arranca recordatorios (Alertas Pro) en modo watch |
 | `npm run seed:recordatorios` | siembra datos demo de recordatorios |
+| `npm run dev:crm` | arranca el CRM (gestión de clientes) en modo watch |
+| `npm run seed:crm` | siembra datos demo del CRM |
 | `npm run test` | tests del core (vitest) |
 | `npm run build` | compila core + productos a `dist/` |
 | `npm start` (en el producto) | corre la versión compilada |

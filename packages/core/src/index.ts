@@ -11,3 +11,4 @@ export { reminderService, type SendResult } from './modules/reminders/service.js
 export { resourcesRouter } from './modules/resources/routes.js';
 export { workordersRouter } from './modules/workorders/routes.js';
 export { remindersRouter } from './modules/reminders/routes.js';
+export { followupsRouter } from './modules/followups/routes.js';

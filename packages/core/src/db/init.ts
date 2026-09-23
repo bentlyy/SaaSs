@@ -192,6 +192,18 @@ CREATE TABLE IF NOT EXISTS work_order_parts (
   unit_price_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS followups (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  body TEXT,
+  due_date TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_customers_tenant ON customers(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_services_tenant ON services(tenant_id);
@@ -207,6 +219,8 @@ CREATE INDEX IF NOT EXISTS idx_work_orders_tenant ON work_orders(tenant_id, stat
 CREATE INDEX IF NOT EXISTS idx_work_orders_customer ON work_orders(customer_id);
 CREATE INDEX IF NOT EXISTS idx_work_order_services_order ON work_order_services(order_id);
 CREATE INDEX IF NOT EXISTS idx_work_order_parts_order ON work_order_parts(order_id);
+CREATE INDEX IF NOT EXISTS idx_followups_tenant ON followups(tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_followups_customer ON followups(customer_id);
 `;
 
 function ensureColumn(sqlite: Database.Database, table: string, column: string, ddl: string) {

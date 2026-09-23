@@ -1,0 +1,25 @@
+{
+  "name": "crm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Gestión de clientes / CRM liviano (producto #8 de SaaS Mini): cartera con etiquetas, seguimientos y actividad de visitas.",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "seed": "tsx src/seed.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@saas-mini/core": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

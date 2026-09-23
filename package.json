@@ -7,7 +7,7 @@
   ],
   "scripts": {
     "dev": "npm run dev -w peluqueria",
-    "build": "npm run build -w @saas-mini/core && npm run build -w peluqueria && npm run build -w deportes && npm run build -w talleres && npm run build -w inventario && npm run build -w cotizaciones && npm run build -w documentos && npm run build -w recordatorios",
+    "build": "npm run build -w @saas-mini/core && npm run build -w peluqueria && npm run build -w deportes && npm run build -w talleres && npm run build -w inventario && npm run build -w cotizaciones && npm run build -w documentos && npm run build -w recordatorios && npm run build -w crm",
     "seed": "npm run seed -w peluqueria",
     "seed:deportes": "npm run seed -w deportes",
     "dev:deportes": "npm run dev -w deportes",
@@ -21,6 +21,8 @@
     "dev:documentos": "npm run dev -w documentos",
     "seed:recordatorios": "npm run seed -w recordatorios",
     "dev:recordatorios": "npm run dev -w recordatorios",
+    "seed:crm": "npm run seed -w crm",
+    "dev:crm": "npm run dev -w crm",
     "test": "npm run test -w @saas-mini/core",
     "typecheck": "npm run typecheck -ws --if-present"
   },

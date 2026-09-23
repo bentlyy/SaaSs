@@ -165,6 +165,19 @@ export const inventoryMovements = sqliteTable('inventory_movements', {
 });
 
 export const workOrderStatus = ['received', 'estimated', 'in_progress', 'done', 'cancelled'] as const;
+export const followupStatus = ['pending', 'done', 'cancelled'] as const;
+
+export const followups = sqliteTable('followups', {
+  id: id(),
+  tenant_id: tenantCol(),
+  customer_id: text('customer_id').notNull().references(() => customers.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  body: text('body'),
+  due_date: text('due_date'),
+  status: text('status', { enum: followupStatus }).notNull().default('pending'),
+  created_at: ts('created_at'),
+  updated_at: ts('updated_at'),
+});
 
 export const workOrders = sqliteTable('work_orders', {
   id: id(),
@@ -220,7 +233,9 @@ export const schema = {
   workOrders,
   workOrderServices,
   workOrderParts,
+  followups,
   appointmentStatus,
   workOrderStatus,
+  followupStatus,
   channels,
 };
