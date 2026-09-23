@@ -11,7 +11,8 @@ operar. Un solo código base (core) multi-tenant alimenta varios productos verti
 │   ├── peluqueria/           ← Producto #1: agenda y gestión para peluquerías/barberías
 │   ├── deportes/             ← Producto #2: reservas por bloque para centros deportivos
 │   ├── talleres/             ← Producto #3: órdenes de trabajo e inventario de piezas
-│   └── inventario/           ← Producto #4: control de stock con movimientos trazables
+│   ├── inventario/           ← Producto #4: control de stock con movimientos trazables
+│   └── cotizaciones/         ← Producto #5: presupuestos y recibos profesionales en PDF
 └── package.json              ← npm workspaces
 ```
 
@@ -23,7 +24,7 @@ operar. Un solo código base (core) multi-tenant alimenta varios productos verti
 | 2 | Reservas para centros deportivos | ✅ MVP completo | módulo de recursos/canchas + reservas por bloque |
 | 3 | Gestión de talleres | ✅ MVP completo | módulo de órdenes de trabajo + piezas que consumen inventario |
 | 4 | Control de inventario | ✅ MVP completo | módulo standalone de artículos + movimientos (endpoint `/movements` con filtros y trazabilidad) |
-| 5 | Cotizaciones | ⬜ | módulo standalone |
+| 5 | Cotizaciones | ✅ MVP completo | módulo standalone de documentos: cotizaciones + recibos con estados y PDF |
 | 6 | Generación de documentos | ⬜ | módulo standalone |
 | 7 | Recordatorios WhatsApp/email | ⬜ | pasarela + panel de envíos |
 | 8 | Gestión de clientes | ⬜ | CRM liviano |
@@ -99,6 +100,20 @@ trazable (entradas/salidas con usuario, fecha y motivo) y filtros por tipo y
 artículo; avisos de bajo stock y valor del inventario. El endpoint
 `GET /api/inventory/movements` acepta `itemId`, `type=in|out` y `limit`.
 
+## Probar el MVP (cotizaciones)
+
+```bash
+npm run seed:cotizaciones   # crea el despacho demo
+npm run dev:cotizaciones    # http://localhost:3004
+```
+
+Credenciales demo: **slug** `demo-cotizaciones` · **email** `demo@cotizaciones.com` · **contraseña** `demo1234`
+
+Demo: 5 clientes, cotizaciones con líneas (cantidad × precio), impuesto %, estados
+Borrador → Enviada → Aceptada/Rechazada y recibos de cobros. Cada documento genera un
+PDF listo para descargar/entregar con encabezado del negocio (nombre, dirección,
+teléfono), detalle de líneas y totales con impuesto.
+
 ## Comandos
 
 | Comando | Qué hace |
@@ -111,6 +126,8 @@ artículo; avisos de bajo stock y valor del inventario. El endpoint
 | `npm run seed:talleres` | siembra datos demo del taller |
 | `npm run dev:inventario` | arranca inventario en modo watch |
 | `npm run seed:inventario` | siembra datos demo del almacén |
+| `npm run dev:cotizaciones` | arranca cotizaciones en modo watch |
+| `npm run seed:cotizaciones` | siembra datos demo del despacho |
 | `npm run test` | tests del core (vitest) |
 | `npm run build` | compila core + productos a `dist/` |
 | `npm start` (en el producto) | corre la versión compilada |
