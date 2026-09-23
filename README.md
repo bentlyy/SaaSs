@@ -8,7 +8,8 @@ operar. Un solo código base (core) multi-tenant alimenta varios productos verti
 ├── packages/
 │   └── core/                 ← Núcleo reutilizable (Node + TS + Express + Drizzle/SQLite)
 ├── products/
-│   └── peluqueria/           ← Producto #1: agenda y gestión para peluquerías/barberías
+│   ├── peluqueria/           ← Producto #1: agenda y gestión para peluquerías/barberías
+│   └── deportes/             ← Producto #2: reservas por bloque para centros deportivos
 └── package.json              ← npm workspaces
 ```
 
@@ -17,7 +18,7 @@ operar. Un solo código base (core) multi-tenant alimenta varios productos verti
 | # | Producto | Estado | Diferencia vs core |
 |---|----------|--------|--------------------|
 | 1 | Agenda para peluquerías | ✅ MVP completo | branding + seed |
-| 2 | Reservas para centros deportivos | ⬜ | módulo de recursos/canchas + reservas por bloque |
+| 2 | Reservas para centros deportivos | ✅ MVP completo | módulo de recursos/canchas + reservas por bloque |
 | 3 | Gestión de talleres | ⬜ | órdenes de trabajo + inventario con piezas |
 | 4 | Control de inventario | ⬜ | módulo standalone |
 | 5 | Cotizaciones | ⬜ | módulo standalone |
@@ -55,12 +56,27 @@ Credenciales demo: **slug** `demo-pelu` · **email** `demo@pelu.com` · **contra
 
 O crea tu propio negocio desde el botón "Crear cuenta" (multi-tenant).
 
+## Probar el MVP (deportes)
+
+```bash
+npm run seed -w deportes   # crea el centro deportivo demo
+npm run dev -w deportes    # http://localhost:3000
+```
+
+Credenciales demo: **slug** `demo-deportes` · **email** `demo@deportes.com` · **contraseña** `demo1234`
+
+Demo: 5 canchas/instalaciones (Fútbol 7/11, Basquetbol, Frontón, Sala de Yoga),
+reservas por bloque con detección de solape por cancha (409) y vistas de canchas
+como recursos (color, capacidad y precio/hora).
+
 ## Comandos
 
 | Comando | Qué hace |
 |---------|----------|
 | `npm run dev` | arranca peluquería en modo watch (`tsx`) |
 | `npm run seed` | siembra datos demo |
+| `npm run dev:deportes` | arranca deportes en modo watch |
+| `npm run seed:deportes` | siembra datos demo del centro deportivo |
 | `npm run test` | tests del core (vitest) |
 | `npm run build` | compila core + productos a `dist/` |
 | `npm start` (en el producto) | corre la versión compilada |

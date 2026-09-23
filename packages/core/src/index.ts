@@ -8,3 +8,4 @@ export { authRequired, requireRole, signSession } from './middleware/auth.js';
 export { AppError, asyncHandler } from './utils/http.js';
 export { startReminderScheduler, stopReminderScheduler, processDueReminders } from './modules/reminders/scheduler.js';
 export { reminderService, type SendResult } from './modules/reminders/service.js';
+export { resourcesRouter } from './modules/resources/routes.js';

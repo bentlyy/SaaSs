@@ -42,11 +42,13 @@ authRouter.post(
 
     const hash = await bcrypt.hash(input.password, 10);
 
+    const defaultProduct = String(req.app.locals?.defaultProduct ?? 'peluqueria');
+
     const insert = sqlite.transaction(() => {
       const tenant = db.insert(schema.tenants).values({
         slug: input.slug,
         name: input.businessName,
-        product: 'peluqueria',
+        product: defaultProduct,
       }).returning().get();
 
       const user = db.insert(schema.users).values({

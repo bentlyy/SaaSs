@@ -130,10 +130,20 @@ describe('agenda (citas)', () => {
     expect(res.status).toBe(400);
   });
 
-  it('validación: sin servicios falla', async () => {
+  it('permite cita sin servicios (reserva de recurso)', async () => {
     const { customer } = await seed();
     const start = startOfToday(); start.setHours(9, 0, 0, 0);
-    const res = await post('/api/appointments', { customerId: customer.id, serviceIds: [], startAt: start.toISOString(), durationMin: 30 });
-    expect(res.status).toBe(400);
+    const res = await post('/api/appointments', { customerId: customer.id, startAt: start.toISOString(), durationMin: 30 });
+    expect(res.status).toBe(201);
+  });
+
+  it('rechaza cita sin cliente (404)', async () => {
+    const { service, staff } = await seed();
+    const start = startOfToday(); start.setHours(9, 0, 0, 0);
+    const res = await post('/api/appointments', {
+      customerId: createId('cus'), staffId: staff.id, serviceIds: [service.id],
+      startAt: start.toISOString(), durationMin: 30,
+    });
+    expect(res.status).toBe(404);
   });
 });

@@ -9,6 +9,8 @@
     "dev": "npm run dev -w peluqueria",
     "build": "npm run build -w @saas-mini/core && npm run build -w peluqueria",
     "seed": "npm run seed -w peluqueria",
+    "seed:deportes": "npm run seed -w deportes",
+    "dev:deportes": "npm run dev -w deportes",
     "test": "npm run test -w @saas-mini/core",
     "typecheck": "npm run typecheck -ws --if-present"
   },

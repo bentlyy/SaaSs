@@ -65,6 +65,7 @@ appointmentsRouter.post(
         tenant_id: tenantId,
         customer_id: input.customerId,
         staff_id: input.staffId ?? null,
+        resource_id: input.resourceId ?? null,
         start_at: new Date(input.startAt).toISOString(),
         end_at: endAt,
         notes: input.notes ?? '',
@@ -105,6 +106,7 @@ appointmentsRouter.put(
         .set({
           customer_id: input.customerId,
           staff_id: input.staffId ?? null,
+          resource_id: input.resourceId ?? null,
           start_at: new Date(input.startAt).toISOString(),
           end_at: endAt,
           notes: input.notes ?? '',
@@ -171,6 +173,7 @@ function validateServices(
 ) {
   getCustomer(db, tenantId, input.customerId);
   if (input.staffId) getStaff(db, tenantId, input.staffId);
+  if (input.resourceId) getResource(db, tenantId, input.resourceId);
   const svcs = db.select().from(schema.services)
     .where(and(inArray(schema.services.id, input.serviceIds), eq(schema.services.tenant_id, tenantId)))
     .all();
@@ -178,7 +181,7 @@ function validateServices(
 }
 
 /**
- * Detecta solapamientos con otras citas activas del mismo empleado.
+ * Detecta solapamientos con otras citas activas del mismo empleado o recurso.
  */
 function ensureNoConflict(
   db: ReturnType<typeof getDb>['db'],
@@ -186,7 +189,7 @@ function ensureNoConflict(
   input: z.infer<typeof appointmentSchema>,
   excludeId: string | undefined,
 ) {
-  if (!input.staffId) return;
+  if (!input.staffId && !input.resourceId) return;
   const start = new Date(input.startAt).getTime();
   const end = start + input.durationMin * 60_000;
   // ventana amplia para la consulta (query barata + filtro exacto en memoria)
@@ -194,23 +197,44 @@ function ensureNoConflict(
   const padEnd = new Date(end + 24 * 60 * 60_000).toISOString();
 
   const active: (typeof schema.appointments.$inferSelect)['status'][] = ['pending', 'confirmed'];
-  const candidates = db.select().from(schema.appointments)
-    .where(and(
-      eq(schema.appointments.tenant_id, tenantId),
-      eq(schema.appointments.staff_id, input.staffId),
-      inArray(schema.appointments.status, active),
-      gte(schema.appointments.start_at, padStart),
-      lte(schema.appointments.start_at, padEnd),
-    ))
-    .all()
-    .filter((a) => a.id !== excludeId);
 
-  const clash = candidates.some((a) => {
-    const aStart = Date.parse(a.start_at);
-    const aEnd = Date.parse(a.end_at);
-    return aStart < end && aEnd > start; // intersección real
-  });
-  if (clash) throw new AppError(409, 'Conflicto: ese empleado ya tiene una cita en ese horario');
+  if (input.staffId) {
+    const candidates = db.select().from(schema.appointments)
+      .where(and(
+        eq(schema.appointments.tenant_id, tenantId),
+        eq(schema.appointments.staff_id, input.staffId),
+        inArray(schema.appointments.status, active),
+        gte(schema.appointments.start_at, padStart),
+        lte(schema.appointments.start_at, padEnd),
+      ))
+      .all()
+      .filter((a) => a.id !== excludeId);
+
+    const clash = candidates.some((a) => overlaps(a, start, end));
+    if (clash) throw new AppError(409, 'Conflicto: ese empleado ya tiene una cita en ese horario');
+  }
+
+  if (input.resourceId) {
+    const candidates = db.select().from(schema.appointments)
+      .where(and(
+        eq(schema.appointments.tenant_id, tenantId),
+        eq(schema.appointments.resource_id, input.resourceId),
+        inArray(schema.appointments.status, active),
+        gte(schema.appointments.start_at, padStart),
+        lte(schema.appointments.start_at, padEnd),
+      ))
+      .all()
+      .filter((a) => a.id !== excludeId);
+
+    const clash = candidates.some((a) => overlaps(a, start, end));
+    if (clash) throw new AppError(409, 'Conflicto: ese recurso ya está reservado en ese horario');
+  }
+}
+
+function overlaps(a: { start_at: string; end_at: string }, start: number, end: number) {
+  const aStart = Date.parse(a.start_at);
+  const aEnd = Date.parse(a.end_at);
+  return aStart < end && aEnd > start; // intersección real
 }
 
 function getOwned(db: ReturnType<typeof getDb>['db'], tenantId: string, id: string) {

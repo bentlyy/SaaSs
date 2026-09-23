@@ -13,6 +13,7 @@ import { staffRouter } from './modules/staff/routes.js';
 import { appointmentsRouter } from './modules/appointments/routes.js';
 import { documentsRouter } from './modules/documents/routes.js';
 import { inventoryRouter } from './modules/inventory/routes.js';
+import { resourcesRouter } from './modules/resources/routes.js';
 import { dashboardRouter } from './modules/dashboard/routes.js';
 
 export interface ProductConfig {
@@ -20,7 +21,7 @@ export interface ProductConfig {
   product: string;
   /** Carpeta pública estática (UI del producto). Se sirve en `/`. */
   staticDir?: string;
-  routers?: Partial<Record<'customers' | 'services' | 'staff' | 'appointments' | 'documents' | 'inventory' | 'dashboard', boolean>>;
+  routers?: Partial<Record<'customers' | 'services' | 'staff' | 'appointments' | 'documents' | 'inventory' | 'resources' | 'dashboard', boolean>>;
 }
 
 const defaultRouters: Required<NonNullable<ProductConfig['routers']>> = {
@@ -30,12 +31,16 @@ const defaultRouters: Required<NonNullable<ProductConfig['routers']>> = {
   appointments: true,
   documents: true,
   inventory: true,
+  resources: false,
   dashboard: true,
 };
 
 export function createApp(product: ProductConfig): Express {
   const routers = { ...defaultRouters, ...product.routers };
   const app = express();
+
+  // producto por defecto al registrar tenants (lo lee auth/register)
+  app.locals.defaultProduct = product.product;
 
   app.disable('x-powered-by');
   app.use(helmet({ contentSecurityPolicy: false }));
@@ -68,6 +73,7 @@ export function createApp(product: ProductConfig): Express {
   if (routers.appointments) app.use('/api/appointments', appointmentsRouter);
   if (routers.documents) app.use('/api/documents', documentsRouter);
   if (routers.inventory) app.use('/api/inventory', inventoryRouter);
+  if (routers.resources) app.use('/api/resources', resourcesRouter);
   if (routers.dashboard) app.use('/api/dashboard', dashboardRouter);
 
   app.use(notFound);
