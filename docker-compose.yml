@@ -1,0 +1,128 @@
+# Suite SaaS Mini: 8 productos sobre una misma imagen (core + build).
+# Cada servicio corre un workspace y persiste su SQLite en el volumen saasmini_data.
+# Los JWT vienen del archivo .env de compose (generado en el servidor, NO commiteado).
+
+x-app: &app
+  image: saas-mini:latest
+  build: .
+  restart: unless-stopped
+  volumes:
+    - saasmini_data:/app/data
+  environment: &base-env
+    NODE_ENV: production
+
+services:
+  peluqueria:
+    <<: *app
+    container_name: saasmini-peluqueria
+    ports:
+      - "127.0.0.1:3100:3000"
+    environment:
+      <<: *base-env
+      PRODUCT: peluqueria
+      PORT: "3000"
+      DB_PATH: /app/data/peluqueria/app.db
+      JWT_SECRET: ${PELU_JWT:?falta PELU_JWT en .env}
+      APP_NAME: Peluqueria
+      APP_URL: https://peluqueria.amgdeveloper.cl
+
+  deportes:
+    <<: *app
+    container_name: saasmini-deportes
+    ports:
+      - "127.0.0.1:3101:3000"
+    environment:
+      <<: *base-env
+      PRODUCT: deportes
+      PORT: "3000"
+      DB_PATH: /app/data/deportes/app.db
+      JWT_SECRET: ${DEPO_JWT:?falta DEPO_JWT en .env}
+      APP_NAME: Deportes
+      APP_URL: https://deportes.amgdeveloper.cl
+
+  talleres:
+    <<: *app
+    container_name: saasmini-talleres
+    ports:
+      - "127.0.0.1:3102:3000"
+    environment:
+      <<: *base-env
+      PRODUCT: talleres
+      PORT: "3000"
+      DB_PATH: /app/data/talleres/app.db
+      JWT_SECRET: ${TALLE_JWT:?falta TALLE_JWT en .env}
+      APP_NAME: Talleres
+      APP_URL: https://talleres.amgdeveloper.cl
+
+  inventario:
+    <<: *app
+    container_name: saasmini-inventario
+    ports:
+      - "127.0.0.1:3103:3000"
+    environment:
+      <<: *base-env
+      PRODUCT: inventario
+      PORT: "3000"
+      DB_PATH: /app/data/inventario/app.db
+      JWT_SECRET: ${INV_JWT:?falta INV_JWT en .env}
+      APP_NAME: Inventario
+      APP_URL: https://inventario.amgdeveloper.cl
+
+  cotizaciones:
+    <<: *app
+    container_name: saasmini-cotizaciones
+    ports:
+      - "127.0.0.1:3104:3000"
+    environment:
+      <<: *base-env
+      PRODUCT: cotizaciones
+      PORT: "3000"
+      DB_PATH: /app/data/cotizaciones/app.db
+      JWT_SECRET: ${COTI_JWT:?falta COTI_JWT en .env}
+      APP_NAME: Cotizaciones
+      APP_URL: https://cotizaciones.amgdeveloper.cl
+
+  documentos:
+    <<: *app
+    container_name: saasmini-documentos
+    ports:
+      - "127.0.0.1:3105:3000"
+    environment:
+      <<: *base-env
+      PRODUCT: documentos
+      PORT: "3000"
+      DB_PATH: /app/data/documentos/app.db
+      JWT_SECRET: ${DOCU_JWT:?falta DOCU_JWT en .env}
+      APP_NAME: DocuPro
+      APP_URL: https://docupro.amgdeveloper.cl
+
+  recordatorios:
+    <<: *app
+    container_name: saasmini-recordatorios
+    ports:
+      - "127.0.0.1:3106:3000"
+    environment:
+      <<: *base-env
+      PRODUCT: recordatorios
+      PORT: "3000"
+      DB_PATH: /app/data/recordatorios/app.db
+      JWT_SECRET: ${ALER_JWT:?falta ALER_JWT en .env}
+      APP_NAME: Alertas
+      APP_URL: https://recordatorios.amgdeveloper.cl
+
+  crm:
+    <<: *app
+    container_name: saasmini-crm
+    ports:
+      - "127.0.0.1:3107:3000"
+    environment:
+      <<: *base-env
+      PRODUCT: crm
+      PORT: "3000"
+      DB_PATH: /app/data/crm/app.db
+      JWT_SECRET: ${CRM_JWT:?falta CRM_JWT en .env}
+      APP_NAME: CRM Pro
+      APP_URL: https://crm.amgdeveloper.cl
+
+volumes:
+  saasmini_data:
