@@ -13,7 +13,8 @@ operar. Un solo código base (core) multi-tenant alimenta varios productos verti
 │   ├── talleres/             ← Producto #3: órdenes de trabajo e inventario de piezas
 │   ├── inventario/           ← Producto #4: control de stock con movimientos trazables
 │   ├── cotizaciones/         ← Producto #5: presupuestos y recibos profesionales en PDF
-│   └── documentos/           ← Producto #6: generación de documentos (facturas, notas, etc.)
+│   ├── documentos/           ← Producto #6: generación de documentos (facturas, notas, etc.)
+│   └── recordatorios/        ← Producto #7: recordatorios automáticos WhatsApp/email
 └── package.json              ← npm workspaces
 ```
 
@@ -27,7 +28,7 @@ operar. Un solo código base (core) multi-tenant alimenta varios productos verti
 | 4 | Control de inventario | ✅ MVP completo | módulo standalone de artículos + movimientos (endpoint `/movements` con filtros y trazabilidad) |
 | 5 | Cotizaciones | ✅ MVP completo | módulo standalone de documentos: cotizaciones + recibos con estados y PDF |
 | 6 | Generación de documentos | ✅ MVP completo | módulo de documentos ampliado: 4 tipos (factura, nota de venta, cotización, recibo) + catálogo de conceptos con precio |
-| 7 | Recordatorios WhatsApp/email | ⬜ | pasarela + panel de envíos |
+| 7 | Recordatorios WhatsApp/email | ✅ MVP completo | panel de envíos: canales (SMTP + webhook), histórico `reminder_logs` y API `/api/reminders` |
 | 8 | Gestión de clientes | ⬜ | CRM liviano |
 
 Todos comparten **clientes, agenda/reservas, recordatorios, cotizaciones, documentos
@@ -129,6 +130,23 @@ Demo: 5 clientes, catálogo de 8 conceptos con precio y 7 documentos de los **4 
 descargable. Al crear un documento puedes agregar líneas desde el catálogo o manuales,
 con impuesto % y encabezado del negocio en el PDF (nombre, dirección y teléfono).
 
+## Probar el MVP (recordatorios)
+
+```bash
+npm run seed:recordatorios   # crea el negocio demo
+npm run dev:recordatorios    # http://localhost:3006
+```
+
+Credenciales demo: **slug** `demo-recordatorios` · **email** `demo@alertas.com` · **contraseña** `demo1234`
+
+Demo: 2 profesionales, 5 servicios y 5 clientes con 6 citas (3 confirmadas dentro de
+la ventana de 24 h). El scheduler corre cada minuto y envía recordatorios por los
+canales activos sin duplicar. En "Envíos" ves el histórico (`reminder_logs`) con
+filtros por canal/estado, y en "Próximas citas" puedes disparar un recordatorio de
+prueba por Email o WhatsApp. Configura SMTP en `.env` y el webhook de WhatsApp por
+negocio en Configuración. El webhook recibe `{ to, text }` con
+`Authorization: Bearer <token>` (Twilio, 360dialog, WATI, plataforma propia).
+
 ## Comandos
 
 | Comando | Qué hace |
@@ -145,6 +163,8 @@ con impuesto % y encabezado del negocio en el PDF (nombre, dirección y teléfon
 | `npm run seed:cotizaciones` | siembra datos demo del despacho |
 | `npm run dev:documentos` | arranca documentos (DocuPro) en modo watch |
 | `npm run seed:documentos` | siembra datos demo de documentos |
+| `npm run dev:recordatorios` | arranca recordatorios (Alertas Pro) en modo watch |
+| `npm run seed:recordatorios` | siembra datos demo de recordatorios |
 | `npm run test` | tests del core (vitest) |
 | `npm run build` | compila core + productos a `dist/` |
 | `npm start` (en el producto) | corre la versión compilada |

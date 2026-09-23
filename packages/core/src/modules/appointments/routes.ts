@@ -237,7 +237,7 @@ function overlaps(a: { start_at: string; end_at: string }, start: number, end: n
   return aStart < end && aEnd > start; // intersección real
 }
 
-function getOwned(db: ReturnType<typeof getDb>['db'], tenantId: string, id: string) {
+export function getOwned(db: ReturnType<typeof getDb>['db'], tenantId: string, id: string) {
   const row = db.select().from(schema.appointments)
     .where(and(eq(schema.appointments.id, id), eq(schema.appointments.tenant_id, tenantId)))
     .get();

@@ -63,7 +63,7 @@ export async function processDueReminders(now = new Date()): Promise<number> {
   return sent;
 }
 
-function buildMessage(tenant: typeof schema.tenants.$inferSelect, meta: NonNullable<ReturnType<typeof attachReminderMeta>>) {
+export function buildMessage(tenant: typeof schema.tenants.$inferSelect, meta: NonNullable<ReturnType<typeof attachReminderMeta>>) {
   const when = new Date(meta.appointment.start_at);
   const fmt = new Intl.DateTimeFormat('es', {
     timeZone: tenant.timezone,
