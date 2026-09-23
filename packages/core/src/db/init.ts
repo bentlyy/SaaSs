@@ -75,11 +75,24 @@ CREATE TABLE IF NOT EXISTS staff_services (
   service_id TEXT NOT NULL REFERENCES services(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS resources (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'cancha',
+  capacity INTEGER NOT NULL DEFAULT 10,
+  price_per_hour INTEGER NOT NULL DEFAULT 0,
+  color TEXT NOT NULL DEFAULT '#0891b2',
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS appointments (
   id TEXT PRIMARY KEY,
   tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE RESTRICT,
   staff_id TEXT REFERENCES staff(id) ON DELETE SET NULL,
+  resource_id TEXT REFERENCES resources(id) ON DELETE SET NULL,
   start_at TEXT NOT NULL,
   end_at TEXT NOT NULL,
   notes TEXT,
@@ -147,13 +160,22 @@ CREATE TABLE IF NOT EXISTS inventory_movements (
 CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_customers_tenant ON customers(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_services_tenant ON services(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_resources_tenant ON resources(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_staff_tenant ON staff(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_appointments_tenant_start ON appointments(tenant_id, start_at);
 CREATE INDEX IF NOT EXISTS idx_appointments_customer ON appointments(customer_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_resource ON appointments(resource_id);
 CREATE INDEX IF NOT EXISTS idx_reminder_logs_appt ON reminder_logs(appointment_id);
 CREATE INDEX IF NOT EXISTS idx_documents_tenant ON documents(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_tenant ON inventory_items(tenant_id);
 `;
+
+function ensureColumn(sqlite: Database.Database, table: string, column: string, ddl: string) {
+  const cols = sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === column)) {
+    sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+  }
+}
 
 export interface DbHandle {
   sqlite: Database.Database;
@@ -168,6 +190,8 @@ export function createDb(path = config.dbPath): DbHandle {
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('foreign_keys = ON');
   sqlite.exec(DDL);
+  // migración 2026-02: reservas por recurso (producto deportes)
+  ensureColumn(sqlite, 'appointments', 'resource_id', 'TEXT REFERENCES resources(id) ON DELETE SET NULL');
   const db = drizzle(sqlite, { schema });
   return { sqlite, db };
 }

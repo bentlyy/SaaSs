@@ -7,6 +7,7 @@ import { authRequired } from '../../middleware/auth.js';
 import { getOwned as getCustomer } from '../customers/routes.js';
 import { getOwned as getService } from '../services/routes.js';
 import { getOwned as getStaff } from '../staff/routes.js';
+import { getOwned as getResource } from '../resources/routes.js';
 
 export const appointmentsRouter = Router();
 appointmentsRouter.use(authRequired);
@@ -16,9 +17,10 @@ const isoDateTime = z.string().refine((v) => !isNaN(Date.parse(v)), 'Fecha/hora 
 const appointmentSchema = z.object({
   customerId: z.string().min(1),
   staffId: z.string().min(1).nullable().optional(),
+  resourceId: z.string().min(1).nullable().optional(),
   startAt: isoDateTime,
   durationMin: z.number().int().min(5).max(600),
-  serviceIds: z.array(z.string()).min(1, 'Selecciona al menos un servicio'),
+  serviceIds: z.array(z.string()).max(20).optional().default([]),
   notes: z.string().max(2000).or(z.literal('')).optional(),
   status: z.enum(schema.appointmentStatus).optional(),
 });

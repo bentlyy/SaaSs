@@ -78,6 +78,18 @@ export const staffServices = sqliteTable('staff_services', {
   service_id: text('service_id').notNull().references(() => services.id, { onDelete: 'cascade' }),
 });
 
+export const resources = sqliteTable('resources', {
+  id: id(),
+  tenant_id: tenantCol(),
+  name: text('name').notNull(),
+  type: text('type').notNull().default('cancha'),
+  capacity: integer('capacity').notNull().default(10),
+  pricePerHour: integer('price_per_hour').notNull().default(0),
+  color: text('color').notNull().default('#0891b2'),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  created_at: ts('created_at'),
+});
+
 export const appointmentStatus = ['pending', 'confirmed', 'done', 'cancelled', 'noshow'] as const;
 
 export const appointments = sqliteTable('appointments', {
@@ -85,6 +97,7 @@ export const appointments = sqliteTable('appointments', {
   tenant_id: tenantCol(),
   customer_id: text('customer_id').notNull().references(() => customers.id, { onDelete: 'restrict' }),
   staff_id: text('staff_id').references(() => staffMembers.id, { onDelete: 'set null' }),
+  resource_id: text('resource_id').references(() => resources.id, { onDelete: 'set null' }),
   start_at: text('start_at').notNull(),
   end_at: text('end_at').notNull(),
   notes: text('notes'),
@@ -160,6 +173,7 @@ export const schema = {
   services,
   staffMembers,
   staffServices,
+  resources,
   appointments,
   appointmentServices,
   reminderLogs,
