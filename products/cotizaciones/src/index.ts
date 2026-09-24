@@ -5,7 +5,7 @@ import { createApp, logger, getDb, config } from '@saas-mini/core';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 getDb();
 const app = createApp({
-  name: 'Cotizaciones Pro',
+  name: 'Cotizaciones y Presupuestos',
   product: 'cotizaciones',
   routers: {
     documents: true,

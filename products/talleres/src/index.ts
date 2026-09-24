@@ -5,7 +5,7 @@ import { createApp, logger, getDb, startReminderScheduler, config } from '@saas-
 const __dirname = dirname(fileURLToPath(import.meta.url));
 getDb();
 const app = createApp({
-  name: 'Talleres Pro',
+  name: 'Órdenes de Trabajo',
   product: 'talleres',
   routers: {
     workorders: true,

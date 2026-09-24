@@ -5,7 +5,7 @@ import { createApp, logger, getDb, config } from '@saas-mini/core';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 getDb();
 const app = createApp({
-  name: 'CRM Pro',
+  name: 'Gestión de Clientes',
   product: 'crm',
   routers: {
     customers: true,

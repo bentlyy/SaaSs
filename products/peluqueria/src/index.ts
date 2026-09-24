@@ -7,7 +7,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 getDb();
 
 const app = createApp({
-  name: 'Agenda Peluquería',
+  name: 'Agenda de Citas',
   product: 'peluqueria',
   staticDir: join(__dirname, '..', 'public'),
 });

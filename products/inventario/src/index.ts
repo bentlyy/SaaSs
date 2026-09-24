@@ -5,7 +5,7 @@ import { createApp, logger, getDb, config } from '@saas-mini/core';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 getDb();
 const app = createApp({
-  name: 'Inventario Pro',
+  name: 'Almacenaje',
   product: 'inventario',
   routers: {
     inventory: true,
