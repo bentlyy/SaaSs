@@ -23,7 +23,7 @@ services:
       PORT: "3000"
       DB_PATH: /app/data/peluqueria/app.db
       JWT_SECRET: ${PELU_JWT:?falta PELU_JWT en .env}
-      APP_NAME: Peluqueria
+      APP_NAME: Agenda de Citas
       APP_URL: https://peluqueria.amgdeveloper.cl
 
   deportes:
@@ -37,7 +37,7 @@ services:
       PORT: "3000"
       DB_PATH: /app/data/deportes/app.db
       JWT_SECRET: ${DEPO_JWT:?falta DEPO_JWT en .env}
-      APP_NAME: Deportes
+      APP_NAME: Reservas de Canchas
       APP_URL: https://deportes.amgdeveloper.cl
 
   talleres:
@@ -51,7 +51,7 @@ services:
       PORT: "3000"
       DB_PATH: /app/data/talleres/app.db
       JWT_SECRET: ${TALLE_JWT:?falta TALLE_JWT en .env}
-      APP_NAME: Talleres
+      APP_NAME: Órdenes de Trabajo
       APP_URL: https://talleres.amgdeveloper.cl
 
   inventario:
@@ -65,7 +65,7 @@ services:
       PORT: "3000"
       DB_PATH: /app/data/inventario/app.db
       JWT_SECRET: ${INV_JWT:?falta INV_JWT en .env}
-      APP_NAME: Inventario
+      APP_NAME: Almacenaje
       APP_URL: https://inventario.amgdeveloper.cl
 
   cotizaciones:
@@ -79,7 +79,7 @@ services:
       PORT: "3000"
       DB_PATH: /app/data/cotizaciones/app.db
       JWT_SECRET: ${COTI_JWT:?falta COTI_JWT en .env}
-      APP_NAME: Cotizaciones
+      APP_NAME: Cotizaciones y Presupuestos
       APP_URL: https://cotizaciones.amgdeveloper.cl
 
   documentos:
@@ -93,7 +93,7 @@ services:
       PORT: "3000"
       DB_PATH: /app/data/documentos/app.db
       JWT_SECRET: ${DOCU_JWT:?falta DOCU_JWT en .env}
-      APP_NAME: DocuPro
+      APP_NAME: Documentos y Comprobantes
       APP_URL: https://docupro.amgdeveloper.cl
 
   recordatorios:
@@ -107,7 +107,7 @@ services:
       PORT: "3000"
       DB_PATH: /app/data/recordatorios/app.db
       JWT_SECRET: ${ALER_JWT:?falta ALER_JWT en .env}
-      APP_NAME: Alertas
+      APP_NAME: Recordatorios
       APP_URL: https://recordatorios.amgdeveloper.cl
 
   crm:
@@ -121,7 +121,7 @@ services:
       PORT: "3000"
       DB_PATH: /app/data/crm/app.db
       JWT_SECRET: ${CRM_JWT:?falta CRM_JWT en .env}
-      APP_NAME: CRM Pro
+      APP_NAME: Gestión de Clientes
       APP_URL: https://crm.amgdeveloper.cl
 
   landing:

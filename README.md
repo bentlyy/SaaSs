@@ -198,7 +198,7 @@ En producción el landing se sirve en **`https://desarrollo.amgdeveloper.cl`**
 | `npm run seed:cotizaciones` | siembra datos demo del despacho |
 | `npm run dev:documentos` | arranca documentos (DocuPro) en modo watch |
 | `npm run seed:documentos` | siembra datos demo de documentos |
-| `npm run dev:recordatorios` | arranca recordatorios (Alertas Pro) en modo watch |
+| `npm run dev:recordatorios` | arranca recordatorios en modo watch |
 | `npm run seed:recordatorios` | siembra datos demo de recordatorios |
 | `npm run dev:crm` | arranca el CRM (gestión de clientes) en modo watch |
 | `npm run seed:crm` | siembra datos demo del CRM |
@@ -217,7 +217,7 @@ SMTP_PORT=587
 SMTP_USER=
 SMTP_PASS=
 MAIL_FROM=no-reply@saas-mini.local
-APP_NAME=Peluquería
+APP_NAME=Agenda de Citas
 APP_URL=http://localhost:3000
 ```
 
