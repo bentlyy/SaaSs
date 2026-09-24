@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AMG — Suite de 8 herramientas operativas ligeras e independientes</title>
+<!-- Material Symbols Google Font (Exact link as mandated) -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Plus Jakarta Sans & JetBrains Mono Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Verbatim Tailwind Config Injection -->
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "inverse-primary": "#c6c6c9",
+            "on-surface-variant": "#44474a",
+            "on-primary": "#ffffff",
+            "primary-container": "#1e2022",
+            "on-surface": "#1b1c1a",
+            "tertiary-container": "#002042",
+            "on-primary-container": "#86878a",
+            "on-tertiary-fixed-variant": "#0a4783",
+            "on-secondary": "#ffffff",
+            "on-error-container": "#93000a",
+            "secondary-fixed-dim": "#ffb68c",
+            "primary-fixed-dim": "#c6c6c9",
+            "primary": "#06080a",
+            "surface-container-highest": "#e4e2df",
+            "tertiary-fixed-dim": "#a6c8ff",
+            "surface-dim": "#dbdad7",
+            "outline": "#75777a",
+            "on-error": "#ffffff",
+            "error-container": "#ffdad6",
+            "on-secondary-fixed": "#321200",
+            "secondary": "#994703",
+            "secondary-container": "#fc934f",
+            "on-secondary-fixed-variant": "#753400",
+            "on-secondary-container": "#6d3000",
+            "primary-fixed": "#e2e2e5",
+            "on-tertiary-fixed": "#001c3a",
+            "surface-variant": "#e4e2df",
+            "error": "#ba1a1a",
+            "surface-container": "#efeeeb",
+            "secondary-fixed": "#ffdbc9",
+            "on-tertiary-container": "#5b89c9",
+            "on-background": "#1b1c1a",
+            "on-tertiary": "#ffffff",
+            "background": "#fbf9f6",
+            "inverse-surface": "#30312f",
+            "surface-tint": "#5d5e61",
+            "on-primary-fixed": "#1a1c1e",
+            "surface-container-lowest": "#ffffff",
+            "outline-variant": "#c5c6ca",
+            "surface-bright": "#fbf9f6",
+            "tertiary-fixed": "#d4e3ff",
+            "surface-container-low": "#f5f3f0",
+            "tertiary": "#000818",
+            "surface": "#fbf9f6",
+            "inverse-on-surface": "#f2f0ed",
+            "surface-container-high": "#eae8e5",
+            "on-primary-fixed-variant": "#454749"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xs": "0.25rem",
+            "space-md": "0.875rem",
+            "space-xl": "2.25rem",
+            "space-lg": "1.5rem",
+            "gutter-desktop": "1.5rem",
+            "margin": "1.25rem",
+            "gutter": "1.25rem",
+            "margin-desktop": "3rem",
+            "space-sm": "0.5rem"
+          },
+          "fontFamily": {
+            "display-hero-mobile": [
+              "Plus Jakarta Sans"
+            ],
+            "headline-lg-mobile": [
+              "Plus Jakarta Sans"
+            ],
+            "label-caps": [
+              "Plus Jakarta Sans"
+            ],
+            "headline-sm": [
+              "Plus Jakarta Sans"
+            ],
+            "headline-lg": [
+              "Plus Jakarta Sans"
+            ],
+            "label-mono-xs": [
+              "JetBrains Mono"
+            ],
+            "body-md": [
+              "Plus Jakarta Sans"
+            ],
+            "display-hero": [
+              "Plus Jakarta Sans"
+            ],
+            "body-lg": [
+              "Plus Jakarta Sans"
+            ],
+            "headline-md": [
+              "Plus Jakarta Sans"
+            ],
+            "label-mono": [
+              "JetBrains Mono"
+            ],
+            "body-sm": [
+              "Plus Jakarta Sans"
+            ]
+          },
+          "fontSize": {
+            "display-hero-mobile": [
+              "36px",
+              {
+                "lineHeight": "44px",
+                "letterSpacing": "-0.025em",
+                "fontWeight": "700"
+              }
+            ],
+            "headline-lg-mobile": [
+              "26px",
+              {
+                "lineHeight": "34px",
+                "letterSpacing": "-0.015em",
+                "fontWeight": "600"
+              }
+            ],
+            "label-caps": [
+              "11px",
+              {
+                "lineHeight": "16px",
+                "letterSpacing": "0.06em",
+                "fontWeight": "700"
+              }
+            ],
+            "headline-sm": [
+              "18px",
+              {
+                "lineHeight": "26px",
+                "letterSpacing": "-0.01em",
+                "fontWeight": "600"
+              }
+            ],
+            "headline-lg": [
+              "32px",
+              {
+                "lineHeight": "40px",
+                "letterSpacing": "-0.02em",
+                "fontWeight": "600"
+              }
+            ],
+            "label-mono-xs": [
+              "10px",
+              {
+                "lineHeight": "14px",
+                "letterSpacing": "0.04em",
+                "fontWeight": "500"
+              }
+            ],
+            "body-md": [
+              "15px",
+              {
+                "lineHeight": "24px",
+                "letterSpacing": "0em",
+                "fontWeight": "400"
+              }
+            ],
+            "display-hero": [
+              "56px",
+              {
+                "lineHeight": "64px",
+                "letterSpacing": "-0.03em",
+                "fontWeight": "700"
+              }
+            ],
+            "body-lg": [
+              "17px",
+              {
+                "lineHeight": "26px",
+                "letterSpacing": "-0.005em",
+                "fontWeight": "400"
+              }
+            ],
+            "headline-md": [
+              "22px",
+              {
+                "lineHeight": "30px",
+                "letterSpacing": "-0.015em",
+                "fontWeight": "600"
+              }
+            ],
+            "label-mono": [
+              "12px",
+              {
+                "lineHeight": "16px",
+                "letterSpacing": "0.02em",
+                "fontWeight": "500"
+              }
+            ],
+            "body-sm": [
+              "13px",
+              {
+                "lineHeight": "20px",
+                "letterSpacing": "0.005em",
+                "fontWeight": "400"
+              }
+            ]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    
+    /* Warm ambient shadow custom treatment according to guidelines */
+    .bento-shadow {
+      box-shadow: 0 1px 2px rgba(44, 34, 20, 0.02), 0 8px 24px -4px rgba(44, 34, 20, 0.04);
+      transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .bento-shadow:hover {
+      box-shadow: 0 2px 4px rgba(44, 34, 20, 0.02), 0 16px 36px -6px rgba(44, 34, 20, 0.08);
+      transform: translateY(-2px);
+    }
+    .ambient-inset {
+      background-color: #F6F4EE;
+      border: 1px solid #EBE6DE;
+    }
+  </style>
+<meta name="description" content="AMG: un mapa visual de ocho herramientas operativas independientes para negocios reales.">
+<style>
+footer a { min-height: 24px; display: inline-flex; align-items: center; }
+.text-outline { color: #5f6368 !important; }
+</style>
+</head>
+<body class="bg-background text-on-surface antialiased selection:bg-surface-container-high selection:text-primary min-h-screen flex flex-col justify-between">
+<!-- ========================================== -->
+<!-- 1. TOP NAVBAR (Shared Component Mapping)  -->
+<!-- ========================================== -->
+<header class="sticky top-0 z-50 bg-surface dark:bg-primary-container shadow-sm dark:shadow-none border-b border-outline-variant/40 dark:border-outline/20 backdrop-blur-md bg-opacity-95">
+<nav aria-label="Navegación principal" class="max-w-7xl mx-auto px-gutter-desktop py-space-md flex items-center justify-between w-full">
+<!-- Brand Logo with Stylized AMG Geometry SVG -->
+<a class="flex items-center gap-3 text-headline-sm font-headline-sm text-primary dark:text-inverse-primary tracking-tight font-semibold group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg p-1" href="#">
+<svg aria-hidden="true" class="w-7 h-7 text-primary dark:text-inverse-primary transition-transform duration-200 group-hover:scale-105" fill="none" viewbox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<rect class="fill-primary dark:fill-inverse-primary" height="15" rx="3.5" width="10" x="2" y="2"></rect>
+<rect class="fill-primary/75 dark:fill-inverse-primary/80" height="7" rx="3" width="12" x="14" y="2"></rect>
+<rect class="fill-primary/90 dark:fill-inverse-primary/90" height="15" rx="3.5" width="12" x="14" y="11"></rect>
+<rect class="fill-primary/60 dark:fill-inverse-primary/70" height="7" rx="3" width="10" x="2" y="19"></rect>
+</svg>
+<span class="tracking-tight">AMG</span>
+</a>
+<!-- Desktop Links (Using exact anchors from Shared Components JSON) -->
+<div class="hidden md:flex items-center space-x-8">
+<a class="text-primary dark:text-inverse-primary border-b-2 border-primary dark:border-inverse-primary pb-1 font-semibold text-body-sm font-body-sm transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded" href="#herramientas">
+          Mapa de Herramientas
+        </a>
+<a class="text-on-surface-variant dark:text-outline-variant font-medium text-body-sm font-body-sm hover:text-primary dark:hover:text-inverse-primary transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded" href="#combinaciones">
+          Combinaciones
+        </a>
+<a class="text-on-surface-variant dark:text-outline-variant font-medium text-body-sm font-body-sm hover:text-primary dark:hover:text-inverse-primary transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded" href="#metodologia">
+          Filosofía
+        </a>
+</div>
+<!-- Trailing Elements & Badges -->
+<div class="flex items-center gap-3">
+<!-- Live Demo Technical Badge -->
+<div class="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full ambient-inset text-label-mono-xs font-label-mono-xs text-primary border border-outline-variant/60">
+<span aria-hidden="true" class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+<span class="tracking-wide">8/8 HERRAMIENTAS ACTIVAS · DATOS DEMO</span>
+</div>
+<!-- Trailing CTA with anchor jump -->
+<a class="inline-flex items-center justify-center bg-primary-container text-on-primary hover:bg-neutral-800 transition-all duration-200 active:scale-95 text-body-sm font-body-sm font-medium px-4 py-2 rounded-lg shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="#herramientas">
+<span>Ver el mapa de herramientas</span>
+<svg aria-hidden="true" class="w-4 h-4 ml-1.5 text-on-primary" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</nav>
+</header>
+<!-- ========================================== -->
+<!-- 2. HERO SECTION                           -->
+<!-- ========================================== -->
+<main><section class="relative pt-12 pb-16 md:pt-20 md:pb-24 overflow-hidden border-b border-outline-variant/30">
+<div class="max-w-7xl mx-auto px-gutter-desktop">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+<!-- Left: copy + CTAs -->
+<div class="lg:col-span-7 space-y-6 max-w-2xl">
+<!-- Contextual Tag -->
+<div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-surface-container border border-outline-variant/60 shadow-sm">
+<span class="text-label-caps font-label-caps text-on-surface-variant">SUITE AMG · HERRAMIENTAS OPERATIVAS LIGERAS</span>
+</div>
+<!-- Exact Mandated Headline -->
+<h1 class="text-display-hero-mobile md:text-display-hero font-display-hero text-primary tracking-tight">
+          Tu negocio ya hace muchas cosas. Que no tenga que ordenarlas.
+        </h1>
+<!-- Explanatory Subtitle -->
+<p class="text-body-lg font-body-lg text-on-surface-variant max-w-2xl leading-relaxed">
+          Ocho aplicaciones independientes diseñadas para resolver una fricción a la vez: sin planes forzados, sin módulos que no usas y con acceso web directo desde cualquier dispositivo.
+        </p>
+<!-- Action CTAs -->
+<div class="flex flex-col sm:flex-row items-start gap-4 pt-2">
+<a class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 rounded-lg bg-primary text-on-primary font-body-sm font-semibold hover:bg-neutral-800 transition-all duration-200 active:scale-95 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="#herramientas">
+            Ver el mapa de herramientas
+            <svg aria-hidden="true" class="w-4 h-4 ml-2" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+<a class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-3 rounded-lg bg-surface-container-lowest text-primary border border-outline-variant/70 font-body-sm font-medium hover:bg-surface-container-low transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="#combinaciones">
+<span>Conocer las combinaciones recomendadas</span>
+<svg aria-hidden="true" class="w-4 h-4 ml-2 text-on-surface-variant" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</div>
+<!-- Right: resumen listado de las 8 herramientas con redirección directa -->
+<aside class="lg:col-span-5" aria-label="Resumen de herramientas">
+<div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/60 bento-shadow overflow-hidden">
+<div class="px-5 pt-5 pb-4 flex items-center justify-between gap-3 border-b border-outline-variant/30">
+<div>
+<span class="text-label-caps font-label-caps text-primary tracking-wider">RESUMEN DE HERRAMIENTAS</span>
+<p class="text-body-sm font-body-sm text-on-surface-variant mt-1">Acceso directo a cada subdominio</p>
+</div>
+<span class="px-2.5 py-1 rounded-full bg-surface-container text-label-mono-xs font-label-mono-xs text-primary border border-outline-variant/40 font-semibold shrink-0">8/8 EN LÍNEA</span>
+</div>
+<ul class="divide-y divide-outline-variant/30">
+<li>
+<a class="group flex items-center gap-3 px-5 py-3 hover:bg-surface-container-low/80 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg" href="https://peluqueria.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span class="w-2.5 h-2.5 rounded-full bg-indigo-500 shrink-0"></span>
+<span class="flex-1 min-w-0">
+<span class="block text-body-sm font-body-sm font-semibold text-primary">Peluquería Pro</span>
+<span class="block text-label-mono-xs font-label-mono-xs text-on-surface-variant truncate">Agenda, citas y sillones</span>
+</span>
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant shrink-0">peluqueria.amgdeveloper.cl</span>
+<svg aria-hidden="true" class="w-4 h-4 text-on-surface-variant group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</li>
+<li>
+<a class="group flex items-center gap-3 px-5 py-3 hover:bg-surface-container-low/80 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg" href="https://deportes.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+<span class="flex-1 min-w-0">
+<span class="block text-body-sm font-body-sm font-semibold text-primary">Deportes Pro</span>
+<span class="block text-label-mono-xs font-label-mono-xs text-on-surface-variant truncate">Reservas de canchas por bloques</span>
+</span>
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant shrink-0">deportes.amgdeveloper.cl</span>
+<svg aria-hidden="true" class="w-4 h-4 text-on-surface-variant group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</li>
+<li>
+<a class="group flex items-center gap-3 px-5 py-3 hover:bg-surface-container-low/80 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg" href="https://talleres.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span class="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
+<span class="flex-1 min-w-0">
+<span class="block text-body-sm font-body-sm font-semibold text-primary">Talleres Pro</span>
+<span class="block text-label-mono-xs font-label-mono-xs text-on-surface-variant truncate">Órdenes de trabajo y piezas</span>
+</span>
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant shrink-0">talleres.amgdeveloper.cl</span>
+<svg aria-hidden="true" class="w-4 h-4 text-on-surface-variant group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</li>
+<li>
+<a class="group flex items-center gap-3 px-5 py-3 hover:bg-surface-container-low/80 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg" href="https://inventario.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span class="w-2.5 h-2.5 rounded-full bg-purple-500 shrink-0"></span>
+<span class="flex-1 min-w-0">
+<span class="block text-body-sm font-body-sm font-semibold text-primary">Inventario Pro</span>
+<span class="block text-label-mono-xs font-label-mono-xs text-on-surface-variant truncate">Stock con movimientos trazables</span>
+</span>
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant shrink-0">inventario.amgdeveloper.cl</span>
+<svg aria-hidden="true" class="w-4 h-4 text-on-surface-variant group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</li>
+<li>
+<a class="group flex items-center gap-3 px-5 py-3 hover:bg-surface-container-low/80 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg" href="https://cotizaciones.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span class="w-2.5 h-2.5 rounded-full bg-teal-500 shrink-0"></span>
+<span class="flex-1 min-w-0">
+<span class="block text-body-sm font-body-sm font-semibold text-primary">Cotizaciones Pro</span>
+<span class="block text-label-mono-xs font-label-mono-xs text-on-surface-variant truncate">Presupuestos y recibos en PDF</span>
+</span>
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant shrink-0">cotizaciones.amgdeveloper.cl</span>
+<svg aria-hidden="true" class="w-4 h-4 text-on-surface-variant group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</li>
+<li>
+<a class="group flex items-center gap-3 px-5 py-3 hover:bg-surface-container-low/80 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg" href="https://docupro.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span class="w-2.5 h-2.5 rounded-full bg-stone-600 shrink-0"></span>
+<span class="flex-1 min-w-0">
+<span class="block text-body-sm font-body-sm font-semibold text-primary">DocuPro</span>
+<span class="block text-label-mono-xs font-label-mono-xs text-on-surface-variant truncate">Documentos y comprobantes foliados</span>
+</span>
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant shrink-0">docupro.amgdeveloper.cl</span>
+<svg aria-hidden="true" class="w-4 h-4 text-on-surface-variant group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</li>
+<li>
+<a class="group flex items-center gap-3 px-5 py-3 hover:bg-surface-container-low/80 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg" href="https://recordatorios.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span class="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>
+<span class="flex-1 min-w-0">
+<span class="block text-body-sm font-body-sm font-semibold text-primary">Alertas Pro</span>
+<span class="block text-label-mono-xs font-label-mono-xs text-on-surface-variant truncate">Recordatorios automáticos por email o webhook</span>
+</span>
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant shrink-0">recordatorios.amgdeveloper.cl</span>
+<svg aria-hidden="true" class="w-4 h-4 text-on-surface-variant group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</li>
+<li>
+<a class="group flex items-center gap-3 px-5 py-3 hover:bg-surface-container-low/80 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg" href="https://crm.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span class="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0"></span>
+<span class="flex-1 min-w-0">
+<span class="block text-body-sm font-body-sm font-semibold text-primary">CRM Pro</span>
+<span class="block text-label-mono-xs font-label-mono-xs text-on-surface-variant truncate">Clientes, etiquetas y seguimientos</span>
+</span>
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant shrink-0">crm.amgdeveloper.cl</span>
+<svg aria-hidden="true" class="w-4 h-4 text-on-surface-variant group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</li>
+</ul>
+<div class="px-5 py-4 border-t border-outline-variant/30 flex items-center justify-between gap-3 text-label-mono-xs font-label-mono-xs text-on-surface-variant">
+<span class="flex items-center gap-1.5 font-medium text-primary">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+Entornos demo activos
+</span>
+<span>SSL individual por app</span>
+</div>
+</div>
+</aside>
+</div>
+<!-- Micro Visual: Conceptual Pipeline Flow Diagram -->
+<div class="mt-16 pt-8 border-t border-outline-variant/30">
+<div class="text-center mb-6">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">FLUJO OPERATIVO NATURAL · SIN SILOS NI DEPENDENCIAS PESADAS</span>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-5 gap-3 max-w-5xl mx-auto">
+<!-- Node 1 -->
+<div class="p-3.5 bg-surface-container-lowest rounded-xl border border-outline-variant/50 shadow-sm relative group hover:border-outline transition-colors">
+<div class="flex items-center justify-between mb-2">
+<span class="text-label-mono-xs font-label-mono-xs text-primary font-semibold">01 · ENTRADA</span>
+<span class="w-2 h-2 rounded-full bg-blue-500"></span>
+</div>
+<div class="text-headline-sm font-headline-sm text-primary text-sm mb-1">Captar &amp; Citar</div>
+<p class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">Turnos y solicitudes en vivo</p>
+</div>
+<!-- Node 2 -->
+<div class="p-3.5 bg-surface-container-lowest rounded-xl border border-outline-variant/50 shadow-sm relative group hover:border-outline transition-colors">
+<div class="flex items-center justify-between mb-2">
+<span class="text-label-mono-xs font-label-mono-xs text-primary font-semibold">02 · GESTIÓN</span>
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+</div>
+<div class="text-headline-sm font-headline-sm text-primary text-sm mb-1">Operación &amp; Turnos</div>
+<p class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">Canchas, sillones y salas</p>
+</div>
+<!-- Node 3 -->
+<div class="p-3.5 bg-surface-container-lowest rounded-xl border border-outline-variant/50 shadow-sm relative group hover:border-outline transition-colors">
+<div class="flex items-center justify-between mb-2">
+<span class="text-label-mono-xs font-label-mono-xs text-primary font-semibold">03 · EJECUCIÓN</span>
+<span class="w-2 h-2 rounded-full bg-amber-500"></span>
+</div>
+<div class="text-headline-sm font-headline-sm text-primary text-sm mb-1">Taller &amp; Inventario</div>
+<p class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">Órdenes de servicio y piezas</p>
+</div>
+<!-- Node 4 -->
+<div class="p-3.5 bg-surface-container-lowest rounded-xl border border-outline-variant/50 shadow-sm relative group hover:border-outline transition-colors">
+<div class="flex items-center justify-between mb-2">
+<span class="text-label-mono-xs font-label-mono-xs text-primary font-semibold">04 · CIERRE</span>
+<span class="w-2 h-2 rounded-full bg-teal-500"></span>
+</div>
+<div class="text-headline-sm font-headline-sm text-primary text-sm mb-1">Cotizar &amp; Cobrar</div>
+<p class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">PDF y documentos</p>
+</div>
+<!-- Node 5 -->
+<div class="col-span-2 md:col-span-1 p-3.5 bg-surface-container-lowest rounded-xl border border-outline-variant/50 shadow-sm relative group hover:border-outline transition-colors">
+<div class="flex items-center justify-between mb-2">
+<span class="text-label-mono-xs font-label-mono-xs text-primary font-semibold">05 · VÍNCULO</span>
+<span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+</div>
+<div class="text-headline-sm font-headline-sm text-primary text-sm mb-1">Fidelizar &amp; CRM</div>
+<p class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">Avisos automáticos y tratos</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ============================================================ -->
+<!-- 3. EL NÚCLEO: GRID ASIMÉTRICO DE LAS 8 HERRAMIENTAS    -->
+<!-- ============================================================ -->
+<section class="py-margin-desktop bg-background scroll-mt-20" id="herramientas">
+<div class="max-w-7xl mx-auto px-gutter-desktop">
+<!-- Section Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+<div>
+<div class="inline-flex items-center gap-2 mb-2">
+<span aria-hidden="true" class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">ARQUITECTURA MODULAR</span>
+</div>
+<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">El mapa de herramientas AMG</h2>
+<p class="text-body-md font-body-md text-on-surface-variant mt-2 max-w-2xl">
+            Cada aplicación vive en su propio subdominio, resuelve un problema concreto y guarda tus datos con total independencia.
+          </p>
+</div>
+<div class="text-right hidden sm:block">
+<span class="text-label-mono font-label-mono text-outline">8 SUBDOMINIOS · INDEPENDENCIA TOTAL</span>
+</div>
+</div>
+<!-- 12-Column Asymmetric Grid -->
+<div class="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-6">
+<!-- BLOQUE 1 (Grande / Destacado: Col-Span-8): Peluquería Pro -->
+<article class="md:col-span-6 lg:col-span-8 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<div class="flex items-center gap-3">
+<span class="px-2.5 py-1 rounded-md text-label-mono font-label-mono bg-indigo-50 text-indigo-900 border border-indigo-200/70 font-semibold">01</span>
+<span class="text-label-mono-xs font-label-mono-xs bg-surface-container-low px-2.5 py-0.5 rounded-full text-on-surface-variant border border-outline-variant/40">ENTORNO DEMO</span>
+</div>
+<span class="text-label-mono-xs font-label-mono-xs text-indigo-700 font-medium">peluqueria.amgdeveloper.cl</span>
+</div>
+<div class="flex flex-col lg:flex-row lg:items-start justify-between gap-6 mb-6">
+<div class="space-y-2 lg:max-w-md">
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight">Peluquería Pro</h3>
+<p class="text-body-md font-body-md text-on-surface font-medium">Agenda, citas y sillones sin traslapes ni tiempos muertos.</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant pt-1">
+<span class="font-semibold text-primary">Problema resuelto:</span> Desorganización de citas, clientes y servicios en la agenda.
+                </p>
+</div>
+<!-- Micro-visual Demo: Mini calendario de turnos limpios -->
+<div class="w-full lg:w-72 ambient-inset p-3.5 rounded-xl text-label-mono-xs font-label-mono-xs border border-outline-variant/50">
+<div class="flex items-center justify-between pb-2 mb-2 border-b border-outline-variant/40">
+<span class="font-semibold text-primary">HOY · SILLÓN 01 / 02</span>
+<span class="text-emerald-700 flex items-center gap-1 font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Ocupado
+                  </span>
+</div>
+<div class="space-y-1.5">
+<div class="p-1.5 bg-surface-container-lowest rounded border border-outline-variant/40 flex justify-between items-center">
+<span>10:30 Corte &amp; Barba (Carlos M.)</span>
+<span class="text-indigo-900 font-semibold">$18.000</span>
+</div>
+<div class="p-1.5 bg-indigo-50/80 rounded border border-indigo-200/60 flex justify-between items-center text-indigo-950">
+<span>11:30 Tinte &amp; Peinado (Elena V.)</span>
+<span class="text-indigo-900 font-semibold">$35.000</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-6 border-t border-outline-variant/30 flex items-center justify-between">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">Subdominio seguro aislado</span>
+<a class="inline-flex items-center gap-2 text-body-sm font-body-sm font-semibold text-indigo-900 hover:text-indigo-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-700 rounded p-1" href="https://peluqueria.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span>Abrir Peluquería Pro demo</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</article>
+<!-- BLOQUE 2 (Col-Span-4): Deportes Pro -->
+<article class="md:col-span-6 lg:col-span-4 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<div class="flex items-center gap-3">
+<span class="px-2.5 py-1 rounded-md text-label-mono font-label-mono bg-emerald-50 text-emerald-900 border border-emerald-200/70 font-semibold">02</span>
+<span class="text-label-mono-xs font-label-mono-xs bg-surface-container-low px-2 py-0.5 rounded-full text-on-surface-variant border border-outline-variant/40">ENTORNO DEMO</span>
+</div>
+</div>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mb-2">Deportes Pro</h3>
+<p class="text-body-md font-body-md text-on-surface font-medium mb-2">Reservas de canchas, complejos y franjas horarias.</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant mb-6">
+<span class="font-semibold text-primary">Problema resuelto:</span> Reservas superpuestas y dificultad para distribuir canchas e instalaciones.
+            </p>
+<!-- Micro-visual Demo: Franjas Horarias -->
+<div class="ambient-inset p-3.5 rounded-xl text-label-mono-xs font-label-mono-xs border border-outline-variant/50 mb-6">
+<div class="text-xs font-semibold text-primary mb-2">CANCHA PÁDEL 1 · HOY</div>
+<div class="grid grid-cols-3 gap-1.5 text-center">
+<div class="p-1.5 bg-surface-container-lowest rounded border border-outline-variant/40 line-through text-outline">18:00</div>
+<div class="p-1.5 bg-emerald-100/70 text-emerald-950 font-bold rounded border border-emerald-300">19:30</div>
+<div class="p-1.5 bg-surface-container-lowest rounded border border-outline-variant/40 text-primary">21:00</div>
+</div>
+</div>
+</div>
+<div class="pt-6 border-t border-outline-variant/30 flex items-center justify-between">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">deportes.amgdeveloper.cl</span>
+<a class="inline-flex items-center gap-1.5 text-body-sm font-body-sm font-semibold text-emerald-900 hover:text-emerald-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 rounded p-1" href="https://deportes.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span>Abrir Deportes Pro demo</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</article>
+<!-- BLOQUE 3 (Col-Span-4): Talleres Pro -->
+<article class="md:col-span-6 lg:col-span-4 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<div class="flex items-center gap-3">
+<span class="px-2.5 py-1 rounded-md text-label-mono font-label-mono bg-amber-50 text-amber-950 border border-amber-200/70 font-semibold">03</span>
+<span class="text-label-mono-xs font-label-mono-xs bg-surface-container-low px-2 py-0.5 rounded-full text-on-surface-variant border border-outline-variant/40">ENTORNO DEMO</span>
+</div>
+</div>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mb-2">Talleres Pro</h3>
+<p class="text-body-md font-body-md text-on-surface font-medium mb-2">Órdenes de trabajo (OT), repuestos y trazabilidad de servicio técnico.</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant mb-6">
+<span class="font-semibold text-primary">Problema resuelto:</span> Órdenes, estados y piezas sin una vista clara del trabajo.
+            </p>
+<!-- Micro-visual Demo: OT #1042 -->
+<div class="ambient-inset p-3.5 rounded-xl text-label-mono-xs font-label-mono-xs border border-outline-variant/50 mb-6">
+<div class="flex justify-between items-center mb-1.5">
+<span class="font-bold text-primary">OT #1042 · PATENTE: JJ-89-21</span>
+<span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-950 font-semibold">En diagnóstico</span>
+</div>
+<div class="p-2 bg-surface-container-lowest rounded border border-outline-variant/40 text-on-surface-variant text-[11px]">
+                Falla encendido en frío + cambio de bujías. Mecánico asignado: Roberto T.
+              </div>
+</div>
+</div>
+<div class="pt-6 border-t border-outline-variant/30 flex items-center justify-between">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">talleres.amgdeveloper.cl</span>
+<a class="inline-flex items-center gap-1.5 text-body-sm font-body-sm font-semibold text-amber-950 hover:text-amber-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-800 rounded p-1" href="https://talleres.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span>Abrir Talleres Pro demo</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</article>
+<!-- BLOQUE 4 (Col-Span-4): Inventario Pro -->
+<article class="md:col-span-6 lg:col-span-4 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<div class="flex items-center gap-3">
+<span class="px-2.5 py-1 rounded-md text-label-mono font-label-mono bg-purple-50 text-purple-900 border border-purple-200/70 font-semibold">04</span>
+<span class="text-label-mono-xs font-label-mono-xs bg-surface-container-low px-2 py-0.5 rounded-full text-on-surface-variant border border-outline-variant/40">ENTORNO DEMO</span>
+</div>
+</div>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mb-2">Inventario Pro</h3>
+<p class="text-body-md font-body-md text-on-surface font-medium mb-2">Stock, control de existencias, entradas y salidas ágiles.</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant mb-6">
+<span class="font-semibold text-primary">Problema resuelto:</span> Pocas visibilidad de existencias, mínimos y movimientos.
+            </p>
+<!-- Micro-visual Demo: Medidor de stock crítico -->
+<div class="ambient-inset p-3.5 rounded-xl text-label-mono-xs font-label-mono-xs border border-outline-variant/50 mb-6">
+<div class="flex justify-between items-center mb-1">
+<span class="font-semibold text-primary">Filtro de Aceite Sintético 5W30</span>
+<span class="text-red-700 font-bold">4 un. (Crítico)</span>
+</div>
+<div class="w-full bg-outline-variant/30 rounded-full h-2 mb-1.5 overflow-hidden">
+<div class="bg-red-500 h-2 rounded-full w-1/4"></div>
+</div>
+<div class="text-[10px] text-on-surface-variant">Umbral mínimo sugerido: 10 unidades</div>
+</div>
+</div>
+<div class="pt-6 border-t border-outline-variant/30 flex items-center justify-between">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">inventario.amgdeveloper.cl</span>
+<a class="inline-flex items-center gap-1.5 text-body-sm font-body-sm font-semibold text-purple-900 hover:text-purple-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-700 rounded p-1" href="https://inventario.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span>Abrir Inventario Pro demo</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</article>
+<!-- BLOQUE 5 (Col-Span-4): Cotizaciones Pro -->
+<article class="md:col-span-6 lg:col-span-4 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<div class="flex items-center gap-3">
+<span class="px-2.5 py-1 rounded-md text-label-mono font-label-mono bg-teal-50 text-teal-900 border border-teal-200/70 font-semibold">05</span>
+<span class="text-label-mono-xs font-label-mono-xs bg-surface-container-low px-2 py-0.5 rounded-full text-on-surface-variant border border-outline-variant/40">ENTORNO DEMO</span>
+</div>
+</div>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mb-2">Cotizaciones Pro</h3>
+<p class="text-body-md font-body-md text-on-surface font-medium mb-2">Presupuestos formales y recibos en segundos.</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant mb-6">
+<span class="font-semibold text-primary">Problema resuelto:</span> Presupuestos y recibos dispersos entre documentos y planillas.
+            </p>
+<!-- Micro-visual Demo: Desglose automático con PDF -->
+<div class="ambient-inset p-3.5 rounded-xl text-label-mono-xs font-label-mono-xs border border-outline-variant/50 mb-6">
+<div class="flex justify-between items-center mb-1 text-[11px]">
+<span class="text-on-surface-variant">Neto: $120.000 · IVA (19%): $22.800</span>
+<span class="text-teal-900 font-bold">TOTAL $142.800</span>
+</div>
+<div class="p-1.5 bg-surface-container-lowest rounded border border-outline-variant/40 flex items-center justify-between text-[11px]">
+<span>Documento: Presupuesto-089.pdf</span>
+<span class="text-teal-900 font-semibold">Listo</span>
+</div>
+</div>
+</div>
+<div class="pt-6 border-t border-outline-variant/30 flex items-center justify-between">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">cotizaciones.amgdeveloper.cl</span>
+<a class="inline-flex items-center gap-1.5 text-body-sm font-body-sm font-semibold text-teal-900 hover:text-teal-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 rounded p-1" href="https://cotizaciones.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span>Abrir Cotizaciones Pro demo</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</article>
+<!-- BLOQUE 6 (Col-Span-4): DocuPro -->
+<article class="md:col-span-6 lg:col-span-4 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<div class="flex items-center gap-3">
+<span class="px-2.5 py-1 rounded-md text-label-mono font-label-mono bg-stone-100 text-stone-900 border border-stone-300 font-semibold">06</span>
+<span class="text-label-mono-xs font-label-mono-xs bg-surface-container-low px-2 py-0.5 rounded-full text-on-surface-variant border border-outline-variant/40">ENTORNO DEMO</span>
+</div>
+</div>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mb-2">DocuPro</h3>
+<p class="text-body-md font-body-md text-on-surface font-medium mb-2">Facturas, notas, cotizaciones y recibos en PDF.</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant mb-6">
+<span class="font-semibold text-primary">Problema resuelto:</span> Documentos y comprobantes difíciles de encontrar.
+            </p>
+<!-- Micro-visual Demo: Comprobante foliado con casilla de conformidad -->
+<div class="ambient-inset p-3.5 rounded-xl text-label-mono-xs font-label-mono-xs border border-outline-variant/50 mb-6">
+<div class="flex justify-between items-center mb-1">
+<span class="font-bold text-primary">ACTA #4412 · ENTREGA VEHÍCULO</span>
+<span class="text-stone-800 font-semibold text-[10px]">FIRMADO EN PANTALLA</span>
+</div>
+<div class="p-2 bg-surface-container-lowest rounded border border-outline-variant/40 flex items-center justify-between">
+<span class="text-[11px] text-on-surface-variant">Conformidad recepción: Juan P.</span>
+<span class="w-3.5 h-3.5 rounded bg-stone-800 text-white flex items-center justify-center text-[10px]">✓</span>
+</div>
+</div>
+</div>
+<div class="pt-6 border-t border-outline-variant/30 flex items-center justify-between">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">docupro.amgdeveloper.cl</span>
+<a class="inline-flex items-center gap-1.5 text-body-sm font-body-sm font-semibold text-stone-900 hover:text-stone-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-700 rounded p-1" href="https://docupro.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span>Abrir DocuPro demo</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</article>
+<!-- BLOQUE 7 (Col-Span-4): Alertas Pro -->
+<article class="md:col-span-6 lg:col-span-4 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<div class="flex items-center gap-3">
+<span class="px-2.5 py-1 rounded-md text-label-mono font-label-mono bg-rose-50 text-rose-900 border border-rose-200/70 font-semibold">07</span>
+<span class="text-label-mono-xs font-label-mono-xs bg-surface-container-low px-2 py-0.5 rounded-full text-on-surface-variant border border-outline-variant/40">ENTORNO DEMO</span>
+</div>
+</div>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mb-2">Alertas Pro</h3>
+<p class="text-body-md font-body-md text-on-surface font-medium mb-2">Recordatorios automatizados por email o webhook.</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant mb-6">
+<span class="font-semibold text-primary">Problema resuelto:</span> Citas y avisos que requieren seguimiento manual.
+            </p>
+<!-- Micro-visual Demo: Disparador T-24h -->
+<div class="ambient-inset p-3.5 rounded-xl text-label-mono-xs font-label-mono-xs border border-outline-variant/50 mb-6">
+<div class="flex justify-between items-center mb-1">
+<span class="font-semibold text-primary">DISPARADOR AUTOMÁTICO: T - 24H</span>
+<span class="text-emerald-700 font-bold">Envío registrado</span>
+</div>
+<div class="p-1.5 bg-surface-container-lowest rounded border border-outline-variant/40 text-on-surface-variant text-[11px] flex justify-between">
+<span>"Tu cita es mañana 16:00"</span>
+<span class="text-rose-900 font-semibold">Entregado</span>
+</div>
+</div>
+</div>
+<div class="pt-6 border-t border-outline-variant/30 flex items-center justify-between">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">recordatorios.amgdeveloper.cl</span>
+<a class="inline-flex items-center gap-1.5 text-body-sm font-body-sm font-semibold text-rose-900 hover:text-rose-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-700 rounded p-1" href="https://recordatorios.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span>Abrir Alertas Pro demo</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</article>
+<!-- BLOQUE 8 (Col-Span-4): CRM Pro -->
+<article class="md:col-span-6 lg:col-span-4 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<div class="flex items-center gap-3">
+<span class="px-2.5 py-1 rounded-md text-label-mono font-label-mono bg-blue-50 text-blue-900 border border-blue-200/70 font-semibold">08</span>
+<span class="text-label-mono-xs font-label-mono-xs bg-surface-container-low px-2 py-0.5 rounded-full text-on-surface-variant border border-outline-variant/40">ENTORNO DEMO</span>
+</div>
+</div>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mb-2">CRM Pro</h3>
+<p class="text-body-md font-body-md text-on-surface font-medium mb-2">Ficha de clientes con etiquetas, visitas y seguimientos.</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant mb-6">
+<span class="font-semibold text-primary">Problema resuelto:</span> Clientes recurrentes olvidados y seguimientos dispersos.
+            </p>
+<!-- Micro-visual Demo: Embudo Compacto -->
+<div class="ambient-inset p-3.5 rounded-xl text-label-mono-xs font-label-mono-xs border border-outline-variant/50 mb-6">
+<div class="text-[11px] font-semibold text-primary mb-1">EMBUDO ACTIVO: 14 PROSPECTOS</div>
+<div class="grid grid-cols-3 gap-1 text-[10px] text-center">
+<div class="bg-surface-container-lowest p-1 rounded border border-outline-variant/40">
+<div class="text-outline">Contacto</div>
+<div class="font-bold text-primary">7 ($1.2M)</div>
+</div>
+<div class="bg-blue-100/60 p-1 rounded border border-blue-200 text-blue-950">
+<div>Cotizado</div>
+<div class="font-bold text-blue-900">4 ($2.8M)</div>
+</div>
+<div class="bg-emerald-100/60 p-1 rounded border border-emerald-200 text-emerald-950">
+<div>Cerrado</div>
+<div class="font-bold text-emerald-900">3 ($1.9M)</div>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-6 border-t border-outline-variant/30 flex items-center justify-between">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">crm.amgdeveloper.cl</span>
+<a class="inline-flex items-center gap-1.5 text-body-sm font-body-sm font-semibold text-blue-900 hover:text-blue-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 rounded p-1" href="https://crm.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span>Abrir CRM Pro demo</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</article>
+</div>
+</div>
+</section>
+<!-- ============================================================ -->
+<!-- 4. COMBINACIONES QUE FUNCIONAN                              -->
+<!-- ============================================================ -->
+<section class="py-margin-desktop bg-surface-container-low/70 border-t border-b border-outline-variant/30 scroll-mt-20" id="combinaciones">
+<div class="max-w-7xl mx-auto px-gutter-desktop">
+<div class="max-w-2xl mb-12">
+<div class="inline-flex items-center gap-2 mb-2">
+<span aria-hidden="true" class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="text-label-caps font-label-caps text-on-surface-variant">FLUJOS REALES</span>
+</div>
+<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">Combinaciones que funcionan</h2>
+<p class="text-body-md font-body-md text-on-surface-variant mt-2">
+          Cómo los negocios reales combinan de 2 a 3 herramientas específicas sin pagar suscripciones infladas ni funciones sobrantes.
+        </p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Caso A: Salón / Barbería -->
+<div class="bg-surface-container-lowest p-7 rounded-2xl border border-outline-variant/50 bento-shadow flex flex-col justify-between">
+<div>
+<span class="text-label-caps font-label-caps text-indigo-900 bg-indigo-50 border border-indigo-200/80 px-2.5 py-1 rounded-full">CASO A · FLUJO DE ESTÉTICA</span>
+<h3 class="text-headline-sm font-headline-sm text-primary mt-4 mb-2">El Salón / Barbería de alto flujo</h3>
+<div class="flex flex-wrap items-center gap-1.5 my-4">
+<span class="px-2.5 py-1 rounded bg-surface-container font-label-mono-xs text-xs text-primary font-medium border border-outline-variant/40">Peluquería Pro</span>
+<span class="text-outline font-bold">+</span>
+<span class="px-2.5 py-1 rounded bg-surface-container font-label-mono-xs text-xs text-primary font-medium border border-outline-variant/40">Alertas Pro</span>
+<span class="text-outline font-bold">+</span>
+<span class="px-2.5 py-1 rounded bg-surface-container font-label-mono-xs text-xs text-primary font-medium border border-outline-variant/40">DocuPro</span>
+</div>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">
+              Agenda de citas + recordatorios por email o webhook + documentos en PDF.
+            </p>
+</div>
+<div class="pt-6 mt-6 border-t border-outline-variant/30 flex items-center justify-between text-label-mono-xs font-label-mono-xs text-primary">
+<span class="text-emerald-700 font-semibold">Historial de envíos</span>
+<span>3 herramientas</span>
+</div>
+</div>
+<!-- Caso B: Taller Mecánico -->
+<div class="bg-surface-container-lowest p-7 rounded-2xl border border-outline-variant/50 bento-shadow flex flex-col justify-between">
+<div>
+<span class="text-label-caps font-label-caps text-amber-950 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-full">CASO B · SERVICIO TÉCNICO</span>
+<h3 class="text-headline-sm font-headline-sm text-primary mt-4 mb-2">El Taller Mecánico / Reparaciones</h3>
+<div class="flex flex-wrap items-center gap-1.5 my-4">
+<span class="px-2.5 py-1 rounded bg-surface-container font-label-mono-xs text-xs text-primary font-medium border border-outline-variant/40">Talleres Pro</span>
+<span class="text-outline font-bold">+</span>
+<span class="px-2.5 py-1 rounded bg-surface-container font-label-mono-xs text-xs text-primary font-medium border border-outline-variant/40">Inventario Pro</span>
+<span class="text-outline font-bold">+</span>
+<span class="px-2.5 py-1 rounded bg-surface-container font-label-mono-xs text-xs text-primary font-medium border border-outline-variant/40">Cotizaciones Pro</span>
+</div>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">
+              Orden de trabajo + piezas que descuentan stock + cotización en PDF.
+            </p>
+</div>
+<div class="pt-6 mt-6 border-t border-outline-variant/30 flex items-center justify-between text-label-mono-xs font-label-mono-xs text-primary">
+<span class="text-emerald-700 font-semibold">Movimientos de stock</span>
+<span>3 herramientas</span>
+</div>
+</div>
+<!-- Caso C: Club de Pádel -->
+<div class="bg-surface-container-lowest p-7 rounded-2xl border border-outline-variant/50 bento-shadow flex flex-col justify-between">
+<div>
+<span class="text-label-caps font-label-caps text-emerald-950 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-full">CASO C · RECINTOS DEPORTIVOS</span>
+<h3 class="text-headline-sm font-headline-sm text-primary mt-4 mb-2">El Club de Pádel / Complejo</h3>
+<div class="flex flex-wrap items-center gap-1.5 my-4">
+<span class="px-2.5 py-1 rounded bg-surface-container font-label-mono-xs text-xs text-primary font-medium border border-outline-variant/40">Deportes Pro</span>
+<span class="text-outline font-bold">+</span>
+<span class="px-2.5 py-1 rounded bg-surface-container font-label-mono-xs text-xs text-primary font-medium border border-outline-variant/40">Alertas Pro</span>
+<span class="text-outline font-bold">+</span>
+<span class="px-2.5 py-1 rounded bg-surface-container font-label-mono-xs text-xs text-primary font-medium border border-outline-variant/40">CRM Pro</span>
+</div>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">
+              Reservas por bloque + recordatorios + seguimiento de clientes.
+            </p>
+</div>
+<div class="pt-6 mt-6 border-t border-outline-variant/30 flex items-center justify-between text-label-mono-xs font-label-mono-xs text-primary">
+<span class="text-emerald-700 font-semibold">Ventana de anticipación configurable</span>
+<span>3 herramientas</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ============================================================ -->
+<!-- 5. FILOSOFÍA Y METODOLOGÍA                                   -->
+<!-- ============================================================ -->
+<section class="py-margin-desktop bg-background scroll-mt-20" id="metodologia">
+<div class="max-w-7xl mx-auto px-gutter-desktop">
+<div class="max-w-2xl mb-12">
+<div class="inline-flex items-center gap-2 mb-2">
+<span aria-hidden="true" class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="text-label-caps font-label-caps text-on-surface-variant">PRINCIPIOS DE DISEÑO</span>
+</div>
+<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">Cómo funciona AMG</h2>
+<p class="text-body-md font-body-md text-on-surface-variant mt-2">
+          Software pensado para operar de inmediato, sin fricción técnica, sin instaladores pesados y con respeto por tus datos.
+        </p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Paso 1 -->
+<div class="p-8 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow">
+<div class="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center font-label-mono font-bold text-primary mb-6">
+            1
+          </div>
+<h3 class="text-headline-sm font-headline-sm text-primary mb-3">Abre el navegador</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">
+            Sin descargas de instaladores pesados, sin requerimientos de servidores propios ni largas configuraciones con soporte técnico. Cargas la URL y operas.
+          </p>
+</div>
+<!-- Paso 2 -->
+<div class="p-8 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow">
+<div class="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center font-label-mono font-bold text-primary mb-6">
+            2
+          </div>
+<h3 class="text-headline-sm font-headline-sm text-primary mb-3">Prueba con datos demo</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">
+            Cada herramienta cuenta con un entorno activo provisto de datos de prueba preconfigurados para explorar flujos reales sin comprometer tu información real.
+          </p>
+</div>
+<!-- Paso 3 -->
+<div class="p-8 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow">
+<div class="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center font-label-mono font-bold text-primary mb-6">
+            3
+          </div>
+<h3 class="text-headline-sm font-headline-sm text-primary mb-3">Datos por aplicación</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">
+            Revisa cada aplicación para conocer sus datos y exportaciones.
+          </p>
+</div>
+</div>
+</div>
+</section>
+<!-- ============================================================ -->
+<!-- 6. BANNER CTA FINAL CON ACCESOS DIRECTOS COMPACTOS          -->
+<!-- ============================================================ -->
+<section class="py-margin-desktop bg-surface-container-lowest border-t border-outline-variant/40">
+<div class="max-w-5xl mx-auto px-gutter-desktop">
+<div class="ambient-inset p-8 md:p-12 rounded-3xl border border-outline-variant/70 text-center space-y-6 shadow-sm">
+<span class="text-label-mono font-label-mono text-on-surface-variant tracking-wider">ENTORNOS DEMO DE ACCESO ABIERTO</span>
+<h2 class="text-headline-lg font-headline-lg text-primary max-w-2xl mx-auto tracking-tight">
+          Empieza por la herramienta que resuelve tu urgencia de hoy
+        </h2>
+<p class="text-body-md font-body-md text-on-surface-variant max-w-xl mx-auto leading-relaxed">
+          No necesitas migrar todo tu negocio mañana. Activa una sola herramienta o explora los ocho entornos de prueba ahora mismo.
+        </p>
+<!-- Compact Fast-Access Pill Grid -->
+<div class="pt-4 flex flex-wrap justify-center gap-2 max-w-4xl mx-auto">
+<a class="px-3.5 py-2 bg-surface-container-lowest hover:bg-neutral-100 rounded-lg border border-outline-variant/60 text-label-mono text-xs font-semibold text-primary transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary flex items-center gap-1.5" href="https://peluqueria.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+            Peluquería Pro
+          </a>
+<a class="px-3.5 py-2 bg-surface-container-lowest hover:bg-neutral-100 rounded-lg border border-outline-variant/60 text-label-mono text-xs font-semibold text-primary transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary flex items-center gap-1.5" href="https://deportes.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            Deportes Pro
+          </a>
+<a class="px-3.5 py-2 bg-surface-container-lowest hover:bg-neutral-100 rounded-lg border border-outline-variant/60 text-label-mono text-xs font-semibold text-primary transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary flex items-center gap-1.5" href="https://talleres.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span class="w-2 h-2 rounded-full bg-amber-500"></span>
+            Talleres Pro
+          </a>
+<a class="px-3.5 py-2 bg-surface-container-lowest hover:bg-neutral-100 rounded-lg border border-outline-variant/60 text-label-mono text-xs font-semibold text-primary transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary flex items-center gap-1.5" href="https://inventario.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span class="w-2 h-2 rounded-full bg-purple-500"></span>
+            Inventario Pro
+          </a>
+<a class="px-3.5 py-2 bg-surface-container-lowest hover:bg-neutral-100 rounded-lg border border-outline-variant/60 text-label-mono text-xs font-semibold text-primary transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary flex items-center gap-1.5" href="https://cotizaciones.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span class="w-2 h-2 rounded-full bg-teal-500"></span>
+            Cotizaciones Pro
+          </a>
+<a class="px-3.5 py-2 bg-surface-container-lowest hover:bg-neutral-100 rounded-lg border border-outline-variant/60 text-label-mono text-xs font-semibold text-primary transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary flex items-center gap-1.5" href="https://docupro.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span class="w-2 h-2 rounded-full bg-stone-700"></span>
+            DocuPro
+          </a>
+<a class="px-3.5 py-2 bg-surface-container-lowest hover:bg-neutral-100 rounded-lg border border-outline-variant/60 text-label-mono text-xs font-semibold text-primary transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary flex items-center gap-1.5" href="https://recordatorios.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span class="w-2 h-2 rounded-full bg-rose-500"></span>
+            Alertas Pro
+          </a>
+<a class="px-3.5 py-2 bg-surface-container-lowest hover:bg-neutral-100 rounded-lg border border-outline-variant/60 text-label-mono text-xs font-semibold text-primary transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary flex items-center gap-1.5" href="https://crm.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span class="w-2 h-2 rounded-full bg-blue-600"></span>
+            CRM Pro
+          </a>
+</div>
+</div>
+</div>
+</section></main>
+<!-- ============================================================ -->
+<!-- 7. FOOTER COMPLETO Y ACCESIBLE (Shared Components Mapping)  -->
+<!-- ============================================================ -->
+<footer class="w-full bg-surface-container-low dark:bg-primary-container border-t border-outline-variant/40 dark:border-outline/20 pt-margin-desktop pb-margin px-gutter-desktop">
+<div class="max-w-7xl mx-auto">
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
+<!-- Brand & Description Column -->
+<div class="col-span-2 space-y-4">
+<div class="flex items-center gap-2">
+<svg aria-hidden="true" class="w-6 h-6 text-primary dark:text-inverse-primary" fill="none" viewbox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<rect class="fill-primary dark:fill-inverse-primary" height="15" rx="3.5" width="10" x="2" y="2"></rect>
+<rect class="fill-primary/75 dark:fill-inverse-primary/80" height="7" rx="3" width="12" x="14" y="2"></rect>
+<rect class="fill-primary/90 dark:fill-inverse-primary/90" height="15" rx="3.5" width="12" x="14" y="11"></rect>
+<rect class="fill-primary/60 dark:fill-inverse-primary/70" height="7" rx="3" width="10" x="2" y="19"></rect>
+</svg>
+<span class="text-headline-sm font-headline-sm text-primary dark:text-inverse-primary font-semibold tracking-tight">AMG</span>
+</div>
+<p class="text-body-sm font-body-sm text-on-surface-variant dark:text-outline-variant max-w-sm">
+            Ecosistema de microherramientas operativas diseñadas con sobriedad y máxima autonomía técnica para negocios de flujo constante.
+          </p>
+<div class="text-label-mono-xs font-label-mono-xs text-on-surface-variant/80">
+            Datos demo por app · Subdominios SSL individuales
+          </div>
+</div>
+<!-- Col 1 Links (Exact matching from JSON) -->
+<div class="space-y-3">
+<div class="text-label-caps font-label-caps text-primary dark:text-inverse-primary">HERRAMIENTAS I</div>
+<ul class="space-y-2 text-body-sm font-body-sm">
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://peluqueria.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">01 Peluquería Pro</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://deportes.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">02 Deportes Pro</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://talleres.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">03 Talleres Pro</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://inventario.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">04 Inventario Pro</a></li>
+</ul>
+</div>
+<!-- Col 2 Links (Exact matching from JSON) -->
+<div class="space-y-3">
+<div class="text-label-caps font-label-caps text-primary dark:text-inverse-primary">HERRAMIENTAS II</div>
+<ul class="space-y-2 text-body-sm font-body-sm">
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://cotizaciones.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">05 Cotizaciones Pro</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://docupro.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">06 DocuPro</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://recordatorios.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">07 Alertas Pro</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://crm.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">08 CRM Pro</a></li>
+</ul>
+</div>
+<!-- Col 3 Links: Estándares & Info -->
+<div class="space-y-3">
+<div class="text-label-caps font-label-caps text-primary dark:text-inverse-primary">ESPECIFICACIONES</div>
+<ul class="space-y-2 text-body-sm font-body-sm">
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="#metodologia">Arquitectura &amp; Privacidad</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="#metodologia">Estándares Técnicos</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="#metodologia">Documentación API</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="#metodologia">Soporte &amp; Feedback</a></li>
+</ul>
+</div>
+</div>
+<!-- Bottom Copyright Strip as in JSON Source of Truth -->
+<div class="pt-8 border-t border-outline-variant/30 flex flex-col md:flex-row items-center justify-between gap-4 text-label-mono-xs font-label-mono-xs text-on-surface-variant dark:text-outline-variant">
+<p class="text-center md:text-left leading-relaxed">
+          © 2026 AMG. Entorno de demostración interactiva en tiempo real. Las 8 herramientas operativas funcionan con datos demo independientes por aplicación.
+        </p>
+<div class="flex items-center gap-4 shrink-0">
+<span class="inline-flex items-center gap-1.5 text-primary dark:text-inverse-primary font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+            LATAM Cloud Ready
+          </span>
+</div>
+</div>
+</div>
+</footer>
+<!-- Subtle Keyboard & Accessibility interaction script -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Accessible smooth keyboard navigation highlight
+      const navLinks = document.querySelectorAll('header nav a');
+      navLinks.forEach(link => {
+        link.addEventListener('focus', () => {
+          link.classList.add('outline-none');
+        });
+      });
+    });
+  </script>
+</body></html>

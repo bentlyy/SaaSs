@@ -16,11 +16,17 @@ COTI_JWT=$(openssl rand -base64 48 | tr -d '=+/' | head -c 64)
 DOCU_JWT=$(openssl rand -base64 48 | tr -d '=+/' | head -c 64)
 ALER_JWT=$(openssl rand -base64 48 | tr -d '=+/' | head -c 64)
 CRM_JWT=$(openssl rand -base64 48 | tr -d '=+/' | head -c 64)
+LAND_JWT=$(openssl rand -base64 48 | tr -d '=+/' | head -c 64)
 EOF
   chmod 600 .env
   echo "    .env creado con llaves nuevas"
 else
   echo "    .env ya existe, se conserva"
+  if ! grep -q '^LAND_JWT=' .env; then
+    echo "LAND_JWT=$(openssl rand -base64 48 | tr -d '=+/' | head -c 64)" >> .env
+    chmod 600 .env
+    echo "    LAND_JWT agregado al .env existente"
+  fi
 fi
 
 echo "==> [2/5] git pull (fast-forward)"

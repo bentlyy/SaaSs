@@ -15,7 +15,8 @@ operar. Un solo código base (core) multi-tenant alimenta varios productos verti
 │   ├── cotizaciones/         ← Producto #5: presupuestos y recibos profesionales en PDF
 │   ├── documentos/           ← Producto #6: generación de documentos (facturas, notas, etc.)
 │   ├── recordatorios/        ← Producto #7: recordatorios automáticos WhatsApp/email
-│   └── crm/                  ← Producto #8: gestión de clientes con etiquetas y seguimientos
+│   ├── crm/                  ← Producto #8: gestión de clientes con etiquetas y seguimientos
+│   └── landing/              ← Pantalla principal AMG: mapa de las 8 herramientas con acceso directo
 └── package.json              ← npm workspaces
 ```
 
@@ -164,6 +165,18 @@ próximas). Los seguimientos soportan estado (pendiente/hecho/cancelado), fecha
 límite y detección automática de vencidos; por cliente se consulta su resumen con
 historial de visitas y seguimientos abiertos (`GET /api/customers/:id` y
 `GET /api/followups/stats`).
+
+## Probar el MVP (landing / pantalla principal)
+
+```bash
+npm run dev:landing    # http://localhost:3008
+```
+
+Pantalla principal de la suite AMG: mapa de las 8 herramientas operativas, cada
+una con acceso directo a su subdominio (`peluqueria.amgdeveloper.cl`,
+`deportes.amgdeveloper.cl`, `talleres.amgdeveloper.cl`, `inventario.amgdeveloper.cl`,
+`cotizaciones.amgdeveloper.cl`, `docupro.amgdeveloper.cl`, `recordatorios.amgdeveloper.cl`
+y `crm.amgdeveloper.cl`).
 
 ## Comandos
 

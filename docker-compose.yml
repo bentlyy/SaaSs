@@ -124,5 +124,19 @@ services:
       APP_NAME: CRM Pro
       APP_URL: https://crm.amgdeveloper.cl
 
+  landing:
+    <<: *app
+    container_name: saasmini-landing
+    ports:
+      - "127.0.0.1:3108:3000"
+    environment:
+      <<: *base-env
+      PRODUCT: landing
+      PORT: "3000"
+      DB_PATH: /app/data/landing/app.db
+      JWT_SECRET: ${LAND_JWT:?falta LAND_JWT en .env}
+      APP_NAME: AMG
+      APP_URL: https://amgdeveloper.cl
+
 volumes:
   saasmini_data:
