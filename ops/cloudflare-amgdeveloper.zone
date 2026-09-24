@@ -1,0 +1,12 @@
+$ORIGIN amgdeveloper.cl.
+$TTL 300
+
+peluqueria	IN	A	146.181.55.59
+deportes	IN	A	146.181.55.59
+talleres	IN	A	146.181.55.59
+inventario	IN	A	146.181.55.59
+cotizaciones	IN	A	146.181.55.59
+docupro	IN	A	146.181.55.59
+recordatorios	IN	A	146.181.55.59
+crm	IN	A	146.181.55.59
+desarrollo	IN	A	146.181.55.59

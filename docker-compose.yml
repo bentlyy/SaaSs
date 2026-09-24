@@ -136,7 +136,7 @@ services:
       DB_PATH: /app/data/landing/app.db
       JWT_SECRET: ${LAND_JWT:?falta LAND_JWT en .env}
       APP_NAME: AMG
-      APP_URL: https://amgdeveloper.cl
+      APP_URL: https://desarrollo.amgdeveloper.cl
 
 volumes:
   saasmini_data:

@@ -178,6 +178,10 @@ una con acceso directo a su subdominio (`peluqueria.amgdeveloper.cl`,
 `cotizaciones.amgdeveloper.cl`, `docupro.amgdeveloper.cl`, `recordatorios.amgdeveloper.cl`
 y `crm.amgdeveloper.cl`).
 
+En producción el landing se sirve en **`https://desarrollo.amgdeveloper.cl`**
+(construido con `docker compose up -d landing`, puerto `3108`). Registro DNS en
+`ops/cloudflare-amgdeveloper.zone`.
+
 ## Comandos
 
 | Comando | Qué hace |
