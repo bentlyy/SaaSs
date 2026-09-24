@@ -1,12 +1,16 @@
+; cloudflare-amgdeveloper.cl · zona documental (Cloudflare: proxy naranja sobre 146.181.55.59)
 $ORIGIN amgdeveloper.cl.
 $TTL 300
 
-peluqueria	IN	A	146.181.55.59
-deportes	IN	A	146.181.55.59
-talleres	IN	A	146.181.55.59
-inventario	IN	A	146.181.55.59
-cotizaciones	IN	A	146.181.55.59
-docupro	IN	A	146.181.55.59
+; Registros cortos de la suite AMG (nombres funcionales)
+agenda		IN	A	146.181.55.59
+canchas		IN	A	146.181.55.59
+ordenes		IN	A	146.181.55.59
+stock		IN	A	146.181.55.59
+presupuestos	IN	A	146.181.55.59
+docs		IN	A	146.181.55.59
 recordatorios	IN	A	146.181.55.59
-crm	IN	A	146.181.55.59
+clientes	IN	A	146.181.55.59
+
+; Landing pública (proxy)
 desarrollo	IN	A	146.181.55.59

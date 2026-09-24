@@ -24,7 +24,7 @@ services:
       DB_PATH: /app/data/peluqueria/app.db
       JWT_SECRET: ${PELU_JWT:?falta PELU_JWT en .env}
       APP_NAME: Agenda de Citas
-      APP_URL: https://peluqueria.amgdeveloper.cl
+      APP_URL: https://agenda.amgdeveloper.cl
 
   deportes:
     <<: *app
@@ -38,7 +38,7 @@ services:
       DB_PATH: /app/data/deportes/app.db
       JWT_SECRET: ${DEPO_JWT:?falta DEPO_JWT en .env}
       APP_NAME: Reservas de Canchas
-      APP_URL: https://deportes.amgdeveloper.cl
+      APP_URL: https://canchas.amgdeveloper.cl
 
   talleres:
     <<: *app
@@ -52,7 +52,7 @@ services:
       DB_PATH: /app/data/talleres/app.db
       JWT_SECRET: ${TALLE_JWT:?falta TALLE_JWT en .env}
       APP_NAME: Órdenes de Trabajo
-      APP_URL: https://talleres.amgdeveloper.cl
+      APP_URL: https://ordenes.amgdeveloper.cl
 
   inventario:
     <<: *app
@@ -66,7 +66,7 @@ services:
       DB_PATH: /app/data/inventario/app.db
       JWT_SECRET: ${INV_JWT:?falta INV_JWT en .env}
       APP_NAME: Almacenaje
-      APP_URL: https://inventario.amgdeveloper.cl
+      APP_URL: https://stock.amgdeveloper.cl
 
   cotizaciones:
     <<: *app
@@ -80,7 +80,7 @@ services:
       DB_PATH: /app/data/cotizaciones/app.db
       JWT_SECRET: ${COTI_JWT:?falta COTI_JWT en .env}
       APP_NAME: Cotizaciones y Presupuestos
-      APP_URL: https://cotizaciones.amgdeveloper.cl
+      APP_URL: https://presupuestos.amgdeveloper.cl
 
   documentos:
     <<: *app
@@ -94,7 +94,7 @@ services:
       DB_PATH: /app/data/documentos/app.db
       JWT_SECRET: ${DOCU_JWT:?falta DOCU_JWT en .env}
       APP_NAME: Documentos y Comprobantes
-      APP_URL: https://docupro.amgdeveloper.cl
+      APP_URL: https://docs.amgdeveloper.cl
 
   recordatorios:
     <<: *app
@@ -122,7 +122,7 @@ services:
       DB_PATH: /app/data/crm/app.db
       JWT_SECRET: ${CRM_JWT:?falta CRM_JWT en .env}
       APP_NAME: Gestión de Clientes
-      APP_URL: https://crm.amgdeveloper.cl
+      APP_URL: https://clientes.amgdeveloper.cl
 
   landing:
     <<: *app

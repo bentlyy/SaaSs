@@ -173,10 +173,10 @@ npm run dev:landing    # http://localhost:3008
 ```
 
 Pantalla principal de la suite AMG: mapa de las 8 herramientas operativas, cada
-una con acceso directo a su subdominio (`peluqueria.amgdeveloper.cl`,
-`deportes.amgdeveloper.cl`, `talleres.amgdeveloper.cl`, `inventario.amgdeveloper.cl`,
-`cotizaciones.amgdeveloper.cl`, `docupro.amgdeveloper.cl`, `recordatorios.amgdeveloper.cl`
-y `crm.amgdeveloper.cl`).
+una con acceso directo a su subdominio (`agenda.amgdeveloper.cl`,
+`canchas.amgdeveloper.cl`, `ordenes.amgdeveloper.cl`, `stock.amgdeveloper.cl`,
+`presupuestos.amgdeveloper.cl`, `docs.amgdeveloper.cl`, `recordatorios.amgdeveloper.cl`
+y `clientes.amgdeveloper.cl`).
 
 En producción el landing se sirve en **`https://desarrollo.amgdeveloper.cl`**
 (construido con `docker compose up -d landing`, puerto `3108`). Registro DNS en
