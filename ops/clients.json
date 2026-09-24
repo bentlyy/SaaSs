@@ -1,0 +1,13 @@
+{
+  "enabled": false,
+  "clients": {
+    "peluqueria": ["demo-pelu"],
+    "deportes": ["demo-deportes"],
+    "talleres": ["demo-talleres"],
+    "inventario": ["demo-inventario"],
+    "cotizaciones": ["demo-cotizaciones"],
+    "documentos": ["demo-docupro"],
+    "recordatorios": ["demo-recordatorios"],
+    "crm": ["demo-crm"]
+  }
+}

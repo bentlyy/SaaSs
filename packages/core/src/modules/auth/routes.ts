@@ -5,6 +5,9 @@ import { and, eq } from 'drizzle-orm';
 import { getDb, schema } from '../../db/index.js';
 import { asyncHandler, AppError } from '../../utils/http.js';
 import { authRequired, signSession } from '../../middleware/auth.js';
+import { isClientActive } from '../../guards/clientsGuard.js';
+
+const CLIENT_PAUSED = 'Tu acceso está en pausa o aún no está activado. Realiza el depósito del plan y escríbenos para reactivarlo.';
 
 export const authRouter = Router();
 
@@ -68,6 +71,15 @@ authRouter.post(
     });
 
     const { user } = insert();
+
+    const product = String(req.app.locals?.defaultProduct ?? 'peluqueria');
+    if (!isClientActive(product, input.slug)) {
+      throw new AppError(
+        403,
+        'Cuenta creada y quedó en revisión. Para activarla haz el depósito del plan y avísanos por WhatsApp o correo.',
+      );
+    }
+
     const token = signSession({
       userId: user.id,
       tenantId: user.tenant_id,
@@ -104,6 +116,9 @@ authRouter.post(
       throw new AppError(401, 'Credenciales inválidas');
     }
     if (!user.active) throw new AppError(403, 'Usuario desactivado');
+
+    const product = String(req.app.locals?.defaultProduct ?? 'peluqueria');
+    if (!isClientActive(product, tenant.slug)) throw new AppError(403, CLIENT_PAUSED);
 
     const token = signSession({
       userId: user.id,

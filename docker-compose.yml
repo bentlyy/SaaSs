@@ -8,6 +8,9 @@ x-app: &app
   restart: unless-stopped
   volumes:
     - saasmini_data:/app/data
+    # Puerta de acceso: edita ops/clients.json en el servidor para activar/pausar clientes.
+    # Al ser en vivo (bind mount), el cambio aplica sin rebuild ni reinicio de servicios.
+    - ./ops/clients.json:/app/clients.json:ro
   environment: &base-env
     NODE_ENV: production
 
