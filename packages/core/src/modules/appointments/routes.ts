@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { and, asc, eq, gte, inArray, lte } from 'drizzle-orm';
 import { getDb, schema } from '../../db/index.js';
 import { asyncHandler, AppError } from '../../utils/http.js';
-import { authRequired } from '../../middleware/auth.js';
+import { authRequired, requireRole } from '../../middleware/auth.js';
 import { getOwned as getCustomer } from '../customers/routes.js';
 import { getOwned as getService } from '../services/routes.js';
 import { getOwned as getStaff } from '../staff/routes.js';
@@ -149,6 +149,7 @@ appointmentsRouter.patch(
 
 appointmentsRouter.delete(
   '/:id',
+  requireRole('owner', 'admin'),
   asyncHandler(async (req, res) => {
     const { db } = getDb();
     const existing = getOwned(db, req.session.tenantId, req.params.id);
@@ -259,7 +260,9 @@ export function attachServices(
 
   const svcIds = [...new Set(items.map((i) => i.service_id))];
   const services = svcIds.length
-    ? db.select().from(schema.services).where(inArray(schema.services.id, svcIds)).all()
+    ? db.select().from(schema.services)
+      .where(and(inArray(schema.services.id, svcIds), eq(schema.services.tenant_id, tenantId)))
+      .all()
     : [];
 
   const byId = new Map(services.map((s) => [s.id, s]));

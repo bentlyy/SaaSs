@@ -6,13 +6,17 @@ function requireEnv(name: string, fallback?: string): string {
   return value;
 }
 
+// En producción JWT_SECRET es OBLIGATORIO (fail-fast, sin fallback conocido).
+// El fallback solo existe en desarrollo para que la suite arranque sin configurar.
+const fallbackJwtSecret = process.env.NODE_ENV === 'production' ? undefined : 'dev-secret-cambiar-por-favor';
+
 export const config = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   isProd: process.env.NODE_ENV === 'production',
   port: Number(process.env.PORT ?? 3000),
   dbPath: process.env.DB_PATH ?? './data/app.db',
   // SECRETO de firma de JWT. En producción usa una clave larga y aleatoria.
-  jwtSecret: requireEnv('JWT_SECRET', 'dev-secret-cambiar-por-favor'),
+  jwtSecret: requireEnv('JWT_SECRET', fallbackJwtSecret),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
   sessionDays: Number(process.env.SESSION_DAYS ?? 30),
   // SMTP opcional. Si no se configura, los emails se registran en el log.

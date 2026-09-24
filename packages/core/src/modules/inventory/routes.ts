@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { and, asc, desc, eq, gt, inArray, lt, lte } from 'drizzle-orm';
 import { getDb, schema } from '../../db/index.js';
 import { asyncHandler, AppError } from '../../utils/http.js';
-import { authRequired } from '../../middleware/auth.js';
+import { authRequired, requireRole } from '../../middleware/auth.js';
 
 export const inventoryRouter = Router();
 inventoryRouter.use(authRequired);
@@ -65,12 +65,12 @@ inventoryRouter.get(
 
     const itemIds = [...new Set(rows.map((r) => r.item_id))];
     const items = itemIds.length ? db.select().from(schema.inventoryItems)
-      .where(inArray(schema.inventoryItems.id, itemIds)).all() : [];
+      .where(and(inArray(schema.inventoryItems.id, itemIds), eq(schema.inventoryItems.tenant_id, tenantId))).all() : [];
     const itemMap = new Map(items.map((i) => [i.id, { name: i.name, unit: i.unit }]));
 
     const userIds = [...new Set(rows.map((r) => r.user_id).filter((x): x is string => Boolean(x)))];
     const users = userIds.length ? db.select().from(schema.users)
-      .where(inArray(schema.users.id, userIds)).all() : [];
+      .where(and(inArray(schema.users.id, userIds), eq(schema.users.tenant_id, tenantId))).all() : [];
     const userMap = new Map(users.map((u) => [u.id, u.name]));
 
     return res.json({
@@ -124,6 +124,7 @@ const movementSchema = z.object({
 
 inventoryRouter.post(
   '/:id/movements',
+  requireRole('owner', 'admin'),
   asyncHandler(async (req, res) => {
     const input = movementSchema.parse(req.body);
     const { db, sqlite } = getDb();
@@ -158,6 +159,7 @@ inventoryRouter.post(
 
 inventoryRouter.delete(
   '/:id',
+  requireRole('owner', 'admin'),
   asyncHandler(async (req, res) => {
     const { db } = getDb();
     const existing = getOwned(db, req.session.tenantId, req.params.id);

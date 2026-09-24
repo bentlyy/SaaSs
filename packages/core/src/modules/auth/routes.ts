@@ -1,15 +1,26 @@
 import { Router, type Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+import rateLimit from 'express-rate-limit';
 import { and, eq } from 'drizzle-orm';
 import { getDb, schema } from '../../db/index.js';
 import { asyncHandler, AppError } from '../../utils/http.js';
-import { authRequired, signSession } from '../../middleware/auth.js';
+import { authRequired, requireRole, signSession } from '../../middleware/auth.js';
 import { isClientActive } from '../../guards/clientsGuard.js';
+import { config } from '../../config.js';
 
 const CLIENT_PAUSED = 'Tu acceso está en pausa o aún no está activado. Realiza el depósito del plan y escríbenos para reactivarlo.';
 
 export const authRouter = Router();
+
+// Freno a fuerza bruta sobre login/register (solo en producción para no entorpecer tests/dev).
+const loginLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  limit: 15,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.' },
+});
 
 export function setCookie(res: Response, token: string) {
   res.cookie('token', token, {
@@ -30,7 +41,7 @@ const registerSchema = z.object({
     .regex(/^[a-z0-9-]+$/, 'Solo minúsculas, números y guiones'),
   ownerName: z.string().min(2).max(80),
   email: z.string().email(),
-  password: z.string().min(6).max(100),
+  password: z.string().min(8).max(100),
 });
 
 authRouter.post(
@@ -100,6 +111,7 @@ const loginSchema = z.object({
 
 authRouter.post(
   '/login',
+  config.isProd ? loginLimiter : (_req, _res, next) => next(),
   asyncHandler(async (req, res) => {
     const input = loginSchema.parse(req.body);
     const { db } = getDb();
@@ -165,6 +177,7 @@ const settingsSchema = z.object({
 authRouter.put(
   '/settings',
   authRequired,
+  requireRole('owner'),
   asyncHandler(async (req, res) => {
     const input = settingsSchema.parse(req.body);
     const { db } = getDb();

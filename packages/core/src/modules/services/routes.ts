@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { and, asc, eq } from 'drizzle-orm';
 import { getDb, schema } from '../../db/index.js';
 import { asyncHandler, AppError } from '../../utils/http.js';
-import { authRequired } from '../../middleware/auth.js';
+import { authRequired, requireRole } from '../../middleware/auth.js';
 
 export const servicesRouter = Router();
 servicesRouter.use(authRequired);
@@ -59,6 +59,7 @@ servicesRouter.put(
 
 servicesRouter.delete(
   '/:id',
+  requireRole('owner', 'admin'),
   asyncHandler(async (req, res) => {
     const { db } = getDb();
     const existing = getOwned(db, req.session.tenantId, req.params.id);

@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { and, asc, count, eq, gte, inArray, lt, like, or, type SQL } from 'drizzle-orm';
 import { getDb, schema } from '../../db/index.js';
 import { asyncHandler, AppError } from '../../utils/http.js';
-import { authRequired } from '../../middleware/auth.js';
+import { authRequired, requireRole } from '../../middleware/auth.js';
+import { getOwned as getCustomer } from '../customers/routes.js';
 
 export const followupsRouter = Router();
 followupsRouter.use(authRequired);
@@ -49,7 +50,11 @@ followupsRouter.get(
     const rows = db.select().from(schema.followups).where(and(...conditions)).limit(300).all();
 
     const custIds = [...new Set(rows.map((r) => r.customer_id))];
-    const custs = custIds.length ? db.select().from(schema.customers).where(inArray(schema.customers.id, custIds)).all() : [];
+    const custs = custIds.length
+      ? db.select().from(schema.customers)
+        .where(and(inArray(schema.customers.id, custIds), eq(schema.customers.tenant_id, tenantId)))
+        .all()
+      : [];
     const custMap = new Map(custs.map((c) => [c.id, c]));
 
     const followups = rows
@@ -134,10 +139,12 @@ followupsRouter.post(
   asyncHandler(async (req, res) => {
     const input = followupSchema.parse(req.body);
     const { db } = getDb();
+    // el cliente debe pertenecer al mismo negocio (evita referencias entre tenants)
+    const customer = getCustomer(db, req.session.tenantId, input.customerId);
     const now = new Date().toISOString();
     const row = db.insert(schema.followups).values({
       tenant_id: req.session.tenantId,
-      customer_id: input.customerId,
+      customer_id: customer.id,
       title: input.title,
       body: input.body ?? '',
       due_date: input.dueDate ?? '',
@@ -155,6 +162,7 @@ followupsRouter.put(
     const input = patchSchema.parse(req.body);
     const { db } = getDb();
     const existing = getOwned(db, req.session.tenantId, req.params.id);
+    if (input.customerId) getCustomer(db, req.session.tenantId, input.customerId);
     const row = db.update(schema.followups)
       .set({ ...input, updated_at: new Date().toISOString() })
       .where(and(eq(schema.followups.id, existing.id), eq(schema.followups.tenant_id, req.session.tenantId)))
@@ -165,6 +173,7 @@ followupsRouter.put(
 
 followupsRouter.delete(
   '/:id',
+  requireRole('owner', 'admin'),
   asyncHandler(async (req, res) => {
     const { db } = getDb();
     const existing = getOwned(db, req.session.tenantId, req.params.id);

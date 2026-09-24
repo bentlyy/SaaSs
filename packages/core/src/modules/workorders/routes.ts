@@ -320,7 +320,11 @@ export function attachLines(
     .all();
 
   const svcIds = [...new Set(svcLinks.map((l) => l.service_id))];
-  const services = svcIds.length ? db.select().from(schema.services).where(inArray(schema.services.id, svcIds)).all() : [];
+  const services = svcIds.length
+    ? db.select().from(schema.services)
+      .where(and(inArray(schema.services.id, svcIds), eq(schema.services.tenant_id, tenantId)))
+      .all()
+    : [];
   const svcMap = new Map(services.map((s) => [s.id, s]));
   const svcByOrder = new Map<string, (typeof schema.services.$inferSelect & { price_at: number })[]>();
   for (const l of svcLinks) {
@@ -332,7 +336,11 @@ export function attachLines(
   }
 
   const itemIds = [...new Set(partLinks.map((l) => l.item_id))];
-  const items = itemIds.length ? db.select().from(schema.inventoryItems).where(inArray(schema.inventoryItems.id, itemIds)).all() : [];
+  const items = itemIds.length
+    ? db.select().from(schema.inventoryItems)
+      .where(and(inArray(schema.inventoryItems.id, itemIds), eq(schema.inventoryItems.tenant_id, tenantId)))
+      .all()
+    : [];
   const itemMap = new Map(items.map((i) => [i.id, i]));
   const partByOrder = new Map<string, (typeof schema.inventoryItems.$inferSelect & { qty: number; unit_price_at: number })[]>();
   for (const l of partLinks) {

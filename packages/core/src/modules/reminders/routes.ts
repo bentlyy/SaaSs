@@ -75,11 +75,11 @@ remindersRouter.get(
 
     const apptIds = [...new Set(rows.map((r) => r.appointment_id))];
     const appts = apptIds.length
-      ? db.select().from(schema.appointments).where(inArray(schema.appointments.id, apptIds)).all()
+      ? db.select().from(schema.appointments).where(and(inArray(schema.appointments.id, apptIds), eq(schema.appointments.tenant_id, tenantId))).all()
       : [];
     const custIds = [...new Set(appts.map((a) => a.customer_id))];
     const custs = custIds.length
-      ? db.select().from(schema.customers).where(inArray(schema.customers.id, custIds)).all()
+      ? db.select().from(schema.customers).where(and(inArray(schema.customers.id, custIds), eq(schema.customers.tenant_id, tenantId))).all()
       : [];
     const apptMap = new Map(appts.map((a) => [a.id, a]));
     const custMap = new Map(custs.map((c) => [c.id, c]));
@@ -120,7 +120,9 @@ remindersRouter.get(
     )).orderBy(asc(schema.appointments.start_at)).all();
 
     const logs = appts.length
-      ? db.select().from(schema.reminderLogs).where(inArray(schema.reminderLogs.appointment_id, appts.map((a) => a.id))).all()
+      ? db.select().from(schema.reminderLogs)
+        .where(and(inArray(schema.reminderLogs.appointment_id, appts.map((a) => a.id)), eq(schema.reminderLogs.tenant_id, tenantId)))
+        .all()
       : [];
     const sentBy = new Map(logs.map((l) => [`${l.appointment_id}:${l.channel}`, l.status]));
 
