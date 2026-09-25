@@ -82,6 +82,27 @@ echo "host: $(stat -c %i ops/clients.json)  cont: $(docker exec saasmini-crm sta
 
 Los dos números deben coincidir. Si no coinciden, el montaje está obsoleto.
 
+## ⚠️ NUNCA muevas o borres el archivo de golpe
+
+Si `ops/clients.json` **no existe** en el momento de `docker compose up`, Docker
+no da error: **crea un directorio vacío en esa ruta** para poder hacer el montaje.
+El resultado es que `ops/clients.json` pasa a ser una carpeta, el bind mount
+apunta a la carpeta, y el guard lee `EISDIR` en vez de un JSON.
+
+Eso no es hipotético: pasó al probar el fail-closed. Efectos y recuperación:
+
+- Todos los logins devuelven 403 y no entra nadie. Es el fail-closed
+  funcionando, pero nadie puede trabajar.
+- El log lo dice claro: `[clientsGuard] PUERTA CERRADA (invalido): EISDIR...`
+- **Para volver**: `rmdir ops/clients.json`, restaurar el archivo, y
+  `docker compose up -d --force-recreate`. Si el archivo se perdió del todo,
+  está en `~/backups/saasmini/<sello>/config/clients.json`.
+- `rmdir` y no `rm -rf`: si la carpeta tiene algo dentro, `rmdir` se niega y
+  avisa. No la borres a la fuerza sin mirar qué contiene.
+
+Si necesitas editar el archivo, **edítalo in-place** (sección de arriba). Si
+necesitas reemplazarlo por otro, escribe encima con `cat` en vez de `mv`.
+
 ## Activar / desactivar la puerta global
 
 **En producción la puerta solo se abre con `"enabled": true`.** Cualquier otro
