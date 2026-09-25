@@ -225,6 +225,8 @@ CREATE INDEX IF NOT EXISTS idx_followups_customer ON followups(customer_id);
 
 function ensureColumn(sqlite: Database.Database, table: string, column: string, ddl: string) {
   const cols = sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  // La tabla todavia no existe: el DDL la creara ya con la columna incluida.
+  if (cols.length === 0) return;
   if (!cols.some((c) => c.name === column)) {
     sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
   }
@@ -242,9 +244,12 @@ export function createDb(path = config.dbPath): DbHandle {
   const sqlite = new Database(path);
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('foreign_keys = ON');
-  sqlite.exec(DDL);
-  // migración 2026-02: reservas por recurso (producto deportes)
+  // Las migraciones corren ANTES del DDL. El DDL crea indices sobre columnas que
+  // en una base vieja todavia no existen, y `CREATE TABLE IF NOT EXISTS` no puede
+  // agregarle columnas a una tabla que ya existe: sin esto, createDb() explota con
+  // "no such column" al arrancar sobre bases creadas antes de la migracion.
   ensureColumn(sqlite, 'appointments', 'resource_id', 'TEXT REFERENCES resources(id) ON DELETE SET NULL');
+  sqlite.exec(DDL);
   const db = drizzle(sqlite, { schema });
   return { sqlite, db };
 }

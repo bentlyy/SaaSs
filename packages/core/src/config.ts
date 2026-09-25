@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { randomBytes } from 'node:crypto';
 
 function requireEnv(name: string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
@@ -6,9 +7,13 @@ function requireEnv(name: string, fallback?: string): string {
   return value;
 }
 
-// En producción JWT_SECRET es OBLIGATORIO (fail-fast, sin fallback conocido).
-// El fallback solo existe en desarrollo para que la suite arranque sin configurar.
-const fallbackJwtSecret = process.env.NODE_ENV === 'production' ? undefined : 'dev-secret-cambiar-por-favor';
+// En producción JWT_SECRET es OBLIGATORIO (fail-fast, sin valor por defecto).
+// En desarrollo, si no está definido, generamos una clave aleatoria por proceso.
+// Nada de secretos conocidos en el repo: cada app firma con un valor distinto,
+// así que un token de un producto no sirve en otro. Trade-off: al reiniciar
+// una app sin JWT_SECRET en su .env, la sesión actual se cierra.
+const fallbackJwtSecret =
+  process.env.NODE_ENV === 'production' ? undefined : randomBytes(48).toString('hex');
 
 export const config = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
