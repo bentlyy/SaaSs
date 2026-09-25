@@ -8,6 +8,15 @@ x-app: &app
   image: saas-mini:latest
   build: .
   restart: unless-stopped
+  # Rotacion de logs: el driver json-file de Docker NO rota solo y se lleva el
+  # disco sin avisar (le paso a clinic-db: 331 MB en 3 semanas). Tope de ~30 MB
+  # por servicio, 3 archivos, y el ciclo es automatico. Los 9 servicios heredan
+  # este bloque del ancla, asi que no hay que repetirlo.
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
   volumes:
     # Puerta de acceso: edita ops/clients.json en el servidor para activar/pausar clientes.
     # Al ser en vivo (bind mount), el cambio aplica sin rebuild ni reinicio de servicios.
