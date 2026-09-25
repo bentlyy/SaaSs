@@ -635,7 +635,12 @@
   /* ---------- Config ---------- */
   function renderConfig() {
     const t = state.tenant;
-    $$('#config input').forEach((el) => { if (el.name) el.value = t[el.name] ?? ''; });
+    const form = $('#config-form');
+    Object.entries(form.elements).forEach(([, el]) => {
+      if (!el.name) return;
+      if (el.type === 'checkbox') el.checked = Boolean(t[el.name]);
+      else el.value = t[el.name] ?? '';
+    });
   }
   $('#config-form').addEventListener('submit', async (e) => {
     e.preventDefault();

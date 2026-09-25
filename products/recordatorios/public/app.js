@@ -9,6 +9,14 @@
 
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => [...(root || document).querySelectorAll(sel)];
+  /* Enlaza sin morir si el elemento no esta. Un id que falta en el HTML debe
+     romper UNA funcion, nunca el script entero: los bindings de nivel superior
+     corren antes del bootstrap, asi que un throw ahi deja la app en blanco. */
+  const on = (sel, ev, fn) => {
+    const el = typeof sel === 'string' ? $(sel) : sel;
+    if (el) el.addEventListener(ev, fn);
+    else console.warn(`[bind] "${sel}" no existe en el DOM; se omite "${ev}"`);
+  };
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const daysAgo = (iso) => Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 86400_000));
   const HUMAN_STATUS = { pending: 'Pendiente', confirmed: 'Confirmada', done: 'Realizada', cancelled: 'Cancelada', noshow: 'No asistió' };
@@ -553,22 +561,25 @@
   /* ---------- Config ---------- */
   function renderConfig() {
     const t = state.tenant;
-    const form = $('#config-form').closest('section');
-    $$('#config input, #config select').forEach((el) => {
+    const form = $('#config-form');
+    if (!form) return;
+    Object.entries(form.elements).forEach(([, el]) => {
       if (!el.name) return;
       if (el.type === 'checkbox') el.checked = Boolean(t[el.name]);
       else el.value = t[el.name] ?? '';
     });
   }
-  $('#config-form').addEventListener('submit', async (e) => {
+  on('#config-form', 'submit', async (e) => {
     e.preventDefault();
-    const err = $('[data-err]', e.target);
-    err.textContent = '';
-    const f = new FormData($('#config-form'));
+    const form = e.target;
+    const err = $('[data-err]', form);
+    if (err) err.textContent = '';
+    const f = new FormData(form);
+    const emailBox = form.querySelector('[name=emailEnabled]');
     const input = {
       name: f.get('name'), phone: f.get('phone') || '', address: f.get('address') || '',
       currency: f.get('currency') || '$', timezone: f.get('timezone') || 'America/Mexico_City',
-      emailEnabled: $('#config-form').querySelector('[name=emailEnabled]').checked,
+      emailEnabled: emailBox ? emailBox.checked : false,
       whatsappWebhook: f.get('whatsappWebhook') || '', whatsappToken: f.get('whatsappToken') || '',
       reminderHours: Number(f.get('reminderHours')) || 24,
     };
@@ -578,7 +589,7 @@
       $('#user-tenant').textContent = tenant.name;
       toast('Configuración guardada', 'ok');
       await refreshViews(); renderDashboard();
-    } catch (ex) { err.textContent = ex.message; }
+    } catch (ex) { if (err) err.textContent = ex.message; else toast(ex.message, 'error'); }
   });
 
   /* ---------- Helpers ---------- */
@@ -588,14 +599,14 @@
   }
 
   /* ---------- Bindings ---------- */
-  $('#citas-new').addEventListener('click', () => { if (!state.customers.length) { switchPane('clientes'); return; } openCitaForm(null); });
-  $('#clientes-new').addEventListener('click', () => openCustomerForm(null));
-  $('[data-go-config]').addEventListener('click', () => switchPane('config'));
-  $('#logs-search').addEventListener('input', debounce((e) => { state.envioFilter.q = e.target.value; renderEnvioLogs(); }, 250));
-  $('#logs-channel').addEventListener('change', (e) => { state.envioFilter.channel = e.target.value === 'email' || e.target.value === 'whatsapp' ? e.target.value : ''; renderEnvioLogs(); });
-  $('#logs-status').addEventListener('change', (e) => { state.envioFilter.status = e.target.value === 'sent' || e.target.value === 'failed' ? e.target.value : ''; renderEnvioLogs(); });
-  $('#citas-search').addEventListener('input', debounce((e) => { state.envioFilter.q = e.target.value; renderCitas(); }, 250));
-  $('#clientes-search').addEventListener('input', debounce((e) => { state.envioFilter.q = e.target.value; renderClientes(); }, 250));
+  on('#citas-new', 'click', () => { if (!state.customers.length) { switchPane('clientes'); return; } openCitaForm(null); });
+  on('#clientes-new', 'click', () => openCustomerForm(null));
+  on('[data-go-config]', 'click', () => switchPane('config'));
+  on('#logs-search', 'input', debounce((e) => { state.envioFilter.q = e.target.value; renderEnvioLogs(); }, 250));
+  on('#logs-channel', 'change', (e) => { state.envioFilter.channel = e.target.value === 'email' || e.target.value === 'whatsapp' ? e.target.value : ''; renderEnvioLogs(); });
+  on('#logs-status', 'change', (e) => { state.envioFilter.status = e.target.value === 'sent' || e.target.value === 'failed' ? e.target.value : ''; renderEnvioLogs(); });
+  on('#citas-search', 'input', debounce((e) => { state.envioFilter.q = e.target.value; renderCitas(); }, 250));
+  on('#clientes-search', 'input', debounce((e) => { state.envioFilter.q = e.target.value; renderClientes(); }, 250));
 
   /* ---------- Bootstrap ---------- */
   (async () => {
