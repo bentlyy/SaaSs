@@ -1,0 +1,29 @@
+[Unit]
+# Copia las 8 SQLite sin downtime y respalda .env / clients.json, que no estan
+# en git. Si un dia falla, el timer sigue intentando manana (ver catchup).
+Description=Backup de SaaS Mini (SQLite + configuracion)
+Documentation=file:///home/opc/projects/saas-mini/ops/README_BACKUP.md
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=opc
+Group=opc
+WorkingDirectory=/home/opc/projects/saas-mini
+# Se invoca con bash explicito y no como ./backup.sh: un scp o un checkout
+# posterior pueden resetear el bit de ejecucion, y a las 3 de la manana un
+# status=203/EXEC no dice gran cosa de que no hubo backup.
+ExecStart=/bin/bash /home/opc/projects/saas-mini/ops/backup.sh
+TimeoutStartSec=900
+
+# Endurecimiento moderado a proposito: un job de backup que falla por hardening
+# es peor que uno sin hardening, porque el operador cree que esta respaldado.
+NoNewPrivileges=true
+PrivateTmp=true
+MemoryMax=512M
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,7 @@
+# Los scripts de ops se ejecutan en Linux: LF y con permiso de ejecucion.
+# Sin esto, un checkout en Windows deja los .sh con CRLF y el shell falla con
+# errores raros del tipo $'\r': command not found.
+*.sh text eol=lf
+*.mjs text eol=lf
+*.service text eol=lf
+*.timer text eol=lf

@@ -1,0 +1,17 @@
+[Unit]
+# Backup diario. A las 03:17 en vez de 03:00 para no coincidir con el resto de
+# cronjobs de la maquina (todo el mundo pide a y media).
+Description=Corre el backup diario de SaaS Mini
+
+[Timer]
+OnCalendar=*-*-* 03:17:00
+# Si el servidor estaba apagado a esa hora,corre en cuanto arranca en vez de
+# saltarse el dia. Eso evita justo el fallo clasico: un servidor caido tres dias
+# y nadie se entera porque el backup "corrio bien" los dias que nadie miraba.
+Persistent=true
+# Desfase aleatorio hasta 5 min para no ser todos a la vez.
+RandomizedDelaySec=300
+Unit=saasmini-backup.service
+
+[Install]
+WantedBy=timers.target
