@@ -7,6 +7,7 @@ import { config } from './config.js';
 import { cookieParser } from './middleware/auth.js';
 import { errorHandler, notFound } from './utils/http.js';
 import { authRouter } from './modules/auth/routes.js';
+import { gateResumen } from './guards/clientsGuard.js';
 import { customersRouter } from './modules/customers/routes.js';
 import { servicesRouter } from './modules/services/routes.js';
 import { staffRouter } from './modules/staff/routes.js';
@@ -68,8 +69,14 @@ export function createApp(product: ProductConfig): Express {
     }),
   );
 
-  app.post('/health', (_req, res) => res.json({ ok: true, product: product.product, name: product.name }));
-  app.get('/health', (_req, res) => res.json({ ok: true, product: product.product, name: product.name }));
+  // La puerta va en /health a proposito: si ops/clients.json se corrompe en
+  // produccion, el un sintoma es que todos los logins fallan, y hay que poder
+  // distinguir "config rota" de "base caida" sin entrar por ssh. No incluye el
+  // detalle del error porque /health responde por internet.
+  const health = (_req: express.Request, res: express.Response) =>
+    res.json({ ok: true, product: product.product, name: product.name, puerta: gateResumen() });
+  app.post('/health', health);
+  app.get('/health', health);
   app.get('/api/meta', (_req, res) => res.json({ name: product.name, product: product.product }));
 
   if (product.staticDir) {

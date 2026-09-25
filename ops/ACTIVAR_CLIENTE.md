@@ -42,7 +42,8 @@ están aparte).
 |---|---|---|
 | Slug **autorizado** | 201, cuenta creada | 200, sesión iniciada |
 | Slug **no autorizado** | **403**, no se crea nada | 403 `Tu acceso está en pausa…` |
-| `"enabled": false` | 201 | 200 |
+| `"enabled": false` en producción | **403** | **403** |
+| archivo ausente o corrupto en producción | **403** | **403** |
 
 El rechazo en el registro ocurre **antes de escribir en la base**: un slug no
 autorizado no deja tenants, usuarios ni empleados huérfanos. La captación de
@@ -83,15 +84,49 @@ Los dos números deben coincidir. Si no coinciden, el montaje está obsoleto.
 
 ## Activar / desactivar la puerta global
 
-- **Puerta apagada:** `"enabled": false`. Todo abierto: cualquiera se registra y entra.
-- **Puerta encendida:** `"enabled": true`. Solo los slugs listados pueden registrarse y entrar.
+**En producción la puerta solo se abre con `"enabled": true`.** Cualquier otro
+valor —`false`, ausente, o un archivo que no exista o no sea JSON válido— deja
+la puerta **cerrada**: nadie puede registrarse ni entrar.
+
+Antes era al revés: un archivo roto abría la puerta y cualquiera se registraba
+gratis. Con clientes pagando, "se me borró el archivo" no puede significar "entra
+todo el mundo".
+
+En desarrollo (`NODE_ENV` distinto de `production`) sí sigue abierta si no hay
+archivo, para no tener que crear un `clients.json` cada vez que levantas en local.
+
+Esto significa que **`"enabled": false` ya no apaga nada en producción**. Para
+pausar a un cliente se borra su slug de la lista, que es la operación que ya
+estaba documentada y es reversible al instante.
+
+### Si la puerta se cierra por un error de configuración
+
+Tres señales, para que no haya que adivinar:
+
+1. **El log del contenedor**, una sola vez al arrancar:
+   `[clientsGuard] PUERTA CERRADA (faltante): no existe /app/clients.json...`
+2. **`/health`**, que ahora incluye el estado de la puerta:
+   ```bash
+   curl -s https://clientes.amgdeveloper.cl/health
+   # {"ok":true,"product":"crm","name":"Gestión de Clientes",
+   #  "puerta":{"cerrada":true,"source":"faltante"}}
+   ```
+   `source` puede ser `archivo` (todo bien), `faltante`, `invalido` o
+   `desactivado`. No expone la ruta del archivo porque `/health` es público.
+3. **Todos los logins devuelven 403**, incluidos los de los clientes de pago.
+
+La causa más probable de las tres es el *inode* obsoleto de la sección anterior,
+no un archivo realmente roto. Verifica con el `stat` de más arriba.
+
+Y si el archivo se perdió de verdad, está en el backup diario:
+`~/backups/saasmini/<sello>/config/clients.json` (ver `ops/README_BACKUP.md`).
 
 ## Notas
 
 - Los slugs demo deben permanecer listados o los demos dejarán de abrir.
 - Si ya existen tenants creados antes de prender la puerta y son clientes de
-  pago, agrégales su slug al archivo antes de `"enabled": true`.
+  pago, agrégales su slug al archivo.
 - El archivo se monta con `:ro` en el contenedor; se edita desde el host del
   servidor (`~/projects/saas-mini/ops/clients.json`).
-- Si borras el archivo por error, la puerta queda **abierta** (fail-open). Recréalo
-  desde la plantilla y verifica el montaje.
+- `ops/clients.json` **no está en git** a propósito. La plantilla versionada es
+  `ops/clients.example.json`, y el backup diario copia el archivo vivo.

@@ -39,9 +39,11 @@ if [ ! -f ops/clients.json ]; then
 else
   echo "    ops/clients.json ya existe, se conserva"
   if ! node -e "JSON.parse(require('fs').readFileSync('ops/clients.json','utf8'))" 2>/dev/null; then
-    echo "    [warn] ops/clients.json tiene JSON invalido; la puerta quedaria ABIERTA por seguridad"
+    echo "    [warn] ops/clients.json tiene JSON invalido: la puerta quedara CERRADA y nadie podra entrar"
   fi
-  grep -q '"enabled": *true' ops/clients.json || echo "    [warn] la puerta esta APAGADA (enabled != true): cualquiera puede registrarse y entrar"
+  if ! grep -q '"enabled": *true' ops/clients.json; then
+    echo "    [warn] enabled != true: en produccion la puerta queda CERRADA, no abierta"
+  fi
 fi
 
 echo "==> [2/5] git pull (fast-forward)"
