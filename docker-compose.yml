@@ -1,5 +1,7 @@
 # Suite SaaS Mini: 8 productos sobre una misma imagen (core + build).
-# Cada servicio corre un workspace y persiste su SQLite en el volumen saasmini_data.
+# Cada servicio corre un workspace y persiste su SQLite en SU PROPIO volumen
+# (saasmini_data_<producto>): aislamiento — un contenedor comprometido no
+# puede leer ni escribir las bases de otro cliente (sin volumen compartido).
 # Los JWT vienen del archivo .env de compose (generado en el servidor, NO commiteado).
 
 x-app: &app
@@ -7,7 +9,6 @@ x-app: &app
   build: .
   restart: unless-stopped
   volumes:
-    - saasmini_data:/app/data
     # Puerta de acceso: edita ops/clients.json en el servidor para activar/pausar clientes.
     # Al ser en vivo (bind mount), el cambio aplica sin rebuild ni reinicio de servicios.
     - ./ops/clients.json:/app/clients.json:ro
@@ -18,6 +19,9 @@ services:
   peluqueria:
     <<: *app
     container_name: saasmini-peluqueria
+    volumes:
+      - saasmini_data_peluqueria:/app/data/peluqueria
+      - ./ops/clients.json:/app/clients.json:ro
     ports:
       - "127.0.0.1:3100:3000"
     environment:
@@ -32,6 +36,9 @@ services:
   deportes:
     <<: *app
     container_name: saasmini-deportes
+    volumes:
+      - saasmini_data_deportes:/app/data/deportes
+      - ./ops/clients.json:/app/clients.json:ro
     ports:
       - "127.0.0.1:3101:3000"
     environment:
@@ -46,6 +53,9 @@ services:
   talleres:
     <<: *app
     container_name: saasmini-talleres
+    volumes:
+      - saasmini_data_talleres:/app/data/talleres
+      - ./ops/clients.json:/app/clients.json:ro
     ports:
       - "127.0.0.1:3102:3000"
     environment:
@@ -60,6 +70,9 @@ services:
   inventario:
     <<: *app
     container_name: saasmini-inventario
+    volumes:
+      - saasmini_data_inventario:/app/data/inventario
+      - ./ops/clients.json:/app/clients.json:ro
     ports:
       - "127.0.0.1:3103:3000"
     environment:
@@ -74,6 +87,9 @@ services:
   cotizaciones:
     <<: *app
     container_name: saasmini-cotizaciones
+    volumes:
+      - saasmini_data_cotizaciones:/app/data/cotizaciones
+      - ./ops/clients.json:/app/clients.json:ro
     ports:
       - "127.0.0.1:3104:3000"
     environment:
@@ -88,6 +104,9 @@ services:
   documentos:
     <<: *app
     container_name: saasmini-documentos
+    volumes:
+      - saasmini_data_documentos:/app/data/documentos
+      - ./ops/clients.json:/app/clients.json:ro
     ports:
       - "127.0.0.1:3105:3000"
     environment:
@@ -102,6 +121,9 @@ services:
   recordatorios:
     <<: *app
     container_name: saasmini-recordatorios
+    volumes:
+      - saasmini_data_recordatorios:/app/data/recordatorios
+      - ./ops/clients.json:/app/clients.json:ro
     ports:
       - "127.0.0.1:3106:3000"
     environment:
@@ -116,6 +138,9 @@ services:
   crm:
     <<: *app
     container_name: saasmini-crm
+    volumes:
+      - saasmini_data_crm:/app/data/crm
+      - ./ops/clients.json:/app/clients.json:ro
     ports:
       - "127.0.0.1:3107:3000"
     environment:
@@ -130,6 +155,9 @@ services:
   landing:
     <<: *app
     container_name: saasmini-landing
+    volumes:
+      - saasmini_data_landing:/app/data/landing
+      - ./ops/clients.json:/app/clients.json:ro
     ports:
       - "127.0.0.1:3108:3000"
     environment:
@@ -139,7 +167,15 @@ services:
       DB_PATH: /app/data/landing/app.db
       JWT_SECRET: ${LAND_JWT:?falta LAND_JWT en .env}
       APP_NAME: AMG
-      APP_URL: https://desarrollo.amgdeveloper.cl
+      APP_URL: https://amgdeveloper.cl
 
 volumes:
-  saasmini_data:
+  saasmini_data_peluqueria:
+  saasmini_data_deportes:
+  saasmini_data_talleres:
+  saasmini_data_inventario:
+  saasmini_data_cotizaciones:
+  saasmini_data_documentos:
+  saasmini_data_recordatorios:
+  saasmini_data_crm:
+  saasmini_data_landing:
