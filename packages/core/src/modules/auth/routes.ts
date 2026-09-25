@@ -10,6 +10,7 @@ import { isClientActive } from '../../guards/clientsGuard.js';
 import { config } from '../../config.js';
 
 const CLIENT_PAUSED = 'Tu acceso está en pausa o aún no está activado. Realiza el depósito del plan y escríbenos para reactivarlo.';
+const CLIENT_NOT_ACTIVE = 'Este acceso todavía no está activado. Realiza el depósito del plan y escríbenos por WhatsApp o correo para activarlo.';
 
 export const authRouter = Router();
 
@@ -50,19 +51,26 @@ authRouter.post(
     const input = registerSchema.parse(req.body);
     const { db, sqlite } = getDb();
 
+    const product = String(req.app.locals?.defaultProduct ?? 'peluqueria');
+
+    // La puerta se evalúa ANTES de escribir: un slug no autorizado no debe dejar
+    // tenants, usuarios ni staff huérfanos en la base. La captación de leads
+    // ocurre en la landing (CTA de WhatsApp), no por este endpoint.
+    if (!isClientActive(product, input.slug)) {
+      throw new AppError(403, CLIENT_NOT_ACTIVE);
+    }
+
     const existing = db.select({ id: schema.tenants.id }).from(schema.tenants)
       .where(eq(schema.tenants.slug, input.slug)).get();
     if (existing) throw new AppError(409, 'Ese nombre corto (slug) ya está en uso');
 
     const hash = await bcrypt.hash(input.password, 10);
 
-    const defaultProduct = String(req.app.locals?.defaultProduct ?? 'peluqueria');
-
     const insert = sqlite.transaction(() => {
       const tenant = db.insert(schema.tenants).values({
         slug: input.slug,
         name: input.businessName,
-        product: defaultProduct,
+        product,
       }).returning().get();
 
       const user = db.insert(schema.users).values({
@@ -82,14 +90,6 @@ authRouter.post(
     });
 
     const { user } = insert();
-
-    const product = String(req.app.locals?.defaultProduct ?? 'peluqueria');
-    if (!isClientActive(product, input.slug)) {
-      throw new AppError(
-        403,
-        'Cuenta creada y quedó en revisión. Para activarla haz el depósito del plan y avísanos por WhatsApp o correo.',
-      );
-    }
 
     const token = signSession({
       userId: user.id,

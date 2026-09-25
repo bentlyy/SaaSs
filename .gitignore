@@ -5,6 +5,9 @@ dist/
 *.db-wal
 *.db-shm
 .env
+# Lista de clientes activados: es config por servidor, se edita en el host
+# (ver ops/ACTIVAR_CLIENTE.md). La plantilla versionada es ops/clients.example.json.
+ops/clients.json
 data/
 coverage/
 .DS_Store

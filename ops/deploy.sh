@@ -5,7 +5,7 @@ set -euo pipefail
 
 cd "$HOME/projects/saas-mini"
 
-echo "==> [1/5] Generando .env con JWT aleatorios (no versionado)"
+echo "==> [1/5] Config local: .env con JWT aleatorios + ops/clients.json"
 if [ ! -f .env ]; then
   cat > .env << EOF
 PELU_JWT=$(openssl rand -base64 48 | tr -d '=+/' | head -c 64)
@@ -27,6 +27,21 @@ else
     chmod 600 .env
     echo "    LAND_JWT agregado al .env existente"
   fi
+fi
+
+# La lista de clientes NO se versiona: es config por servidor. Si no existe, se
+# siembra desde la plantilla con la puerta ENCENDIDA y los demos autorizados.
+# Debe existir antes de `docker compose up`, porque compose lo monta como archivo.
+if [ ! -f ops/clients.json ]; then
+  cp ops/clients.example.json ops/clients.json
+  chmod 600 ops/clients.json
+  echo "    ops/clients.json creado desde la plantilla (puerta encendida, solo demos)"
+else
+  echo "    ops/clients.json ya existe, se conserva"
+  if ! node -e "JSON.parse(require('fs').readFileSync('ops/clients.json','utf8'))" 2>/dev/null; then
+    echo "    [warn] ops/clients.json tiene JSON invalido; la puerta quedaria ABIERTA por seguridad"
+  fi
+  grep -q '"enabled": *true' ops/clients.json || echo "    [warn] la puerta esta APAGADA (enabled != true): cualquiera puede registrarse y entrar"
 fi
 
 echo "==> [2/5] git pull (fast-forward)"

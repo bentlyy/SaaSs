@@ -49,6 +49,12 @@ export function createApp(product: ProductConfig): Express {
   app.locals.defaultProduct = product.product;
 
   app.disable('x-powered-by');
+
+  // En producción hay 1 salto de proxy (nginx) delante. Sin esto, req.ip vale
+  // siempre la IP de nginx y express-rate-limit lumpa a todos los usuarios en un
+  // mismo contador, avisando con ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
+  if (config.isProd) app.set('trust proxy', 1);
+
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors({ origin: config.appUrl, credentials: true }));
   app.use(express.json({ limit: '1mb' }));
