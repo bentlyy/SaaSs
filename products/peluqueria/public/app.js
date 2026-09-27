@@ -7,8 +7,7 @@
 
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => [...(root || document).querySelectorAll(sel)];
-  const money = (v) => `$${Number(v ?? 0).toLocaleString('es')}`;
-  const moneyCents = (cents) => `$${(Number(cents ?? 0) / 100).toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = (v) => `$${Number(v ?? 0).toLocaleString('es')}`;
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   /* ---------- Iconos (un solo lenguaje: stroke, estilo Lucide) ---------- */
@@ -926,7 +925,7 @@
       <td data-label="Cantidad"><b>${i.quantity}</b> ${i.quantity <= i.minQty ? `${svg('alert', 14)}` : ''}</td>
       <td data-label="Mínimo">${i.minQty}</td>
       <td data-label="Unidad" class="muted">${esc(i.unit)}</td>
-      <td data-label="Precio"><b>${moneyCents(i.price * 100)}</b></td>
+      <td data-label="Precio"><b>${money(i.price)}</b></td>
       <td data-label="Acciones"><div class="row-actions">
         <button class="btn ghost sm" data-move="${i.id}" type="button" aria-label="Ajustar stock de ${esc(i.name)}">${svg('repeat', 15)} +/-</button>
         <button class="btn ghost sm" data-edit="${i.id}" type="button" aria-label="Editar ${esc(i.name)}">${svg('edit', 15)}</button>
@@ -1039,7 +1038,7 @@
       <td><b>${esc(d.number)}</b></td>
       <td data-label="Tipo">${d.type === 'recibo' ? 'Recibo' : 'Cotización'}</td>
       <td data-label="Cliente">${esc(d.customer?.name || '—')}</td>
-      <td data-label="Total"><b>${moneyCents(d.total * 100)}</b></td>
+      <td data-label="Total"><b>${money(d.total)}</b></td>
       <td data-label="Estado"><span class="tag ${d.status}">${DOC_STATUS_LABEL[d.status] || d.status}</span></td>
       <td data-label="Acciones"><div class="row-actions">
         <button class="btn ghost sm" data-pdf="${d.id}" type="button" aria-label="Descargar PDF ${esc(d.number)}">${svg('download', 15)} PDF</button>

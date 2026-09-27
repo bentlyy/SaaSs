@@ -9,8 +9,18 @@
 
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => [...(root || document).querySelectorAll(sel)];
-  const moneyCents = (cents) => `$${(Number(cents ?? 0) / 100).toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const moneyUnits = (units) => `$${Number(units ?? 0).toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+/**
+ * Pinta un monto que YA VIENE HUMANO desde la API.
+ *
+ * Antes dividia por 100 sobre un valor que el backend ya habia dividido, asi
+ * que una factura de $250 se imprimia como $2,50. Y el PDF salia con el total
+ * centesimas de lo que debia, porque dividia una vez mas al pintar.
+ *
+ * Regla unica: la base guarda centavos, el backend convierte, aca solo se pinta.
+ * Este archivo no multiplica ni divide ningun monto.
+ */
+const money = (amount) => `$${Number(amount ?? 0).toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   /* ---------- Iconos ---------- */
@@ -274,7 +284,7 @@
       { label: 'Documentos', value: docs.length, icon: 'file', tone: 'brand' },
       { label: 'Facturas', value: invoices.length, icon: 'file', tone: 'brand' },
       { label: 'Enviados', value: sent.length, icon: 'send', tone: sent ? 'warn' : 'brand' },
-      { label: 'Facturado (acept.)', value: moneyCents(totalEmitido), icon: 'dollar', tone: 'brand' },
+      { label: 'Facturado (acept.)', value: money(totalEmitido), icon: 'dollar', tone: 'brand' },
     ];
     $('#dash-metrics').innerHTML = metrics.map((m) => `<div class="metric-card">
       <span class="metric-icon ${m.tone}">${svg(m.icon, 20)}</span>
@@ -285,7 +295,7 @@
       ? docs.slice(0, 5).map((d) => `<div class="item-row">
           <span class="avatar">${svg('file', 15)}</span>
           <div class="item-meta"><b>${esc(d.number)} · ${DOC_KINDS[d.type]?.label || d.type}</b><small>${esc(d.customer?.name || '—')}</small></div>
-          <b>${moneyCents(d.total)}</b>
+          <b>${money(d.total)}</b>
         </div>`).join('')
       : `<div class="empty-state"><span class="empty-icon">${svg('file', 24)}</span><h4>Sin documentos</h4><p>Genera tu primera factura o cotización.</p></div>`;
 
@@ -326,7 +336,7 @@
       <td><b>${esc(d.number)}</b></td>
       <td data-label="Tipo"><span class="tag ${DOC_KINDS[d.type]?.tone || 'brand'}">${DOC_KINDS[d.type]?.label || d.type}</span></td>
       <td data-label="Cliente">${esc(d.customer?.name || '—')}</td>
-      <td data-label="Total"><b>${moneyCents(d.total)}</b></td>
+      <td data-label="Total"><b>${money(d.total)}</b></td>
       <td data-label="Estado"><span class="tag ${d.status}">${DOC_STATUS_LABEL[d.status] || d.status}</span></td>
       <td data-label="Acciones"><div class="row-actions">
         <button class="btn ghost sm" data-pdf="${d.id}" type="button" aria-label="Descargar PDF ${esc(d.number)}">${svg('download', 15)} PDF</button>
@@ -360,7 +370,7 @@
     const active = state.concepts.filter((c) => c.active);
     if (!active.length) return '';
     return `<option value="">— desde catálogo —</option>` +
-      active.map((c) => `<option value="${c.id}">${esc(c.name)}${c.price ? ` · ${moneyUnits(c.price)}` : ''}</option>`).join('');
+      active.map((c) => `<option value="${c.id}">${esc(c.name)}${c.price ? ` · ${money(c.price)}` : ''}</option>`).join('');
   };
 
   function openNewDocument() {
@@ -547,7 +557,7 @@
     $('#conceptos-tbody').innerHTML = concepts.map((c) => `<tr>
       <td><b>${esc(c.name)}</b></td>
       <td data-label="SKU" class="muted">${esc(c.sku || '—')}</td>
-      <td data-label="Precio"><b>${moneyUnits(c.price)}</b></td>
+      <td data-label="Precio"><b>${money(c.price)}</b></td>
       <td data-label="Estado"><span class="tag ${c.active ? 'accepted' : 'rejected'}">${c.active ? 'Activo' : 'Inactivo'}</span></td>
       <td data-label="Acciones"><div class="row-actions">
         <button class="btn ghost sm" data-edit="${c.id}" type="button" aria-label="Editar ${esc(c.name)}">${svg('edit', 15)}</button>

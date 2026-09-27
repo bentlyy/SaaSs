@@ -1,28 +1,24 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { createApp, logger, config } from '@saas-mini/core';
+import { createPlatformApp, platformConfig, logger } from '@amg/platform';
 
+/**
+ * Punto de entrada de la plataforma central.
+ *
+ * Antes esto era solo la landing de marketing, servida por @saas-mini/core. Ahora
+ * el mismo proceso es el Core: sirve la API de identidad y suscripciones y la UI
+ * (catálogo, acceso, mi cuenta, mis aplicaciones). El HTML de marketing se sigue
+ * sirviendo en `/`, así que la web pública no cambia.
+ *
+ * `staticDir` es opcional: si no se pasa, el Core queda solo con la API (que es
+ * lo que hace `npm run dev` en la raíz, para trabajar contra la API).
+ */
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const app = createApp({
-  name: 'AMG',
-  product: 'landing',
+const app = createPlatformApp({
   staticDir: join(__dirname, '..', 'public'),
-  routers: {
-    customers: false,
-    services: false,
-    staff: false,
-    appointments: false,
-    documents: false,
-    inventory: false,
-    resources: false,
-    workorders: false,
-    reminders: false,
-    followups: false,
-    dashboard: false,
-  },
 });
 
-app.listen(config.port, () => {
-  logger.info(`AMG landing en http://localhost:${config.port}`);
+app.listen(platformConfig.port, () => {
+  logger.info(`AMG central en ${platformConfig.coreUrl} (puerto ${platformConfig.port})`);
 });

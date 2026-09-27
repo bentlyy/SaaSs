@@ -41,9 +41,15 @@ else
   if ! node -e "JSON.parse(require('fs').readFileSync('ops/clients.json','utf8'))" 2>/dev/null; then
     echo "    [warn] ops/clients.json tiene JSON invalido: la puerta quedara CERRADA y nadie podra entrar"
   fi
-  if ! grep -q '"enabled": *true' ops/clients.json; then
-    echo "    [warn] enabled != true: en produccion la puerta queda CERRADA, no abierta"
-  fi
+  # `mode` es lo unico que la puerta mira. Sin el, en produccion cierra. El
+  # aviso sale en el `if` para no incomodar cuando el archivo es correcto.
+  MODO="$(node -e "try{process.stdout.write(String(JSON.parse(require('fs').readFileSync('ops/clients.json','utf8')).mode||''))}catch(e){}" 2>/dev/null || true)"
+  case "$MODO" in
+    allowlist|subscriptions) : ;;
+    *) echo "    [warn] clients.json sin mode utilizable (valor: '${MODO:-vacio}'): en produccion la puerta queda CERRADA."
+       echo "           Usa \"mode\": \"allowlist\" si el producto NO consulta suscripciones,"
+       echo "           o \"mode\": \"subscriptions\" si ya lo hace (y el contenedor trae CLIENTS_GATE=subscriptions)." ;;
+  esac
 fi
 
 echo "==> [2/5] git pull (fast-forward)"

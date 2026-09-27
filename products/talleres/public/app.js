@@ -8,7 +8,18 @@
 
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => [...(root || document).querySelectorAll(sel)];
-  const moneyCents = (cents) => `$${(Number(cents ?? 0) / 100).toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  /**
+ * Pinta un monto que YA VIENE HUMANO desde la API.
+ *
+ * Este archivo era el peor caso: la misma pantalla multiplicaba por 100 a veces
+ * y no otras, segun de donde venia el numero. `i.price` viene de /api/inventory
+ * (que ya convierte) y se multiplicaba por 100 al pintar; `o.totals.total`
+ * venia crudo y se dividia. Un servicio de $50 salia como $5.000 en la lista
+ * de servicios y el total de la orden decia otra cosa. Ahora el backend
+ * convierte TODO y aca no hay ni un `* 100`.
+ */
+const money = (amount) => `$${Number(amount ?? 0).toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   /* ---------- Iconos (stroke, estilo Lucide) ---------- */
@@ -386,7 +397,7 @@
         </select>
       </td>
       <td data-label="Entrega">${fmtDue(o.estimated_delivery)}${o.estimated_delivery ? `<div class="muted" style="font-size:12px">${esc(o.estimated_delivery)}</div>` : ''}</td>
-      <td data-label="Total"><b>${moneyCents(o.totals.total)}</b></td>
+      <td data-label="Total"><b>${money(o.totals.total)}</b></td>
       <td data-label="Acciones"><div class="row-actions">
         <button class="btn ghost sm" data-edit="${o.id}" type="button" aria-label="Editar orden #${o.number}">${svg('edit', 15)}</button>
         <button class="btn danger sm" data-del="${o.id}" type="button" aria-label="Eliminar orden #${o.number}">${svg('trash', 15)}</button>
@@ -447,7 +458,7 @@
     const itemId = part?.item_id || '';
     const qty = part?.qty || 1;
     const opts = ['<option value="">— elige pieza —</option>'].concat(state.items.map((i) =>
-      `<option value="${i.id}" ${i.id === itemId ? 'selected' : ''} data-price="${i.price}">${esc(i.name)} · ${i.quantity} disp. · ${moneyCents(i.price * 100)}</option>`)).join('');
+      `<option value="${i.id}" ${i.id === itemId ? 'selected' : ''} data-price="${i.price}">${esc(i.name)} · ${i.quantity} disp. · ${money(i.price)}</option>`)).join('');
     return `<div class="part-row" data-part-row>
       <label class="field"><span>Pieza</span><select name="part-item">${opts}</select></label>
       <label class="field"><span>Cant.</span><input name="part-qty" type="number" min="1" value="${qty}" /></label>
@@ -463,7 +474,7 @@
       `<option value="${s.id}" ${o?.staff_id === s.id ? 'selected' : ''}>${esc(s.name)}</option>`)).join('');
     const labores = state.services.filter((s) => s.active).map((s) => {
       const on = o?.services?.some((x) => x.id === s.id) || false;
-      return `<label class="check"><input type="checkbox" name="serviceIds" value="${s.id}" ${on ? 'checked' : ''} data-price="${s.price}" /> <span><b>${esc(s.name)}</b> <small class="muted">${s.durationMin ? `${s.durationMin} min · ` : ''}${moneyCents(s.price * 100)}</small></span></label>`;
+      return `<label class="check"><input type="checkbox" name="serviceIds" value="${s.id}" ${on ? 'checked' : ''} data-price="${s.price}" /> <span><b>${esc(s.name)}</b> <small class="muted">${s.durationMin ? `${s.durationMin} min · ` : ''}${money(s.price)}</small></span></label>`;
     }).join('') || '<p class="muted">Crea labores en el catálogo para agregarlas a esta orden.</p>';
     const parts = (o?.parts?.length ? o.parts : [{ item_id: '', qty: 1 }]).map(partRowHtml).join('');
     const estDel = o?.estimated_delivery ? o.estimated_delivery.slice(0, 10) : '';
@@ -500,7 +511,7 @@
         <button type="button" class="btn ghost sm" id="add-part">${svg('plus', 15)} Agregar pieza</button>
       </fieldset>
       <label class="field"><span>Notas</span><textarea name="notes" rows="2">${esc(o?.notes || '')}</textarea></label>
-      <div class="order-total"><span>Total estimado</span><b id="order-total-value">${o ? moneyCents(o.totals.total) : '$0.00'}</b></div>
+      <div class="order-total"><span>Total estimado</span><b id="order-total-value">${o ? money(o.totals.total) : '$0.00'}</b></div>
       <div class="row-actions">
         <button type="button" class="btn ghost" data-close>Cancelar</button>
         <button type="submit" class="btn primary">${o ? 'Guardar cambios' : 'Abrir orden'}</button>
@@ -514,18 +525,18 @@
     if (!form) return;
     let total = 0;
     form.querySelectorAll('input[name=serviceIds]:checked').forEach((cb) => {
-      total += Number(cb.dataset.price || 0) * 100;
+      total += Number(cb.dataset.price || 0);
     });
     form.querySelectorAll('[data-part-row]').forEach((row) => {
       const sel = row.querySelector('[name=part-item]');
       const qty = Number(row.querySelector('[name=part-qty]').value) || 0;
       const price = Number(sel.selectedOptions?.[0]?.dataset?.price || 0);
       const sub = row.querySelector('.part-sub');
-      total += price * 100 * qty;
-      if (sub) sub.textContent = price && qty ? moneyCents(price * 100 * qty) : '—';
+      total += price * qty;
+      if (sub) sub.textContent = price && qty ? money(price * qty) : '—';
     });
     const el = $('#order-total-value');
-    if (el) el.textContent = moneyCents(total);
+    if (el) el.textContent = money(total);
   }
 
   function openOrderForm(order) {
@@ -716,7 +727,7 @@
     $('#labores-tbody').innerHTML = state.services.map((s) => `<tr>
       <td><b>${esc(s.name)}</b>${s.description ? `<div class="muted" style="font-size:12px">${esc(s.description)}</div>` : ''}</td>
       <td data-label="Duración">${s.durationMin === 0 ? '—' : `${s.durationMin} min`}</td>
-      <td data-label="Precio"><b>${moneyCents(s.price * 100)}</b></td>
+      <td data-label="Precio"><b>${money(s.price)}</b></td>
       <td data-label="Estado"><span class="tag ${s.active ? 'in_progress' : 'off'}">${s.active ? 'Activa' : 'Inactiva'}</span></td>
       <td data-label="Acciones"><div class="row-actions">
         <button class="btn ghost sm" data-edit="${s.id}" type="button" aria-label="Editar ${esc(s.name)}">${svg('edit', 15)} Editar</button>
@@ -827,7 +838,7 @@
       <td data-label="SKU" class="muted">${esc(i.sku || '—')}</td>
       <td data-label="Existencia"><b>${i.quantity}</b> ${i.quantity <= i.minQty ? `${svg('alert', 14)}` : ''}</td>
       <td data-label="Mínimo">${i.minQty}</td>
-      <td data-label="Precio"><b>${moneyCents(i.price * 100)}</b></td>
+      <td data-label="Precio"><b>${money(i.price)}</b></td>
       <td data-label="Estado"><span class="tag ${i.quantity <= i.minQty ? 'received' : 'in_progress'}">${i.quantity <= i.minQty ? 'Bajo' : 'OK'}</span></td>
       <td data-label="Acciones"><div class="row-actions">
         <button class="btn ghost sm" data-move="${i.id}" type="button" aria-label="Ajustar stock de ${esc(i.name)}">${svg('repeat', 15)} +/-</button>

@@ -35,6 +35,13 @@ docker image inspect "$IMAGEN" >/dev/null 2>&1 || fallar "no existe la imagen $I
 # Ojo: en `declare -A` el '=' va pegado a la clave. Con espacios bash lo
 # interpreta como lista de palabras y el mapa queda roto en silencio.
 # El landing queda fuera a proposito: no tiene base de datos.
+#
+# `core` no es un producto mas: es la base de la plataforma (organizaciones,
+# usuarios, suscripciones, pagos y CATALOGO). Perderla no pierde la operacion
+# diaria de los productos, pero pierde la verdad comercial y deja el deploy sin
+# billing. `inventario-v2` es la version buena del stock y hoy es la que corre
+# en produccion, asi que respaldar solo la legacy seria respaldar la copia
+# muerta. Las dos entraban antes o ninguna.
 declare -A VOL=(
   [peluqueria]=saas-mini_saasmini_data_peluqueria
   [crm]=saas-mini_saasmini_data_crm
@@ -44,9 +51,11 @@ declare -A VOL=(
   [documentos]=saas-mini_saasmini_data_documentos
   [inventario]=saas-mini_saasmini_data_inventario
   [cotizaciones]=saas-mini_saasmini_data_cotizaciones
+  [inventario-v2]=saas-mini_saasmini_data_inventario_v2
+  [core]=saas-mini_saasmini_data_core
 )
-[ "${#VOL[@]}" -eq 8 ] || fallar "el mapa de volúmenes está roto (${#VOL[@]} entradas en vez de 8)"
-ESPERADOS=8
+[ "${#VOL[@]}" -eq 10 ] || fallar "el mapa de volúmenes está roto (${#VOL[@]} entradas en vez de 10)"
+ESPERADOS=10
 
 SELLO="$(date -u '+%Y%m%d-%H%M%S')"
 DEST="$DESTINO_RAIZ/$SELLO"

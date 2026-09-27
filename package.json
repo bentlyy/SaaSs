@@ -6,15 +6,19 @@
     "products/*"
   ],
   "scripts": {
-    "dev": "npm run dev -w peluqueria",
-    "build": "npm run build -w @saas-mini/core && npm run build -w peluqueria && npm run build -w deportes && npm run build -w talleres && npm run build -w inventario && npm run build -w cotizaciones && npm run build -w documentos && npm run build -w recordatorios && npm run build -w crm && npm run build -w landing",
-    "seed": "npm run seed -w peluqueria",
+    "dev": "npm run dev -w @amg/platform",
+    "dev:core": "npm run dev -w @amg/platform",
+    "build": "npm run build -w @saas-mini/core && npm run build -w @amg/platform && npm run build -w @amg/auth-client && npm run build -w @amg/product-runtime && npm run build -w peluqueria && npm run build -w deportes && npm run build -w talleres && npm run build -w inventario && npm run build -w @amg/inventario && npm run build -w cotizaciones && npm run build -w documentos && npm run build -w recordatorios && npm run build -w crm && npm run build -w landing",
+    "seed": "npm run seed -w @amg/platform",
+    "sso:secret": "npm run sso:secret -w @amg/platform --",
     "seed:deportes": "npm run seed -w deportes",
     "dev:deportes": "npm run dev -w deportes",
     "seed:talleres": "npm run seed -w talleres",
     "dev:talleres": "npm run dev -w talleres",
     "seed:inventario": "npm run seed -w inventario",
     "dev:inventario": "npm run dev -w inventario",
+    "dev:inventario:v2": "npm run dev -w @amg/inventario",
+    "migrate:inventario": "npm run migrate:legacy -w @amg/inventario",
     "seed:cotizaciones": "npm run seed -w cotizaciones",
     "dev:cotizaciones": "npm run dev -w cotizaciones",
     "seed:documentos": "npm run seed -w documentos",
@@ -24,7 +28,7 @@
     "seed:crm": "npm run seed -w crm",
     "dev:crm": "npm run dev -w crm",
     "dev:landing": "npm run dev -w landing",
-    "test": "npm run test -w @saas-mini/core",
+    "test": "npm run test -ws --if-present",
     "typecheck": "npm run typecheck -ws --if-present"
   },
   "engines": {

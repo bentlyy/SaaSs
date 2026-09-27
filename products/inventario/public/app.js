@@ -8,7 +8,20 @@
 
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => [...(root || document).querySelectorAll(sel)];
-  const moneyCents = (cents) => `${(Number(cents ?? 0) / 100).toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).concat('')}`;
+  /**
+ * Pinta un monto que YA VIENE HUMANO desde la API.
+ *
+ * Antes esta funcion dividia por 100 Y el backend ya habia dividido: un
+ * articulo de $120 se veia como $1,20. Peor: el formulario de edicion dividia
+ * otra vez al llenarse y el backend multiplicaba al guardar, asi que abrir un
+ * articulo y guardarlo sin tocar el precio lo dividia por 100 de verdad. Un
+ * click, y el precio destruido.
+ *
+ * La regla es una sola: la base guarda centavos, el backend convierte, y aca
+ * solo se pinta. Nunca mas `* 100` ni `/ 100` en money.
+ */
+const money = (amount) => `$${Number(amount ?? 0).toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   /* ---------- Iconos (stroke, estilo Lucide) ---------- */
@@ -271,7 +284,7 @@
     const metrics = [
       { label: 'Artículos', value: state.items.length, icon: 'box', tone: 'brand' },
       { label: 'Unidades en stock', value: units.toLocaleString('es'), icon: 'repeat', tone: 'brand' },
-      { label: 'Valor del inventario', value: moneyCents(totalValue), icon: 'dollar', tone: 'brand' },
+      { label: 'Valor del inventario', value: money(totalValue), icon: 'dollar', tone: 'brand' },
       { label: 'Bajo stock', value: low.length, icon: 'alert', tone: low.length ? 'warn' : 'brand' },
     ];
     $('#dash-metrics').innerHTML = metrics.map((m) => `<div class="metric-card">
@@ -324,7 +337,7 @@
       <td data-label="SKU" class="muted">${esc(i.sku || '—')}</td>
       <td data-label="Existencia"><b>${i.quantity}</b> ${i.quantity <= i.minQty ? `${svg('alert', 14)}` : ''}</td>
       <td data-label="Mínimo">${i.minQty}</td>
-      <td data-label="Precio"><b>${moneyCents(i.price)}</b></td>
+      <td data-label="Precio"><b>${money(i.price)}</b></td>
       <td data-label="Estado"><span class="tag ${i.quantity <= i.minQty ? 'warn' : 'confirmed'}">${i.quantity <= i.minQty ? 'Bajo' : 'OK'}</span></td>
       <td data-label="Acciones"><div class="row-actions">
         <button class="btn ghost sm" data-move="${i.id}" type="button" aria-label="Ajustar stock de ${esc(i.name)}">${svg('repeat', 15)} +/-</button>
@@ -347,7 +360,7 @@
         <label class="field"><span>Existencia</span><input name="quantity" type="number" value="${i?.quantity ?? 0}" min="0" /></label>
         <label class="field"><span>Mínimo</span><input name="minQty" type="number" value="${i?.minQty ?? 0}" min="0" /></label>
       </div>
-      <label class="field"><span>Precio unitario</span><input name="price" type="number" step="0.01" value="${i ? (i.price / 100).toFixed(2) : '0.00'}" min="0" /></label>
+      <label class="field"><span>Precio unitario</span><input name="price" type="number" step="0.01" value="${i ? Number(i.price ?? 0).toFixed(2) : '0.00'}" min="0" /></label>
       <div class="row-actions">
         <button type="button" class="btn ghost" data-close>Cancelar</button>
         <button type="submit" class="btn primary">${i ? 'Guardar' : 'Agregar'}</button>

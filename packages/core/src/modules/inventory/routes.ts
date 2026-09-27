@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { and, asc, desc, eq, gt, inArray, lt, lte } from 'drizzle-orm';
 import { getDb, schema } from '../../db/index.js';
+import { fromMinor, toMinor } from '../../money.js';
 import { asyncHandler, AppError } from '../../utils/http.js';
 import { authRequired, requireRole } from '../../middleware/auth.js';
 
@@ -26,7 +27,7 @@ inventoryRouter.get(
       .where(eq(schema.inventoryItems.tenant_id, req.session.tenantId))
       .orderBy(asc(schema.inventoryItems.name))
       .all();
-    return res.json({ items: rows.map((r) => ({ ...r, price: r.price / 100 })) });
+    return res.json({ items: rows.map((r) => ({ ...r, price: fromMinor(r.price, 'USD') })) });
   }),
 );
 
@@ -41,7 +42,7 @@ inventoryRouter.get(
       ))
       .orderBy(asc(schema.inventoryItems.name))
       .all();
-    return res.json({ items: rows.map((r) => ({ ...r, price: r.price / 100 })) });
+    return res.json({ items: rows.map((r) => ({ ...r, price: fromMinor(r.price, 'USD') })) });
   }),
 );
 
@@ -95,10 +96,10 @@ inventoryRouter.post(
       quantity: input.quantity,
       minQty: input.minQty,
       unit: input.unit,
-      price: Math.round(input.price * 100),
+      price: toMinor(input.price, 'USD'),
       active: input.active ?? true,
     }).returning().get();
-    return res.status(201).json({ item: { ...row, price: row.price / 100 } });
+    return res.status(201).json({ item: { ...row, price: fromMinor(row.price, 'USD') } });
   }),
 );
 
@@ -109,11 +110,11 @@ inventoryRouter.put(
     const { db } = getDb();
     const existing = getOwned(db, req.session.tenantId, req.params.id);
     const row = db.update(schema.inventoryItems)
-      .set({ ...input, price: Math.round(input.price * 100) })
+      .set({ ...input, price: toMinor(input.price, 'USD') })
       .where(eq(schema.inventoryItems.id, existing.id))
       .returning()
       .get();
-    return res.json({ item: { ...row, price: row.price / 100 } });
+    return res.json({ item: { ...row, price: fromMinor(row.price, 'USD') } });
   }),
 );
 

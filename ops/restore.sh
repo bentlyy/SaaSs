@@ -47,8 +47,10 @@ declare -A VOL=(
   [documentos]=saas-mini_saasmini_data_documentos
   [inventario]=saas-mini_saasmini_data_inventario
   [cotizaciones]=saas-mini_saasmini_data_cotizaciones
+  [inventario-v2]=saas-mini_saasmini_data_inventario_v2
+  [core]=saas-mini_saasmini_data_core
 )
-[ "${#VOL[@]}" -eq 8 ] || { echo "el mapa de volúmenes está roto (${#VOL[@]} entradas en vez de 8)" >&2; exit 1; }
+[ "${#VOL[@]}" -eq 10 ] || { echo "el mapa de volúmenes está roto (${#VOL[@]} entradas en vez de 10)" >&2; exit 1; }
 v="${VOL[$PRODUCTO]:-}"
 [ -n "$v" ] || { echo "producto desconocido: $PRODUCTO" >&2; exit 2; }
 
@@ -74,14 +76,39 @@ docker run --rm -v "$TMP:/d" "$IMAGEN" node -e '
   const D = require("better-sqlite3");
   const db = new D("/d/inspeccion.db", { readonly: true, fileMustExist: true });
   const ok = db.pragma("integrity_check", { simple: true });
-  const tenants = db.prepare("select count(*) as n from tenants").get().n;
+  // No se cuenta una tabla fija: `tenants` existia en los productos legacy, pero
+  // en el Core las organizaciones se llaman organizations y en inventario-v2
+  // el aislamiento va por organization_id. Preguntar por `tenants` hacia que un
+  // restore valido de core o de inventario-v2 fallara con "no such table".
+  const tablas = db.prepare("select name from sqlite_master where type = ?").all("table").map(r => r.name);
+  const clave = ["tenants", "organizations", "organization"].find(t => tablas.includes(t));
+  const n = clave
+    ? db.prepare(`select count(*) as n from "${clave}"`).get().n
+    : db.prepare("select count(*) as n from sqlite_master").get().n;
+  const unidades = clave ? clave + "/s" : "tabla/s";
   db.close();
   if (ok !== "ok") { console.error("integridad: " + ok); process.exit(1); }
-  console.log("  integridad de la copia: OK (" + tenants + " tenant/s)");'
+  console.log(`  integridad de la copia: OK (${n} ${unidades})`);'
 
 # 3. la app no debe estar escribiendo
-CARRILLO="saasmini-$PRODUCTO"
-if [ "$(docker inspect -f '{{.State.Running}}' "$CARRILLO" 2>/dev/null || echo false)" = "true" ]; then
+#
+# El nombre del contenedor NO siempre es "saasmini-<producto>". La plataforma
+# (que es quien tiene abierto core.sqlite) corre dentro de `landing`. Si aqui se
+# asumiera el patron, `restore core` buscaria `saasmini-core`, no lo encontraria,
+# `docker inspect` devolveria false, y el script escribiria la base POR DEBAJO de
+# la plataforma viva: en WAL eso deja -wal y -shm viejos, y el resultado es una
+# core.sqlite a medias que no se explica. Un contenedor que no existe es un
+# fallo, no un "no estaba corriendo".
+declare -A CONTENEDOR=(
+  [core]=saasmini-landing
+)
+CARRILLO="${CONTENEDOR[$PRODUCTO]:-saasmini-$PRODUCTO}"
+if ! docker inspect "$CARRILLO" >/dev/null 2>&1; then
+  echo "el contenedor $CARRILLO no existe. No se restaura nada: si el nombre del" >&2
+  echo "servicio cambio, actualiza el mapa CONTENEDOR en ops/restore.sh." >&2
+  exit 1
+fi
+if [ "$(docker inspect -f '{{.State.Running}}' "$CARRILLO")" = "true" ]; then
   [ "$FUERCE" -eq 1 ] || { echo "$CARRILLO esta corriendo. Usa --force si de verdad quieres restaurar encima." >&2; exit 1; }
   log "deteniendo $CARRILLO"
   docker stop "$CARRILLO" >/dev/null

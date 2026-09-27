@@ -1,5 +1,6 @@
-# Imagen única para la suite SaaS Mini: core + 8 productos compilados.
+# Imagen única para la suite SaaS Mini: core + plataforma central + 8 productos.
 # Cada contenedor ejecuta el workspace indicado por la variable PRODUCT.
+# PRODUCT=landing levanta el Core (@amg/platform) con la web de la plataforma.
 FROM node:20-bookworm-slim
 
 WORKDIR /app
@@ -22,10 +23,12 @@ ENV NODE_ENV=production
 EXPOSE 3000
 
 # --- Hardening: ejecutar como usuario NO-root (node, uid 1000) ---
-# Each servicio persiste su SQLite en un volumen nombrado montado en /app/data/<producto>.
+# Cada servicio persiste su SQLite en un volumen nombrado montado en /app/data/<producto>.
 # Los volúmenes nombrados heredan la propiedad del directorio de montaje de la imagen;
 # por eso creamos /app/data y lo entregamos a node ANTES de montar (copy-on-first-use).
-RUN mkdir -p /app/data && chown -R node:node /app/data
+# /app/data/core es el punto de montaje del Core (core.sqlite): tiene que existir con
+# node como dueño, o better-sqlite3 no puede crear el archivo y el arranque falla.
+RUN mkdir -p /app/data/core && chown -R node:node /app/data
 
 # El workspace a ejecutar viene del environment (ej: PRODUCT=peluqueria).
 # npm run start -w <product> corre `node dist/index.js` con CWD en el producto.

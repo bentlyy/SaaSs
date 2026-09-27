@@ -4,8 +4,19 @@ export { logger } from './logger.js';
 export { getDb, createDb } from './db/init.js';
 export { schema } from './db/schema.js';
 export { createId } from './db/id.js';
-export { authRequired, requireRole, signSession } from './middleware/auth.js';
-export { AppError, asyncHandler } from './utils/http.js';
+export {
+  toMinor,
+  fromMinor,
+  multiplyMinor,
+  formatMoney,
+  formatMinor,
+  parseMoneyToMinor,
+  minorDecimals,
+  MINOR_UNITS,
+  type Currency,
+} from './money.js';
+export { authRequired, requireRole, signSession, cookieParser, verifyToken, type Session } from './middleware/auth.js';
+export { AppError, asyncHandler, notFound, errorHandler } from './utils/http.js';
 export { startReminderScheduler, stopReminderScheduler, processDueReminders } from './modules/reminders/scheduler.js';
 export { reminderService, type SendResult } from './modules/reminders/service.js';
 export { resourcesRouter } from './modules/resources/routes.js';

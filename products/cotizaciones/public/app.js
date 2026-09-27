@@ -8,7 +8,17 @@
 
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => [...(root || document).querySelectorAll(sel)];
-  const moneyCents = (cents) => `$${(Number(cents ?? 0) / 100).toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  /**
+ * Pinta un monto que YA VIENE HUMANO desde la API.
+ *
+ * Antes dividia por 100 sobre un valor que el backend ya habia dividido, asi
+ * que un total de $250 aparecia como $2,50.
+ *
+ * Regla unica: la base guarda centavos, el backend convierte, aca solo se pinta.
+ * Este archivo no multiplica ni divide ningun monto.
+ */
+const money = (amount) => `$${Number(amount ?? 0).toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   /* ---------- Iconos (stroke, estilo Lucide) ---------- */
@@ -276,7 +286,7 @@
       { label: 'Cotizaciones', value: quotes.length, icon: 'file', tone: 'brand' },
       { label: 'Pendientes de respuesta', value: pending, icon: 'send', tone: pending ? 'warn' : 'brand' },
       { label: 'Aceptadas', value: accepted.length, icon: 'check', tone: 'brand' },
-      { label: 'Monto en espera', value: moneyCents(openValue), icon: 'dollar', tone: 'brand' },
+      { label: 'Monto en espera', value: money(openValue), icon: 'dollar', tone: 'brand' },
     ];
     $('#dash-metrics').innerHTML = metrics.map((m) => `<div class="metric-card">
       <span class="metric-icon ${m.tone}">${svg(m.icon, 20)}</span>
@@ -295,7 +305,7 @@
       ? receipts.slice(0, 5).map((d) => `<div class="item-row">
           <span class="avatar">${svg('dollar', 15)}</span>
           <div class="item-meta"><b>${esc(d.number)}</b><small>${esc(d.customer?.name || '—')}</small></div>
-          <b>${moneyCents(d.total)}</b>
+          <b>${money(d.total)}</b>
         </div>`).join('')
       : `<div class="empty-state"><span class="empty-icon">${svg('file', 24)}</span><h4>Sin recibos</h4><p>Genera recibos para cobros parciales o pagos.</p></div>`;
   }
@@ -326,7 +336,7 @@
       <td><b>${esc(d.number)}</b></td>
       <td data-label="Tipo">${d.type === 'recibo' ? 'Recibo' : 'Cotización'}</td>
       <td data-label="Cliente">${esc(d.customer?.name || '—')}</td>
-      <td data-label="Total"><b>${moneyCents(d.total)}</b></td>
+      <td data-label="Total"><b>${money(d.total)}</b></td>
       <td data-label="Estado"><span class="tag ${d.status}">${DOC_STATUS_LABEL[d.status] || d.status}</span></td>
       <td data-label="Acciones"><div class="row-actions">
         <button class="btn ghost sm" data-pdf="${d.id}" type="button" aria-label="Descargar PDF ${esc(d.number)}">${svg('download', 15)} PDF</button>

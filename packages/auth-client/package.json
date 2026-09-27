@@ -1,0 +1,35 @@
+{
+  "name": "@amg/auth-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Cliente de identidad de AMG para los subdominios: verifica el token del Core, canjea el codigo SSO, redirige al login central y expone user_id / organization_id / rol. NO tiene usuarios ni contrasenas propias.",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "echo \"@amg/auth-client es una libreria: no se ejecuta\"",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.10.5",
+    "@types/supertest": "^7.2.1",
+    "cookie-parser": "^1.4.7",
+    "@types/cookie-parser": "^1.4.8",
+    "supertest": "^7.3.0",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Productos · AMG</title>
+<meta name="description" content="Todas las herramientas operativas de AMG: agenda,canchas, clientes, órdenes, presupuestos, documentos, recordatorios e inventario. Un solo acceso, un solo cobro.">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/assets/amg.css">
+</head>
+<body data-page="productos">
+
+<header data-topbar></header>
+
+<main>
+  <div class="wrap">
+    <div class="page-head">
+      <h1>Todas las herramientas, un solo acceso</h1>
+      <p>Cada aplicación es independiente y liviana: guarda sus datos en su propia base y no estorba a las demás.Tu cuenta de AMG y tu suscripción son las mismas para todas.</p>
+    </div>
+
+    <div class="row-between" style="margin-bottom:1.25rem">
+      <div class="field" style="min-width:16rem;flex:1;max-width:24rem">
+        <label for="buscar" class="hint">Buscar</label>
+        <input id="buscar" type="search" placeholder="agenda, inventario, presupuestos…" autocomplete="off">
+      </div>
+      <span id="conteo" class="small mute"></span>
+    </div>
+
+    <div id="catalogo" class="grid grid--2"></div>
+
+    <div class="card card--flat mt-lg">
+      <div class="row-between">
+        <div>
+          <h3>¿Necesitas todas?</h3>
+          <p class="small mute">Escríbenos y armamos un plan con las herramientas que tu negocio usa.</p>
+        </div>
+        <a class="btn btn--ghost" href="/contacto">Hablar con AMG</a>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer data-footer></footer>
+<script src="/assets/amg.js" defer></script>
+</body>
+</html>

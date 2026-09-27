@@ -31,10 +31,12 @@ afterAll(() => {
 beforeEach(() => {
   resetAvisoPuerta();
   delete process.env.NODE_ENV;
+  delete process.env.CLIENTS_GATE;
 });
 
 afterEach(() => {
   delete process.env.NODE_ENV;
+  delete process.env.CLIENTS_GATE;
 });
 
 function write(data: unknown) {
@@ -62,6 +64,12 @@ describe('clientsGuard en desarrollo', () => {
     write({ enabled: false, clients: { peluqueria: ['demo-pelu'] } });
     expect(clientGateEnabled()).toBe(false);
     expect(isClientActive('peluqueria', 'libre')).toBe(true);
+  });
+
+  it('deja pasar a todos en modo subscriptions sin confirmar', () => {
+    write({ mode: 'subscriptions' });
+    expect(clientGateEnabled()).toBe(false);
+    expect(isClientActive('peluqueria', 'cualquiera')).toBe(true);
   });
 
   it('bloquea slugs fuera de la lista cuando la puerta esta encendida', () => {
@@ -103,13 +111,53 @@ describe('clientsGuard en produccion (fail-closed)', () => {
     write({ enabled: false, clients: { peluqueria: ['demo-pelu'] } });
     expect(clientGateEnabled()).toBe(true);
     expect(isClientActive('peluqueria', 'demo-pelu')).toBe(false);
-    expect(loadGate().source).toBe('desactivado');
+    // Y ahora ademas dice POR QUE, que es lo que faltaba: antes el operador
+    // editaba una lista llena y no tenia forma de saber por que no servia.
+    expect(loadGate().source).toBe('invalido');
+    expect(loadGate().detalle).toMatch(/mode/);
   });
 
   it('NADIE entra si enabled falta, aunque la lista este llena', () => {
     comoProduccion();
     write({ clients: { peluqueria: ['demo-pelu'] } });
     expect(isClientActive('peluqueria', 'demo-pelu')).toBe(false);
+  });
+
+  // -------------------------------------------------------------- subscriptions
+  it('mode:subscriptions abre la puerta SOLO si el contenedor lo confirma', () => {
+    comoProduccion();
+    write({ mode: 'subscriptions' });
+
+    // Sin confirmar: el producto no consulta el Core, asi que la lista manda.
+    delete process.env.CLIENTS_GATE;
+    expect(loadGate().cerrada).toBe(true);
+    expect(loadGate().mode).toBe('allowlist');
+
+    // Confirmado: manda el Core y la lista deja de existir.
+    process.env.CLIENTS_GATE = 'subscriptions';
+    expect(loadGate().cerrada).toBe(false);
+    expect(loadGate().source).toBe('suscripciones');
+    expect(loadGate().mode).toBe('subscriptions');
+    expect(isClientActive('peluqueria', 'nadie-me-listo')).toBe(true);
+  });
+
+  it('el archivo no puede abrir un producto que no confirma suscripciones', () => {
+    comoProduccion();
+    // El archivo pide abrir, el contenedor no lo confirma: gana lo mas cerrado.
+    write({ mode: 'subscriptions', clients: { peluqueria: ['demo-pelu'] } });
+    delete process.env.CLIENTS_GATE;
+    expect(isClientActive('peluqueria', 'demo-pelu')).toBe(true);
+    expect(isClientActive('peluqueria', 'otro')).toBe(false);
+    expect(loadGate().detalle).toMatch(/CLIENTS_GATE/);
+  });
+
+  it('mode:allowlist con la lista es igual que enabled:true', () => {
+    comoProduccion();
+    delete process.env.CLIENTS_GATE;
+    write({ mode: 'allowlist', clients: { peluqueria: ['demo-pelu'] } });
+    expect(isClientActive('peluqueria', 'demo-pelu')).toBe(true);
+    expect(isClientActive('peluqueria', 'otro')).toBe(false);
+    expect(gateResumen()).toEqual({ cerrada: true, source: 'archivo', mode: 'allowlist' });
   });
 
   it('NADIE entra si el archivo esta vacio', () => {
@@ -142,13 +190,14 @@ describe('gateResumen', () => {
     comoProduccion();
     rmSync(file, { force: true });
     const resumen = gateResumen();
-    expect(resumen).toEqual({ cerrada: true, source: 'faltante' });
+    expect(resumen).toEqual({ cerrada: true, source: 'faltante', mode: 'ninguno' });
     expect(JSON.stringify(resumen)).not.toContain(dir);
   });
 
   it('reporta archivo cuando todo esta bien', () => {
     comoProduccion();
-    write({ enabled: true, clients: { crm: ['demo-crm'] } });
-    expect(gateResumen()).toEqual({ cerrada: true, source: 'archivo' });
+    delete process.env.CLIENTS_GATE;
+    write({ mode: 'allowlist', clients: { crm: ['demo-crm'] } });
+    expect(gateResumen()).toEqual({ cerrada: true, source: 'archivo', mode: 'allowlist' });
   });
 });

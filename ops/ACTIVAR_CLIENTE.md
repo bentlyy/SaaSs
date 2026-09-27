@@ -18,12 +18,45 @@ están aparte).
 
 ```json
 {
-  "enabled": true,
+  "mode": "allowlist",
   "clients": {
     "peluqueria": ["demo-pelu", "pelu-jardin"],
     "deportes": ["demo-deportes"]
   }
 }
+```
+
+## Los dos modos, y por qué existen
+
+Hay dos listas distintas y este archivo solo administra una de ellas:
+
+| Dónde | Qué es | Quién la cambia |
+|------|--------|-----------------|
+| `core.sqlite` → `subscriptions` | **Comercial.** La paga el cliente, la renueva, la cancela. | El cliente, desde `desarrollador.amgdeveloper.cl` |
+| `ops/clients.json` | **Técnica.** Apagar un producto con una línea, sin deploy y sin esperar un ciclo de facturación. | Tú, por SSH |
+
+`mode` dice cuál manda, y **no hay lectura ambigua**:
+
+- **`"mode": "allowlist"`** — la lista de este archivo manda. Es lo que usan
+  los 8 productos legacy, porque todavía no consultan suscripciones. Para
+  agregar o quitar un cliente, editas la lista.
+- **`"mode": "subscriptions"`** — la lista **no** manda: decide `subscriptions`
+  en el Core. Solo tiene efecto si el contenedor viene con
+  `CLIENTS_GATE=subscriptions`; si el archivo lo pide y el contenedor no lo
+  confirma, **gana la lista** (lo más cerrado). Es la forma de no dejar un
+  producto abierto por un archivo, sin nadie vigilándolo.
+
+`"enabled"` quedó obsoleto. `enabled: true` todavía equivale a `allowlist`, pero
+`enabled: false` **no significa "abierto"**: en producción es configuración
+inválida y **cierra la puerta** avisando que falta `mode`. Antes esas dos
+lecturas opuestas del mismo campo eran la forma de dejar producción cerrada sin
+saber por qué.
+
+Comprobación rápida de qué está mirando cada servicio:
+
+```bash
+curl -s localhost:3100/health | jq .puerta   # legacy
+curl -s localhost:3123/health | jq .         # inventario-v2 (no usa la lista)
 ```
 
 ## Procedimiento manual
@@ -34,7 +67,7 @@ están aparte).
 | 2. Cobro | Le pasas el depósito / datos bancarios (sección de pago de la landing). |
 | 3. Alta | Agregas su slug al producto correspondiente en `ops/clients.json` (SSH al servidor, `nano ops/clients.json`). **Listo al instante.** |
 | 4. Aviso | Le dices su slug y que cree su cuenta o entre con sus credenciales. |
-| 5. Renovación | Cuando no renueva el plan, borras su slug (o pones `"enabled": false` para cerrar TODO temporalmente). Vuelve al instante a 403. |
+| 5. Renovación | Cuando no renueva el plan, borras su slug. Vuelve al instante a 403. |
 
 ## Qué bloquea y qué no
 

@@ -4,6 +4,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import { getDb, schema } from '../../db/index.js';
 import { asyncHandler, AppError } from '../../utils/http.js';
 import { authRequired, requireRole } from '../../middleware/auth.js';
+import { fromMinor, toMinor } from '../../money.js';
 
 export const resourcesRouter = Router();
 resourcesRouter.use(authRequired);
@@ -26,7 +27,7 @@ resourcesRouter.get(
       .where(eq(schema.resources.tenant_id, req.session.tenantId))
       .orderBy(asc(schema.resources.name))
       .all();
-    return res.json({ resources: rows.map((r) => ({ ...r, pricePerHour: r.pricePerHour / 100 })) });
+    return res.json({ resources: rows.map((r) => ({ ...r, pricePerHour: fromMinor(r.pricePerHour, 'USD') })) });
   }),
 );
 
@@ -40,11 +41,11 @@ resourcesRouter.post(
       name: input.name,
       type: input.type,
       capacity: input.capacity,
-      pricePerHour: Math.round(input.pricePerHour * 100),
+      pricePerHour: toMinor(input.pricePerHour, 'USD'),
       color: input.color ?? pickColor(req.session.tenantId),
       active: input.active ?? true,
     }).returning().get();
-    return res.status(201).json({ resource: { ...row, pricePerHour: row.pricePerHour / 100 } });
+    return res.status(201).json({ resource: { ...row, pricePerHour: fromMinor(row.pricePerHour, 'USD') } });
   }),
 );
 
@@ -55,11 +56,11 @@ resourcesRouter.put(
     const { db } = getDb();
     const existing = getOwned(db, req.session.tenantId, req.params.id);
     const row = db.update(schema.resources)
-      .set({ ...input, pricePerHour: Math.round(input.pricePerHour * 100) })
+      .set({ ...input, pricePerHour: toMinor(input.pricePerHour, 'USD') })
       .where(eq(schema.resources.id, existing.id))
       .returning()
       .get();
-    return res.json({ resource: { ...row, pricePerHour: row.pricePerHour / 100 } });
+    return res.json({ resource: { ...row, pricePerHour: fromMinor(row.pricePerHour, 'USD') } });
   }),
 );
 

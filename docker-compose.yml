@@ -1,8 +1,14 @@
-# Suite SaaS Mini: 8 productos sobre una misma imagen (core + build).
-# Cada servicio corre un workspace y persiste su SQLite en SU PROPIO volumen
-# (saasmini_data_<producto>): aislamiento — un contenedor comprometido no
-# puede leer ni escribir las bases de otro cliente (sin volumen compartido).
-# Los JWT vienen del archivo .env de compose (generado en el servidor, NO commiteado).
+# Suite SaaS Mini: la plataforma central (Core) + 8 productos sobre una misma
+# imagen (core + build). Cada producto corre un workspace y persiste su SQLite en
+# SU PROPIO volumen (saasmini_data_<producto>): aislamiento — un contenedor
+# comprometido no puede leer ni escribir las bases de otro cliente (sin volumen
+# compartido). Los JWT vienen del archivo .env de compose (generado en el servidor,
+# NO commiteado).
+#
+# El servicio `landing` es distinto de los demás: no es un mini-SaaS, es el Core
+# (@amg/platform). No usa clientsGuard ni JWT propio: guarda usuarios,
+# organizaciones, sesiones, suscripciones y pagos en core.sqlite, y sirve la web
+# (landing, catálogo, acceso, mi cuenta, mis aplicaciones).
 
 x-app: &app
   image: saas-mini:latest
@@ -23,6 +29,12 @@ x-app: &app
     - ./ops/clients.json:/app/clients.json:ro
   environment: &base-env
     NODE_ENV: production
+    # QUien decide el acceso, y solo para los 8 legacy (los unicos que montan
+    # clients.json): el Core con `subscriptions`, o esta lista de emergencia.
+    # `allowlist` es el unico modo que un producto legacy puede cumplir, porque
+    # todavia no consulta suscripciones. Cuando un producto migre al Core, se
+    # saca el bind mount de clients.json y la lista deja de existir para el.
+    CLIENTS_GATE: allowlist
 
 services:
   peluqueria:
@@ -93,6 +105,44 @@ services:
       APP_NAME: Almacenaje
       APP_URL: https://stock.amgdeveloper.cl
 
+  # Inventario v2: el primero que corre sobre el runtime de AMG. No usa
+  # clientsGuard ni JWT propio: la identidad y las suscripciones salen del Core
+  # por SSO. Sigue conviviendo con el `inventario` legacy de arriba, que sirve
+  # desde su propia app.db. Los dos declaran el mismo APP_URL a proposito — es el
+  # mismo producto, otra implementación — asi que en despliegue solo puede
+  # quedar uno: al cortar al v2 hay que apagar el legacy.
+  inventario-v2:
+    <<: *app
+    container_name: saasmini-inventario-v2
+    volumes:
+      - saasmini_data_inventario_v2:/app/data/inventario
+    ports:
+      - "127.0.0.1:3123:3000"
+    environment:
+      <<: *base-env
+      # OJO: PRODUCT no es el slug del producto, es el WORKSPACE que arranca el
+      # CMD (`npm run start -w "$PRODUCT"`). El slug real lo declara
+      # src/app.ts y es `inventario`, el mismo que el legacy: es el mismo
+      # producto con otra implementación, y por eso comparte client_id SSO.
+      #
+      # Este producto NO monta clients.json ni consulta clientsGuard: su puerta
+      # es `subscriptions` en el Core, que se mira en cada request. Por eso el
+      # CLIENTS_GATE heredado no aplica aqui.
+      PRODUCT: '@amg/inventario'
+      PORT: "3000"
+      DB_PATH: /app/data/inventario/inventario.sqlite
+      DB_SCHEMA_VERSION: "1"
+      APP_NAME: Almacenaje
+      APP_URL: https://stock.amgdeveloper.cl
+      CORE_URL: https://desarrollador.amgdeveloper.cl
+      # Mismo client_id que el legacy. El secreto sale del Core con
+      # `npm run sso:secret -w @amg/platform -- inventario`.
+      AMG_SSO_CLIENT_ID: inventario
+      AMG_SSO_CLIENT_SECRET: ${AMG_SSO_INVENTARIO_SECRET:?falta AMG_SSO_INVENTARIO_SECRET en .env}
+      # Corta el acceso al instante si le cancelan la suscripción, a costa de una
+      # llamada al Core por request. En produccion conviene 1.
+      AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
+
   cotizaciones:
     <<: *app
     container_name: saasmini-cotizaciones
@@ -161,30 +211,47 @@ services:
       APP_NAME: Gestión de Clientes
       APP_URL: https://clientes.amgdeveloper.cl
 
+  # ── Plataforma central (Core) ─────────────────────────────────────────────
+  # Sirve la API de identidad/suscripciones y la web. Sin clients.json: el Core
+  # no lleva la lista de tenants, usa core.sqlite (ver docs/ARCHITECTURE.md).
   landing:
     <<: *app
     container_name: saasmini-landing
     volumes:
-      - saasmini_data_landing:/app/data/landing
-      - ./ops/clients.json:/app/clients.json:ro
+      - saasmini_data_core:/app/data/core
     ports:
       - "127.0.0.1:3108:3000"
     environment:
       <<: *base-env
       PRODUCT: landing
       PORT: "3000"
-      DB_PATH: /app/data/landing/app.db
-      JWT_SECRET: ${LAND_JWT:?falta LAND_JWT en .env}
+      CORE_PORT: "3000"
+      CORE_DB_PATH: /app/data/core/core.sqlite
+      # URL pública real: aparece en los enlaces de SSO y de recuperación de
+      # contraseña. Con esto en localhost, los correos mandan al lugar errado.
+      CORE_URL: https://desarrollador.amgdeveloper.cl
+      # Dos secretos y ninguno con valor por defecto en produccion (fail-fast).
+      # AMG_SSO_ROOT_SECRET es la raiz de la que sale el secreto de cada producto
+      # (HKDF): cambiarlo invalida todos los clientes SSO a la vez.
+      AMG_SESSION_SECRET: ${AMG_SESSION_SECRET:?falta AMG_SESSION_SECRET en .env}
+      AMG_SSO_ROOT_SECRET: ${AMG_SSO_ROOT_SECRET:?falta AMG_SSO_ROOT_SECRET en .env}
+      CORE_RETURN_URL_HOSTS: amgdeveloper.cl,localhost
       APP_NAME: AMG
-      APP_URL: https://desarrollo.amgdeveloper.cl
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@amgdeveloper.cl}
+      CONTACT_EMAIL: ${CONTACT_EMAIL:-hola@amgdeveloper.cl}
 
 volumes:
   saasmini_data_peluqueria:
   saasmini_data_deportes:
   saasmini_data_talleres:
   saasmini_data_inventario:
+  saasmini_data_inventario_v2:
   saasmini_data_cotizaciones:
   saasmini_data_documentos:
   saasmini_data_recordatorios:
   saasmini_data_crm:
-  saasmini_data_landing:
+  saasmini_data_core:

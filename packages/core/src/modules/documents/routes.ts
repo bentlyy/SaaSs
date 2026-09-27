@@ -6,6 +6,7 @@ import { asyncHandler, AppError } from '../../utils/http.js';
 import { authRequired, requireRole } from '../../middleware/auth.js';
 import { getOwned as getCustomer } from '../customers/routes.js';
 import { createId } from '../../db/id.js';
+import { fromMinor, multiplyMinor, toMinor } from '../../money.js';
 
 export const documentsRouter = Router();
 documentsRouter.use(authRequired);
@@ -31,7 +32,7 @@ const documentSchema = z.object({
   taxPercent: z.number().min(0).max(100).default(0),
 });
 
-const toCents = (amount: number) => Math.round(amount * 100);
+const toCents = (amount: number) => toMinor(amount, 'USD');
 
 documentsRouter.get(
   '/',
@@ -54,8 +55,13 @@ documentsRouter.post(
     const tenantId = req.session.tenantId;
     const customer = getCustomer(db, tenantId, input.customerId);
 
-    const subtotal = input.lines.reduce((acc, l) => acc + toCents(l.price) * l.qty, 0);
-    const tax = Math.round(subtotal * (input.taxPercent / 100));
+    // El total se acumula en unidades menores (inteiros) y se convierte UNA vez
+    // al responder. Multiplicar en float y redondear al final era la otra
+    // El impuesto es un porcentaje de un valor que YA venia en unidades menores,
+    // asi que es aritmetica entera: llamar a toMinor aqui multiplicaba por 100
+    // un subtotal que ya estaba en centavos.
+    const subtotal = input.lines.reduce((acc, l) => acc + multiplyMinor(toCents(l.price), l.qty), 0);
+    const tax = Math.round((subtotal * input.taxPercent) / 100);
 
     const insert = sqlite.transaction(() => {
       const number = `${documentKinds[input.type].prefix}${Date.now().toString(36).toUpperCase()}`;
@@ -162,9 +168,12 @@ function decode(doc: typeof schema.documents.$inferSelect) {
     ...doc,
     customer: safeParse(doc.customer_snapshot, { name: '' }),
     lines: safeParse(doc.lines, []),
-    subtotal: doc.subtotal / 100,
-    tax: doc.tax / 100,
-    total: doc.total / 100,
+    // La base guarda unidades menores y la API habla numero humano: una sola
+    // conversion, aqui. Antes se dividia otra vez al pintar el PDF y el cliente
+    // recibia la factura con el total centesimas de lo que debia.
+    subtotal: fromMinor(doc.subtotal, 'USD'),
+    tax: fromMinor(doc.tax, 'USD'),
+    total: fromMinor(doc.total, 'USD'),
   };
 }
 
@@ -180,8 +189,19 @@ function customerName(doc: ReturnType<typeof decode>) {
   return doc.customer?.name ?? 'Cliente';
 }
 
-export function formatMoney(cents: number) {
-  return `$${(Number(cents) / 100).toFixed(2)}`;
+/**
+ * Pinta un monto YA HUMANO (viene de `decode`).
+ *
+ * Antes se llamaba con centavos y dividia aqui, encima de la division que
+ * acababa de hacer `decode`: el PDF salia con el total dividido por 100 dos
+ * veces. El nombre lo dice: recibe pesos, no centavos.
+ */
+export function formatMoney(amount: number, symbol = '$') {
+  const numero = Number.isFinite(amount) ? amount : 0;
+  return `${symbol}${numero.toLocaleString('es-CL', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 export function getOwned(db: ReturnType<typeof getDb>['db'], tenantId: string, id: string) {

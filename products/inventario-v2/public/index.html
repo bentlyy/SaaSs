@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="es-CL">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Inventario · AMG</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      <div class="marca">
+        <strong>Inventario</strong>
+        <span class="org" id="org">cargando…</span>
+      </div>
+      <div class="sesion">
+        <span id="usuario"></span>
+        <span class="rol" id="rol"></span>
+        <button id="salir" class="link" type="button">Salir</button>
+      </div>
+    </header>
+
+    <section class="tarjetas" id="resumen"></section>
+
+    <main>
+      <div class="columna">
+        <div class="panel">
+          <div class="panel-cab">
+            <h2>Artículos</h2>
+            <div class="acciones">
+              <input id="buscar" type="search" placeholder="Buscar por nombre o SKU" autocomplete="off" />
+              <button id="nuevo" type="button">Nuevo artículo</button>
+            </div>
+          </div>
+          <div id="bajo" class="aviso oculto"></div>
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>SKU</th>
+                <th class="num">Stock</th>
+                <th>Unidad</th>
+                <th class="num">Precio</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="filas"></tbody>
+          </table>
+        </div>
+
+        <div class="panel">
+          <div class="panel-cab">
+            <h2>Configuración</h2>
+          </div>
+          <div class="config-cuerpo">
+            <p class="nota">
+              La razón social y los contactos se editan en AMG
+              (<span id="org-nombre">—</span>), no acá: están en el Core, y
+              duplicarlos sería garantizar que se desincronicen.
+            </p>
+            <form id="config-form">
+              <div class="campo">
+                <label for="defaultUnit">Unidad por defecto al cargar un artículo</label>
+                <input id="defaultUnit" name="defaultUnit" type="text" maxlength="30" required />
+              </div>
+              <div class="campo">
+                <label for="defaultMinQuantity">Stock mínimo por defecto</label>
+                <input id="defaultMinQuantity" name="defaultMinQuantity" type="number" min="0" step="1" required />
+              </div>
+              <div class="campo">
+                <label for="currency">Símbolo de moneda</label>
+                <input id="currency" name="currency" type="text" maxlength="5" required />
+              </div>
+              <p class="error oculto" data-err></p>
+              <div class="config-acciones">
+                <button id="sembrar" type="button" data-requiere-admin class="link">Cargar datos de ejemplo</button>
+                <button type="submit">Guardar cambios</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="columna">
+        <div class="panel">
+          <div class="panel-cab"><h2>Movimientos</h2></div>
+          <table>
+            <thead>
+              <tr>
+                <th class="num">Delta</th>
+                <th>Artículo</th>
+                <th>Motivo</th>
+                <th>Quién</th>
+                <th>Cuándo</th>
+              </tr>
+            </thead>
+            <tbody id="movimientos"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <dialog id="dialogo">
+      <form method="dialog" id="form">
+        <h3 id="titulo">Nuevo artículo</h3>
+        <div id="campos"></div>
+        <p class="error oculto" id="error"></p>
+        <menu>
+          <button value="cancelar" type="submit" class="link">Cancelar</button>
+          <button value="guardar" type="submit" id="guardar">Guardar</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

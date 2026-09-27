@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { and, asc, desc, eq, inArray, like } from 'drizzle-orm';
 import { getDb, schema } from '../../db/index.js';
+import { fromMinor } from '../../money.js';
 import { asyncHandler, AppError } from '../../utils/http.js';
 import { authRequired } from '../../middleware/auth.js';
 import { getOwned as getCustomer } from '../customers/routes.js';
@@ -331,7 +332,11 @@ export function attachLines(
     const svc = svcMap.get(l.service_id);
     if (!svc) continue;
     const list = svcByOrder.get(l.order_id) ?? [];
-    list.push({ ...svc, price_at: l.price_at });
+    // La foto del precio y el precio actual salen en numero HUMANO: la base
+    // guarda unidades menores y esta es la unica conversion. El frontend ya no
+    // multiplica por 100 "para arreglarlo", que era como aparecia duplicado en
+    // una tabla y centesimas en otra de la misma pantalla.
+    list.push({ ...svc, price: fromMinor(svc.price, 'USD'), price_at: fromMinor(l.price_at, 'USD') });
     svcByOrder.set(l.order_id, list);
   }
 
@@ -347,7 +352,12 @@ export function attachLines(
     const item = itemMap.get(l.item_id);
     if (!item) continue;
     const list = partByOrder.get(l.order_id) ?? [];
-    list.push({ ...item, qty: l.qty, unit_price_at: l.unit_price_at });
+    list.push({
+      ...item,
+      price: fromMinor(item.price, 'USD'),
+      qty: l.qty,
+      unit_price_at: fromMinor(l.unit_price_at, 'USD'),
+    });
     partByOrder.set(l.order_id, list);
   }
 
@@ -372,6 +382,9 @@ function totalsOf(
   services: Array<{ price_at: number }>,
   parts: Array<{ qty: number; unit_price_at: number }>,
 ) {
+  // Se acumula en numero humano porque `attachLines` ya entrego las lineas
+  // convertidas. Multiplicar humano x cantidad es exacto para cantidades
+  // enteras, y evita el doble viaje centavos -> pesos -> centavos.
   const labor = services.reduce((sum, s) => sum + s.price_at, 0);
   const partsTotal = parts.reduce((sum, p) => sum + p.qty * p.unit_price_at, 0);
   const total = labor + partsTotal;

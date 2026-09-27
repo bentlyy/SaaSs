@@ -1,10 +1,11 @@
 {
-  "enabled": true,
+  "mode": "allowlist",
   "clients": {
     "peluqueria": ["demo-pelu"],
     "deportes": ["demo-deportes"],
     "talleres": ["demo-talleres"],
     "inventario": ["demo-inventario"],
+    "inventario-v2": ["demo-inventario"],
     "cotizaciones": ["demo-cotizaciones"],
     "documentos": ["demo-docupro"],
     "recordatorios": ["demo-recordatorios"],

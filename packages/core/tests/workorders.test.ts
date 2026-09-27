@@ -87,12 +87,15 @@ describe('órdenes de trabajo', () => {
     expect(body.order.number).toBe(1);
     expect(body.order.vehicle.plate).toBe('a123bcd');
     expect(body.order.services).toHaveLength(1);
-    expect(body.order.services[0].price_at).toBe(4000);
+    // El snapshot guarda 4000 centavos ($40) en la base, pero la API lo devuelve
+    // en pesos: la conversion ocurre UNA vez, al responder. Antes esta misma
+    // linea pedia 4000 y el frontend multiplicaba por 100 para compensar.
+    expect(body.order.services[0].price_at).toBe(40);
     expect(body.order.parts[0].qty).toBe(2);
-    expect(body.order.parts[0].unit_price_at).toBe(6000);
-    expect(body.order.totals.labor).toBe(4000);
-    expect(body.order.totals.parts).toBe(12000);
-    expect(body.order.totals.total).toBe(16000);
+    expect(body.order.parts[0].unit_price_at).toBe(60);
+    expect(body.order.totals.labor).toBe(40);
+    expect(body.order.totals.parts).toBe(120);
+    expect(body.order.totals.total).toBe(160);
 
     const { db } = getDb();
     const itemNow = db.select().from(schema.inventoryItems).where(eq(schema.inventoryItems.id, item.id)).get()!;
@@ -138,7 +141,7 @@ describe('órdenes de trabajo', () => {
     const body = await res.json();
     expect(body.order.vehicle.model).toBe('Civic');
     expect(body.order.parts[0].qty).toBe(1);
-    expect(body.order.totals.total).toBe(6000);
+    expect(body.order.totals.total).toBe(60);
 
     const { db } = getDb();
     const itemNow = db.select().from(schema.inventoryItems).where(eq(schema.inventoryItems.id, item.id)).get()!;

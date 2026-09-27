@@ -1,0 +1,31 @@
+{
+  "name": "@amg/inventario",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Inventario sobre el runtime de AMG: articulos, stock y movimientos, con identidad y suscripciones del Core. Sin usuarios ni contrasenas propias.",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "migrate:legacy": "tsx src/migrate-legacy.ts"
+  },
+  "dependencies": {
+    "@amg/auth-client": "*",
+    "@amg/product-runtime": "*"
+  },
+  "devDependencies": {
+    "@amg/platform": "*",
+    "@types/node": "^22.10.5",
+    "dotenv": "^16.4.7",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
