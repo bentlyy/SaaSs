@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Espacios</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<!--
+  Esta página no pide usuario ni contraseña: la sesión vive en el Core y este
+  documento solo se sirve si ya la hay. Todo lo que se ve sale de la API, que
+  filtra por organización; por eso acá no hay ningún dato de ninguna empresa.
+-->
+<header>
+  <h1>Espacios</h1>
+  <nav id="tabs">
+    <button data-tab="agenda" class="activo">Agenda</button>
+    <button data-tab="espacios">Espacios</button>
+    <button data-tab="clientes">Clientes</button>
+    <button data-tab="extras">Extras</button>
+    <button data-tab="ajustes">Ajustes</button>
+  </nav>
+  <a id="salir" href="/auth/logout">Salir</a>
+</header>
+
+<main>
+  <section id="panel-agenda">
+    <div class="tarjetas" id="resumen"></div>
+
+    <div class="fila">
+      <div>
+        <label for="agenda-espacio">Espacio</label>
+        <select id="agenda-espacio"></select>
+      </div>
+      <div>
+        <label for="agenda-fecha">Fecha</label>
+        <input type="date" id="agenda-fecha">
+      </div>
+      <button id="agenda-nueva">Reservar</button>
+    </div>
+
+    <div id="agenda-lista"></div>
+
+    <h3>Franjas libres</h3>
+    <div id="agenda-disponibles" class="franjas"></div>
+  </section>
+
+  <section id="panel-espacios" hidden>
+    <form id="espacio-form">
+      <h3><span id="espacio-form-titulo">Nuevo espacio</span></h3>
+      <label for="espacio-nombre">Nombre</label>
+      <input id="espacio-nombre" required maxlength="150">
+      <label for="espacio-tipo">Tipo</label>
+      <input id="espacio-tipo" value="cancha" maxlength="40">
+      <label for="espacio-aforo">Aforo</label>
+      <input id="espacio-aforo" type="number" min="1" value="10">
+      <label for="espacio-tarifa">Tarifa por hora</label>
+      <input id="espacio-tarifa" type="number" min="0" step="100" value="30000">
+      <input type="hidden" id="espacio-id">
+      <div class="fila">
+        <button type="submit">Guardar</button>
+        <button type="button" id="espacio-cancelar" hidden>Cancelar</button>
+      </div>
+    </form>
+    <div id="espacios-lista"></div>
+  </section>
+
+  <section id="panel-clientes" hidden>
+    <form id="cliente-form">
+      <h3>Nuevo cliente</h3>
+      <label for="cliente-nombre">Nombre</label>
+      <input id="cliente-nombre" required maxlength="150">
+      <label for="cliente-telefono">Teléfono</label>
+      <input id="cliente-telefono" maxlength="40">
+      <label for="cliente-correo">Correo</label>
+      <input id="cliente-correo" type="email" maxlength="200">
+      <button type="submit">Guardar</button>
+    </form>
+    <div id="clientes-lista"></div>
+  </section>
+
+  <section id="panel-extras" hidden>
+    <form id="extra-form">
+      <h3>Nuevo extra</h3>
+      <label for="extra-nombre">Nombre</label>
+      <input id="extra-nombre" required maxlength="150">
+      <label for="extra-precio">Precio</label>
+      <input id="extra-precio" type="number" min="0" step="100" value="0">
+      <button type="submit">Guardar</button>
+    </form>
+    <div id="extras-lista"></div>
+  </section>
+
+  <section id="panel-ajustes" hidden>
+    <form id="config-form">
+      <h3>Ajustes de la jornada</h3>
+      <label for="cfg-moneda">Moneda</label>
+      <input id="cfg-moneda" name="currency" maxlength="5">
+      <label for="cfg-zona">Zona horaria</label>
+      <input id="cfg-zona" name="timezone" maxlength="60">
+      <label for="cfg-apertura">Apertura</label>
+      <input id="cfg-apertura" name="openingMinutes" type="time" data-horas>
+      <label for="cfg-cierre">Cierre</label>
+      <input id="cfg-cierre" name="closingMinutes" type="time" data-horas>
+      <label for="cfg-franja">Franja (minutos)</label>
+      <input id="cfg-franja" name="slotMinutes" type="number" min="15" max="480" step="15">
+      <label for="cfg-anticipacion">Anticipación mínima (minutos)</label>
+      <input id="cfg-anticipacion" name="minAdvanceMinutes" type="number" min="0" step="15">
+      <button type="submit">Guardar ajustes</button>
+    </form>
+  </section>
+</main>
+
+<dialog id="reserva-dialog">
+  <form id="reserva-form">
+    <h3>Nueva reserva</h3>
+    <label for="reserva-espacio">Espacio</label>
+    <select id="reserva-espacio" required></select>
+    <label for="reserva-cliente">Cliente</label>
+    <select id="reserva-cliente"></select>
+    <label for="reserva-inicio">Empieza</label>
+    <input id="reserva-inicio" type="datetime-local" required>
+    <label for="reserva-fin">Termina</label>
+    <input id="reserva-fin" type="datetime-local" required>
+    <label for="reserva-notas">Notas</label>
+    <input id="reserva-notas" maxlength="2000">
+    <label for="reserva-extra">Extra</label>
+    <select id="reserva-extra"></select>
+    <p class="total">Total: <span id="reserva-total">$0</span></p>
+    <div class="fila">
+      <button type="submit">Reservar</button>
+      <button type="button" id="reserva-cancelar">Cancelar</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="aviso" hidden></div>
+<script src="/app.js"></script>
+</body>
+</html>

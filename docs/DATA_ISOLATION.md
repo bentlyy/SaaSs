@@ -8,6 +8,7 @@ los demás.**
 | Archivo | Contenido | Producto |
 |---|---|---|
 | `core.sqlite` | usuarios, organizaciones, membresías, sesiones, catálogo, suscripciones, pagos, SSO | el Core |
+| `espacios.sqlite` | espacios, extras, clientes, reservas | espacios |
 | `citas.sqlite` | citas, clientes, servicios, profesionales, avisos | citas |
 | `inventario.sqlite` | artículos, movimientos, proveedores | inventario |
 | ... | ... | ... |
