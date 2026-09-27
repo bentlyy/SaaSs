@@ -139,7 +139,16 @@ export {
 } from './http/middleware.js';
 
 // catálogo
-export { CATALOG, seedCatalog, ensurePlatformSeed, type CatalogProduct } from './seed.js';
+export {
+  CATALOG,
+  EXPECTED_SLUGS,
+  PLATFORM_URL,
+  RETIRED_SLUGS,
+  seedCatalog,
+  ensurePlatformSeed,
+  catalogSummary,
+  type CatalogProduct,
+} from './seed.js';
 export {
   startCheckout,
   confirmCheckout,

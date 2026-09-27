@@ -1,31 +1,32 @@
 import { logger } from '@saas-mini/core';
-import { upsertProduct, listProducts, type Product } from './domain/products.js';
+import {
+  findProductBySlug,
+  listProducts,
+  setProductStatus,
+  upsertProduct,
+  type Product,
+} from './domain/products.js';
 import { ensureSsoClient } from './sso/registry.js';
 import { platformConfig } from './config.js';
 
 /**
- * Catálogo de productos de la plataforma.
+ * Catálogo de productos de la plataforma: NUEVE, ni uno más.
  *
- * Son DOS grupos y la diferencia importa:
- *
- *  1. Los NUEVOS (espacios, citas, solicitudes, activos, checklists, pagos...)
- *     son la nomenclatura que AMG quiere para su catálogo comercial. Todavía
- *     no son los que corren en los subdominios.
- *
- *  2. Los EN TRANSICIÓN (documentos, recordatorios, crm, talleres) SÍ están
- *     desplegados hoy con su propio login. Se conservan para que la Parte 2
- *     pueda mapearlos sin romper nada; no se borran solos.
+ * Este archivo es la lista comercial y a la vez el contrato de despliegue. Si un
+ * producto no está acá, no se vende, no tiene subdominio y no tiene base de
+ * datos propia; si está acá, los tres existen. Por eso el catálogo y el
+ * `docker-compose.yml` tienen que moverse juntos.
  *
  * `app_url` es el subdominio real: es a donde apunta el SSO del producto.
  *
  * PRECIOS: son los que ya están publicados en la landing (tabla "PLANES AMG"), no
  * una estimación interna. Si cambia un precio, se cambia acá Y en la landing: con
  * dos fuentes de verdad el cliente ve dos cifras distintas. Ver docs/BILLING.md.
- *
- * Los productos en transición (`legacy`) repiten el precio de su equivalente
- * canónico a propósito: un cliente que ya paga $7.000 por Gestión de Clientes no
- * puede ver $11.900 el día que se migra su acceso.
  */
+
+/** Dominio central. Todos los productos vuelven acá para entrar y para cobrar. */
+export const PLATFORM_URL = 'https://desarrollador.amgdeveloper.cl';
+
 export interface CatalogProduct {
   slug: string;
   name: string;
@@ -33,10 +34,8 @@ export interface CatalogProduct {
   description: string;
   price: number;
   billingPeriod: 'monthly' | 'yearly' | 'one_time';
-  appUrl?: string;
+  appUrl: string;
   sortOrder: number;
-  /** Productos que hoy corren con login propio y quedan en transición. */
-  legacy?: boolean;
 }
 
 export const CATALOG: CatalogProduct[] = [
@@ -48,7 +47,7 @@ export const CATALOG: CatalogProduct[] = [
       'Reserva de espacios por franjas-horarias: disponibilidad real, solapamientos bloqueados y cobros por bloque. Pensado para peluquerías, clubes, coworkings y centros de eventos.',
     price: 18000,
     billingPeriod: 'monthly',
-    appUrl: 'https://canchas.amgdeveloper.cl',
+    appUrl: 'https://espacios.amgdeveloper.cl',
     sortOrder: 10,
   },
   {
@@ -59,7 +58,7 @@ export const CATALOG: CatalogProduct[] = [
       'Agenda de citas por profesional y servicio, con duración real, bloqueos y recordatorios automáticos por correo y WhatsApp. El reemplazo natural de la agenda de peluquerías.',
     price: 12000,
     billingPeriod: 'monthly',
-    appUrl: 'https://agenda.amgdeveloper.cl',
+    appUrl: 'https://citas.amgdeveloper.cl',
     sortOrder: 20,
   },
   {
@@ -70,18 +69,18 @@ export const CATALOG: CatalogProduct[] = [
       'Control de almacén: artículos, códigos, stock mínimo, entradas y salidas con motivo. Avisa qué se está por acabar antes de que se acabe.',
     price: 9000,
     billingPeriod: 'monthly',
-    appUrl: 'https://stock.amgdeveloper.cl',
+    appUrl: 'https://inventario.amgdeveloper.cl',
     sortOrder: 30,
   },
   {
     slug: 'solicitudes',
     name: 'Solicitudes y Órdenes',
-    tagline: 'Recepción, taller y estado de cada trabajo',
+    tagline: 'Recepción, estado y entrega de cada trabajo',
     description:
-      'Órdenes de trabajo: recepción, diagnóstico, piezas, mano de obra y estado hasta la entrega. Para talleres mecánicos, chapa y servicios técnicos.',
+      'Órdenes de trabajo genéricas: recepción, diagnóstico, materiales, mano de obra y estado hasta la entrega. Para servicios técnicos, mantenimiento y talleres de cualquier rubro.',
     price: 18000,
     billingPeriod: 'monthly',
-    appUrl: 'https://ordenes.amgdeveloper.cl',
+    appUrl: 'https://solicitudes.amgdeveloper.cl',
     sortOrder: 40,
   },
   {
@@ -92,7 +91,7 @@ export const CATALOG: CatalogProduct[] = [
       'Cotizaciones con líneas, impuestos y totales, versionadas y enviables. Cuando el cliente acepta, queda el respaldo de qué se cotizó.',
     price: 8000,
     billingPeriod: 'monthly',
-    appUrl: 'https://presupuestos.amgdeveloper.cl',
+    appUrl: 'https://cotizaciones.amgdeveloper.cl',
     sortOrder: 50,
   },
   {
@@ -111,9 +110,10 @@ export const CATALOG: CatalogProduct[] = [
     name: 'Control de Activos',
     tagline: 'Equipos, llaves y herramientas con responsable',
     description:
-      'Inventario de activos: herramientas, equipos, llaves y vehículos, con responsable, estado y mantenimientos preventivos.',
+      'Inventario de activos: herramientas, equipos y llaves, con responsable, estado y mantenimientos preventivos.',
     price: 16900,
     billingPeriod: 'monthly',
+    appUrl: 'https://activos.amgdeveloper.cl',
     sortOrder: 70,
   },
   {
@@ -124,6 +124,7 @@ export const CATALOG: CatalogProduct[] = [
       'Checklists de apertura, cierre e inspecciones, con responsable por tarea, evidencia y bitácora. Para locales que rinden cuentas.',
     price: 14900,
     billingPeriod: 'monthly',
+    appUrl: 'https://checklists.amgdeveloper.cl',
     sortOrder: 80,
   },
   {
@@ -134,58 +135,41 @@ export const CATALOG: CatalogProduct[] = [
       'Control de pagos de tus clientes: cuotas, fechas, morosidad y comprobante. El dinero entra por tu pasarela, AMG solo lo ordena.',
     price: 15900,
     billingPeriod: 'monthly',
+    appUrl: 'https://pagos.amgdeveloper.cl',
     sortOrder: 90,
   },
-  // ── En transición: hoy corren con login propio en su subdominio ─────────────
-  {
-    slug: 'documentos',
-    name: 'Documentos y Comprobantes',
-    tagline: 'Emisión de documentos en PDF (en transición)',
-    description:
-      'Emisión de cotizaciones, recibos y facturas en PDF. Sigue funcionando con su acceso propio mientras se migra al acceso central.',
-    price: 10000,
-    billingPeriod: 'monthly',
-    appUrl: 'https://docs.amgdeveloper.cl',
-    sortOrder: 100,
-    legacy: true,
-  },
-  {
-    slug: 'recordatorios',
-    name: 'Recordatorios',
-    tagline: 'Avisos automáticos por correo y WhatsApp (en transición)',
-    description:
-      'Recordatorios automáticos de citas y vencimientos. Sigue funcionando con su acceso propio mientras se migra.',
-    price: 12000,
-    billingPeriod: 'monthly',
-    appUrl: 'https://recordatorios.amgdeveloper.cl',
-    sortOrder: 110,
-    legacy: true,
-  },
-  {
-    slug: 'crm',
-    name: 'CRM',
-    tagline: 'Clientes y seguimientos (en transición)',
-    description:
-      'Gestión de clientes y seguimientos. Sigue funcionando con su acceso propio mientras se migra al nuevo catálogo de clientes.',
-    price: 7000,
-    billingPeriod: 'monthly',
-    appUrl: 'https://clientes.amgdeveloper.cl',
-    sortOrder: 120,
-    legacy: true,
-  },
-  {
-    slug: 'talleres',
-    name: 'Órdenes de Trabajo',
-    tagline: 'Taller mecánico (en transición)',
-    description:
-      'Órdenes de trabajo para mecánicos. Sigue funcionando con su acceso propio mientras se migra a Solicitudes y Órdenes.',
-    price: 18000,
-    billingPeriod: 'monthly',
-    appUrl: 'https://ordenes.amgdeveloper.cl',
-    sortOrder: 130,
-    legacy: true,
-  },
 ];
+
+/**
+ * Productos que se dejaron de vender y que hay que retirar del catálogo.
+ *
+ * No se borran de la tabla: las suscripciones y los pagos ya apuntan a su
+ * `product_id`, y borrar la fila los dejaría colgando. Se marcan `inactive`, con
+ * lo que `listProducts()` deja de mostrarlos y `/api/products` deja de
+ * ofrecerlos, pero el historial sigue siendo legible.
+ */
+export const RETIRED_SLUGS: Array<{ slug: string; becomes: string | null; note: string }> = [
+  { slug: 'documentos', becomes: 'cotizaciones', note: 'El PDF se emite dentro de cada producto que lo necesita.' },
+  { slug: 'recordatorios', becomes: 'citas', note: 'Los avisos son infraestructura, no un producto vendible.' },
+  { slug: 'crm', becomes: 'clientes', note: 'Mismo producto, nombre nuevo.' },
+  { slug: 'talleres', becomes: 'solicitudes', note: 'Mismo producto, sin vehículos.' },
+  { slug: 'peluqueria', becomes: 'citas', note: 'Servicio anterior; nunca estuvo en el catálogo público.' },
+  { slug: 'deportes', becomes: 'espacios', note: 'Servicio anterior; nunca estuvo en el catálogo público.' },
+  { slug: 'inventario-v2', becomes: 'inventario', note: 'Nombre de carpeta interno, no de producto.' },
+];
+
+/** Los nueve, ni uno más. Si esto cambia, el compose también. */
+export const EXPECTED_SLUGS = [
+  'espacios',
+  'citas',
+  'inventario',
+  'solicitudes',
+  'cotizaciones',
+  'clientes',
+  'activos',
+  'checklists',
+  'pagos',
+] as const;
 
 /**
  * Siembra el catálogo y da de alta un cliente SSO por producto.
@@ -193,6 +177,9 @@ export const CATALOG: CatalogProduct[] = [
  * Es idempotente: se puede llamar en cada arranque. `upsertProduct` actualiza
  * nombre, precio y estado sin tocar los `id`, así que las suscripciones que ya
  * apuntan a un producto siguen apuntando al mismo.
+ *
+ * Además deja `inactive` lo retirado. Borrarlo sería peor: hay suscripciones y
+ * pagos apuntando a esos `id`, y sin fila quedan huérfanos.
  */
 export function seedCatalog(): Product[] {
   const seeded: Product[] = [];
@@ -204,15 +191,17 @@ export function seedCatalog(): Product[] {
       tagline: item.tagline,
       price: item.price,
       billingPeriod: item.billingPeriod,
-      appUrl: item.appUrl ?? null,
+      appUrl: item.appUrl,
       sortOrder: item.sortOrder,
       status: 'active',
     });
     seeded.push(product);
-    // El cliente SSO existe aunque el producto todavía no tenga subdominio:
-    // sirve igual para emissions de prueba y para que la Parte 2 no tenga que
-    // crear nada antes de migrar.
     ensureSsoClient(item.slug, { name: item.name });
+  }
+  for (const gone of RETIRED_SLUGS) {
+    // `upsertProduct` crearía la fila si no existiera; acá sólo se marca.
+    const existing = findProductBySlug(gone.slug);
+    if (existing && existing.status === 'active') setProductStatus(gone.slug, 'inactive');
   }
   return seeded;
 }
