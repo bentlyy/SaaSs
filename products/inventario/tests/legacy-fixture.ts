@@ -70,3 +70,60 @@ export function crearLegacyConDatos(path: string): void {
 
   db.close();
 }
+
+/**
+ * Una SEGUNDA base legacy, con la misma forma pero de otro producto.
+ *
+ * Es el caso real: `deportes` guardaba cuatro artículos que no eran suyos, y
+ * `inventario` es su dueño. El `tenant_id` es a propósito distinto del de la
+ * principal, porque lo que hay que probar es que dos empresas que viven en dos
+ * bases distintas terminen en organizaciones distintas.
+ */
+export function crearSegundaFuente(path: string): void {
+  const db = new Database(path);
+  db.exec(LEGACY_DDL);
+
+  db.prepare('INSERT INTO tenants (id, name, slug) VALUES (?, ?, ?)').run(
+    'ten_legacy_3',
+    'Sport Center MX',
+    'demo-deportes',
+  );
+  db.prepare('INSERT INTO users (id, name, email) VALUES (?, ?, ?)').run(
+    'usr_legacy_2',
+    'Alejandro Dueno',
+    'dueño@deportes.test',
+  );
+
+  const item = db.prepare(
+    `INSERT INTO inventory_items (id, tenant_id, name, sku, quantity, min_qty, unit, price, active, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  item.run('itm_9', 'ten_legacy_3', 'Balon de futbol', null, 12, 5, 'pieza', 0, 1, '2026-02-01T00:00:00.000Z');
+  item.run('itm_10', 'ten_legacy_3', 'Colchonetas de yoga', null, 20, 8, 'pieza', 0, 1, '2026-02-02T00:00:00.000Z');
+
+  const mov = db.prepare(
+    `INSERT INTO inventory_movements (id, tenant_id, item_id, delta, reason, user_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  );
+  mov.run('mov_9', 'ten_legacy_3', 'itm_9', 12, 'Stock inicial', 'usr_legacy_2', '2026-02-03T10:00:00.000Z');
+
+  db.close();
+}
+
+/**
+ * Segunda fuente que repite el `tenant_id` de la principal.
+ *
+ * Sirve para probar que la migración se detiene: dos bases que declaran el
+ * mismo tenant son dos empresas que la migración no puede distinguir, y sumarlas
+ * sería peor que no migrar.
+ */
+export function crearFuenteConTenantRepetido(path: string, tenantId: string): void {
+  const db = new Database(path);
+  db.exec(LEGACY_DDL);
+  db.prepare('INSERT INTO tenants (id, name, slug) VALUES (?, ?, ?)').run(tenantId, 'Otro', 'demo-otro');
+  db.prepare(
+    `INSERT INTO inventory_items (id, tenant_id, name, sku, quantity, min_qty, unit, price, active, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run('itm_99', tenantId, 'Repetido', null, 1, 0, 'unidad', 0, 1, '2026-03-01T00:00:00.000Z');
+  db.close();
+}

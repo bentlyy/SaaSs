@@ -11,7 +11,7 @@ import {
   findUserByEmail,
   platformConfig,
 } from '@amg/platform';
-import { crearLegacyConDatos } from './legacy-fixture.js';
+import { crearSegundaFuente, crearFuenteConTenantRepetido, crearLegacyConDatos } from './legacy-fixture.js';
 import { migrarLegacy, type ResultadoMigracion } from '../src/migrate-legacy.js';
 import { items, legacyTenantMap, movements } from '../src/schema.js';
 
@@ -68,7 +68,7 @@ afterEach(() => {
 });
 
 const correr = (extra: Partial<Parameters<typeof migrarLegacy>[0]> = {}) => {
-  const r = migrarLegacy({ legacyPath, destinoPath, ...extra });
+  const r = migrarLegacy({ fuentes: [{ etiqueta: 'inventario', ruta: legacyPath }], destinoPath, ...extra });
   abiertos.push(r);
   return r;
 };
@@ -253,13 +253,15 @@ describe('migración de datos del legacy', () => {
     db.exec('CREATE TABLE lo_que_sea (id TEXT)');
     db.close();
 
-    expect(() => migrarLegacy({ legacyPath: otra, destinoPath })).toThrow(/inventory_items/);
+    expect(() => migrarLegacy({ fuentes: [{ etiqueta: 'x', ruta: otra }], destinoPath })).toThrow(/inventory_items/);
     // Y no dejó una base destino con tablas a medio migrar.
     expect(existsSync(destinoPath)).toBe(false);
   });
 
   it('avisa si la base legacy no existe', () => {
-    expect(() => migrarLegacy({ legacyPath: join(dir, 'no-existe.db'), destinoPath })).toThrow(/No existe/);
+    expect(() =>
+      migrarLegacy({ fuentes: [{ etiqueta: 'x', ruta: join(dir, 'no-existe.db') }], destinoPath }),
+    ).toThrow(/No existe/);
   });
 
   it('no toca la base legacy', () => {
@@ -270,5 +272,148 @@ describe('migración de datos del legacy', () => {
     st.close();
     expect(articulos).toBe(4);
     expect(movs).toBe(4);
+  });
+});
+
+/**
+ * Varias fuentes a la vez.
+ *
+ * El caso real es `deportes` guardando artículos que no eran suyos: los migra
+ * `inventario`, que es su dueño. Estos tests fijan que las dos bases se leen,
+ * que sus empresas no se mezclan y que una fuente inválida no arrastra a la
+ * migración.
+ */
+describe('migración desde varias fuentes', () => {
+  it('migra los artículos de cada fuente, sin mezclarlos', () => {
+    const segunda = join(dir, 'deportes.db');
+    crearSegundaFuente(segunda);
+
+    const { resumen, totalLegacy, cerrar } = migrarLegacy({
+      fuentes: [
+        { etiqueta: 'inventario', ruta: legacyPath },
+        { etiqueta: 'deportes', ruta: segunda },
+      ],
+      destinoPath,
+    });
+    abiertos.push({ resumen, totalLegacy, totalDestino: 0, destino: null!, cerrar });
+
+    expect(resumen.articulos).toBe(6); // 4 de la principal + 2 de la segunda
+    expect(resumen.movimientos).toBe(5);
+    expect(resumen.organizaciones).toHaveLength(3); // 2 + 1
+
+    // Cada artículo quedó en la organización de SU tenant. Se comprueba contra
+    // el mapa, y no contando a pelo: un total correcto puede ser la suma
+    // equivocada de dos empresas.
+    const st = new Database(destinoPath, { readonly: true });
+    const porTenant = st
+      .prepare(
+        `SELECT m.legacy_tenant_id AS tenant, COUNT(*) AS n
+           FROM items i JOIN legacy_tenant_map m ON m.organization_id = i.organization_id
+          GROUP BY m.legacy_tenant_id ORDER BY m.legacy_tenant_id`,
+      )
+      .all();
+    st.close();
+    expect(porTenant).toEqual([
+      { tenant: 'ten_legacy_1', n: 3 },
+      { tenant: 'ten_legacy_2', n: 1 },
+      { tenant: 'ten_legacy_3', n: 2 },
+    ]);
+  });
+
+  it('dice qué aportó cada fuente', () => {
+    const segunda = join(dir, 'deportes.db');
+    crearSegundaFuente(segunda);
+
+    const { resumen, cerrar } = migrarLegacy({
+      fuentes: [
+        { etiqueta: 'inventario', ruta: legacyPath },
+        { etiqueta: 'deportes', ruta: segunda },
+      ],
+      destinoPath,
+    });
+    abiertos.push({ resumen, totalLegacy: 0, totalDestino: 0, destino: null!, cerrar });
+
+    expect(resumen.porFuente).toEqual([
+      { etiqueta: 'inventario', articulos: 4, movimientos: 4, omitidos: 0 },
+      { etiqueta: 'deportes', articulos: 2, movimientos: 1, omitidos: 0 },
+    ]);
+    // Y cada organización sabe de qué base salió.
+    const deDeportes = resumen.organizaciones.find((o) => o.legacy.includes('demo-deportes'));
+    expect(deDeportes?.fuente).toBe('deportes');
+  });
+
+  it('la segunda corrida omite lo de las dos fuentes y no duplica nada', () => {
+    const segunda = join(dir, 'deportes.db');
+    crearSegundaFuente(segunda);
+    const fuentes = [
+      { etiqueta: 'inventario', ruta: legacyPath },
+      { etiqueta: 'deportes', ruta: segunda },
+    ];
+
+    migrarLegacy({ fuentes, destinoPath }).cerrar();
+    const { resumen, cerrar } = migrarLegacy({ fuentes, destinoPath });
+    abiertos.push({ resumen, totalLegacy: 0, totalDestino: 0, destino: null!, cerrar });
+
+    expect(resumen.articulos).toBe(0);
+    expect(resumen.movimientos).toBe(0);
+    expect(resumen.omitidos).toBe(11); // 6 artículos + 5 movimientos
+    const st = new Database(destinoPath, { readonly: true });
+    const n = (st.prepare('SELECT COUNT(*) c FROM items').get() as { c: number }).c;
+    st.close();
+    expect(n).toBe(6);
+  });
+
+  it('se detiene si dos fuentes declaran el mismo tenant, sin escribir nada', () => {
+    // Dos bases con el mismo tenant son dos empresas que no se pueden
+    // distinguir. Sumarlas en un solo stock sería peor que no migrar.
+    const repetida = join(dir, 'repetida.db');
+    crearFuenteConTenantRepetido(repetida, 'ten_legacy_1');
+
+    expect(() =>
+      migrarLegacy({
+        fuentes: [
+          { etiqueta: 'inventario', ruta: legacyPath },
+          { etiqueta: 'repetida', ruta: repetida },
+        ],
+        destinoPath,
+      }),
+    ).toThrow(/aparece en dos fuentes/);
+    expect(existsSync(destinoPath)).toBe(false);
+  });
+
+  it('una fuente opcional que no está no impide migrar las demás, y avisa', () => {
+    const { resumen, cerrar } = migrarLegacy({
+      fuentes: [
+        { etiqueta: 'inventario', ruta: legacyPath },
+        { etiqueta: 'deportes', ruta: join(dir, 'no-existe.db'), opcional: true },
+      ],
+      destinoPath,
+    });
+    abiertos.push({ resumen, totalLegacy: 0, totalDestino: 0, destino: null!, cerrar });
+
+    expect(resumen.articulos).toBe(4);
+    expect(resumen.fuentesSaltadas).toHaveLength(1);
+    expect(resumen.fuentesSaltadas[0]).toMatch(/deportes/);
+    // No se cuenta como omitido: nunca se leyó, y callarse parecería "no había".
+    expect(resumen.porFuente.map((f) => f.etiqueta)).toEqual(['inventario']);
+  });
+
+  it('valida todas las fuentes antes de crear nada en el destino', () => {
+    const mala = join(dir, 'mala.db');
+    const db = new Database(mala);
+    db.exec('CREATE TABLE lo_que_sea (id TEXT)');
+    db.close();
+
+    expect(() =>
+      migrarLegacy({
+        fuentes: [
+          { etiqueta: 'inventario', ruta: legacyPath },
+          { etiqueta: 'mala', ruta: mala },
+        ],
+        destinoPath,
+      }),
+    ).toThrow(/inventory_items/);
+    // La primera fuente era válida: si hubiera copiado algo, esto existiría.
+    expect(existsSync(destinoPath)).toBe(false);
   });
 });

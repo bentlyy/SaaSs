@@ -15,6 +15,11 @@
  *   - Es re-ejecutable. El destino de cada `tenant_id` queda anotado en
  *     `legacy_tenant_map`, así que una segunda corrida no crea organizaciones
  *     duplicadas ni duplica artículos.
+ *   - Lee de varias fuentes. El inventario de un producto puede estar partido:
+ *     el legacy que lo tenía más los artículos que otro producto guardaba sin
+ *     ser su dueño. Cada fuente se informa por separado, y si dos comparten un
+ *     `tenant_id` la migración se detiene en vez de mezclar dos empresas en un
+ *     mismo stock.
  *   - No inventa usuarios. El autor de un movimiento se resuelve por email
  *     contra el Core; si ese usuario no existe, el movimiento queda con el
  *     nombre legacy como foto histórica y el informe lista los emails que hay
@@ -70,15 +75,40 @@ interface LegacyUser {
   email: string;
 }
 
+export interface FuenteLegacy {
+  /** Nombre corto para el informe: "inventario", "deportes". */
+  etiqueta: string;
+  /** Base legacy de la que se leen los datos. */
+  ruta: string;
+  /**
+   * Fuente que puede faltar sin que la migración se caiga.
+   *
+   * La principal es obligatoria: si no está, no hay nada que migrar y seguir
+   * sería un falso "no había datos". Las secundarias son de otros productos ya
+   * consolidados, y su archivo puede no estar en un checkout parcial. Se saltan
+   * avisando, no en silencio: el informe dice cuáles se leyeron.
+   */
+  opcional?: boolean;
+}
+
 export interface MigracionOpciones {
-  legacyPath: string;
+  /**
+   * De dónde se lee, en orden. Puede ser más de una: el inventario de un
+   * producto puede estar repartido entre el legacy que lo tenía y el de otro
+   * producto que guardaba artículos sin ser dueño de ellos.
+   */
+  fuentes: FuenteLegacy[];
   destinoPath: string;
   /** `id_tenant=slug` para mapear a mano cuando el slug legacy no sirve. */
   overrides?: Map<string, string>;
 }
 
 export interface ResumenMigracion {
-  organizaciones: Array<{ legacy: string; organizationId: string; accion: string }>;
+  organizaciones: Array<{ legacy: string; organizationId: string; accion: string; fuente: string }>;
+  /** Lo que aportó cada fuente, para poder comparar contra la base de origen. */
+  porFuente: Array<{ etiqueta: string; articulos: number; movimientos: number; omitidos: number }>;
+  /** Fuentes opcionales que no estaban en el disco y se saltaron. */
+  fuentesSaltadas: string[];
   articulos: number;
   movimientos: number;
   omitidos: number;
@@ -139,19 +169,82 @@ CREATE TABLE inventory_movements (
 `;
 
 export function migrarLegacy(opciones: MigracionOpciones): ResultadoMigracion {
-  const { legacyPath, destinoPath, overrides = new Map() } = opciones;
+  const { fuentes, destinoPath, overrides = new Map() } = opciones;
 
-  if (!existsSync(legacyPath)) {
-    throw new ErrorMigracion(`No existe la base legacy en ${legacyPath}`);
+  if (fuentes.length === 0) {
+    throw new ErrorMigracion('No se pasó ninguna fuente legacy.');
   }
 
-  const legacy = new Database(legacyPath, { readonly: true });
-  const tiene = (t: string) =>
-    (legacy.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`).get(t) as unknown) !== undefined;
+  const fuentesSaltadas: string[] = [];
+  const aLeer: Array<{ etiqueta: string; ruta: string }> = [];
+  for (const f of fuentes) {
+    if (!existsSync(f.ruta)) {
+      if (f.opcional) {
+        fuentesSaltadas.push(`${f.etiqueta} (${f.ruta})`);
+        continue;
+      }
+      throw new ErrorMigracion(`No existe la base legacy en ${f.ruta}`);
+    }
+    aLeer.push({ etiqueta: f.etiqueta, ruta: f.ruta });
+  }
 
-  if (!tiene('inventory_items')) {
-    legacy.close();
-    throw new ErrorMigracion(`${legacyPath} no tiene la tabla inventory_items: no parece un inventario legacy.`);
+  if (aLeer.length === 0) {
+    throw new ErrorMigracion('Ninguna fuente legacy existe en disco.');
+  }
+
+  /**
+   * Todas las fuentes se abren y se validan ANTES de tocar el destino.
+   *
+   * Si la segunda fuente resultara inválida y se descubriera después de haber
+   * copiado la primera, la transacción cubre que el destino no quede a medias,
+   * pero la organización de la primera ya quedó creada en el Core. Fallar
+   * temprano deja el Core tan limpio como el destino.
+   */
+  const abiertas: Array<{ etiqueta: string; ruta: string; legacy: Database.Database; tiene: (t: string) => boolean }> = [];
+  const cerrarTodas = () => {
+    for (const f of abiertas) {
+      try {
+        f.legacy.close();
+      } catch {
+        // Si ya estaba cerrada, seguimos: el error real ya se reporto.
+      }
+    }
+  };
+
+  for (const { etiqueta, ruta } of aLeer) {
+    const legacy = new Database(ruta, { readonly: true });
+    const tiene = (t: string) =>
+      (legacy.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`).get(t) as unknown) !== undefined;
+    if (!tiene('inventory_items')) {
+      legacy.close();
+      cerrarTodas();
+      throw new ErrorMigracion(`${ruta} no tiene la tabla inventory_items: no parece un inventario legacy.`);
+    }
+    abiertas.push({ etiqueta, ruta, legacy, tiene });
+  }
+  const legacys = abiertas;
+
+  /**
+   * Un `tenant_id` repetido entre dos fuentes haría que la segunda organización
+   * se saltara el mapa y sus artículos quedaran apuntando a la organización de
+   * la primera. Los ids son `id_<hex>` y no se repiten en la práctica, pero si
+   * se repitieran el silencio sería lo peor: la migración "terminaría bien" y
+   * dejaría dos empresas mezcladas en un solo stock.
+   */
+  const dueniosDe = new Map<string, string>();
+  for (const f of legacys) {
+    const filas = f.legacy.prepare('SELECT id FROM tenants').all() as Array<{ id: string }>;
+    for (const { id } of filas) {
+      const otro = dueniosDe.get(id);
+      if (otro && otro !== f.etiqueta) {
+        cerrarTodas();
+        throw new ErrorMigracion(
+          `El tenant ${id} aparece en dos fuentes: ${otro} y ${f.etiqueta}. ` +
+            'Sin esto, los artículos de la segunda se sumarian al stock de la primera.',
+        );
+      }
+      dueniosDe.set(id, f.etiqueta);
+    }
   }
 
   const config = loadProductConfig('inventario', 'Inventario', {
@@ -165,24 +258,14 @@ export function migrarLegacy(opciones: MigracionOpciones): ResultadoMigracion {
   getCoreDb();
 
   const cerrar = () => {
-    legacy.close();
+    for (const f of legacys) f.legacy.close();
     destino.close();
   };
 
-  const tenants = legacy.prepare('SELECT id, name, slug FROM tenants').all() as LegacyTenant[];
-  const legacyUsers = tiene('users')
-    ? (legacy.prepare('SELECT id, name, email FROM users').all() as LegacyUser[])
-    : [];
-
-  /** legacy user id -> { coreUserId, name, email } */
-  const autores = new Map<string, { coreUserId: string | null; name: string; email: string }>();
-  for (const u of legacyUsers) {
-    const core = findUserByEmail(u.email);
-    autores.set(u.id, { coreUserId: core?.id ?? null, name: u.name, email: u.email });
-  }
-
   const resumen: ResumenMigracion = {
     organizaciones: [],
+    porFuente: [],
+    fuentesSaltadas,
     articulos: 0,
     movimientos: 0,
     omitidos: 0,
@@ -203,6 +286,28 @@ export function migrarLegacy(opciones: MigracionOpciones): ResultadoMigracion {
    * fila apuntando a una organización que no existe.
    */
   const correr = destino.sqlite.transaction(() => {
+    for (const fuente of legacys) {
+      const tenants = fuente.legacy.prepare('SELECT id, name, slug FROM tenants').all() as LegacyTenant[];
+      const legacyUsers = fuente.tiene('users')
+        ? (fuente.legacy.prepare('SELECT id, name, email FROM users').all() as LegacyUser[])
+        : [];
+
+      /**
+       * legacy user id -> { coreUserId, name, email }
+       *
+       * El mapa es POR FUENTE a propósito. Los ids de usuario son `id_<hex>` y
+       * dos bases distintas pueden tener el mismo valor; si el mapa fuera global,
+       * un movimiento de `deportes` podría quedar firmado con el nombre de un
+       * usuario de otra empresa que casualmente comparte id.
+       */
+      const autores = new Map<string, { coreUserId: string | null; name: string; email: string }>();
+      for (const u of legacyUsers) {
+        const core = findUserByEmail(u.email);
+        autores.set(u.id, { coreUserId: core?.id ?? null, name: u.name, email: u.email });
+      }
+
+      const antes = { articulos: resumen.articulos, movimientos: resumen.movimientos, omitidos: resumen.omitidos };
+
     for (const t of tenants) {
       const yaMapeado = db
         .select()
@@ -236,10 +341,15 @@ export function migrarLegacy(opciones: MigracionOpciones): ResultadoMigracion {
           .run();
       }
 
-      resumen.organizaciones.push({ legacy: `${t.name} (${t.slug})`, organizationId, accion });
+      resumen.organizaciones.push({
+        legacy: `${t.name} (${t.slug})`,
+        organizationId,
+        accion,
+        fuente: fuente.etiqueta,
+      });
 
       // Artículos. Se conserva el id legacy: los movimientos lo referencian.
-      const legacyItems = legacy
+      const legacyItems = fuente.legacy
         .prepare('SELECT * FROM inventory_items WHERE tenant_id = ?')
         .all(t.id) as LegacyItem[];
       for (const it of legacyItems) {
@@ -266,7 +376,7 @@ export function migrarLegacy(opciones: MigracionOpciones): ResultadoMigracion {
       }
 
       // Movimientos, en orden cronológico.
-      const legacyMovs = legacy
+      const legacyMovs = fuente.legacy
         .prepare('SELECT * FROM inventory_movements WHERE tenant_id = ? ORDER BY created_at, id')
         .all(t.id) as LegacyMovement[];
       for (const mv of legacyMovs) {
@@ -312,6 +422,16 @@ export function migrarLegacy(opciones: MigracionOpciones): ResultadoMigracion {
         resumen.movimientos += 1;
       }
     }
+
+      // El desglose por fuente es lo que permite revisar la migración contra
+      // cada base de origen, y no contra un total que no se sabe de dónde sale.
+      resumen.porFuente.push({
+        etiqueta: fuente.etiqueta,
+        articulos: resumen.articulos - antes.articulos,
+        movimientos: resumen.movimientos - antes.movimientos,
+        omitidos: resumen.omitidos - antes.omitidos,
+      });
+    }
   });
 
   try {
@@ -326,9 +446,13 @@ export function migrarLegacy(opciones: MigracionOpciones): ResultadoMigracion {
     );
   }
 
-  const totalLegacy = (
-    legacy.prepare('SELECT COUNT(*) c FROM inventory_movements').get() as { c: number }
-  ).c;
+  // Suma de todas las fuentes: el destino tiene que poder explicar el total de
+  // todo lo que se leyó, no solo de la primera base.
+  const totalLegacy = legacys.reduce(
+    (n, f) =>
+      n + (f.legacy.prepare('SELECT COUNT(*) c FROM inventory_movements').get() as { c: number }).c,
+    0,
+  );
   const totalDestino = (
     destino.sqlite.prepare('SELECT COUNT(*) c FROM movements').get() as { c: number }
   ).c;
@@ -379,12 +503,35 @@ function main(): void {
   // La base legacy vive en `data/legacy/` en la raíz del repo, no en
   // `products/`: el producto viejo ya no existe como carpeta y la migración tiene
   // que poder volver a correrse meses después, aunque sea para verificar.
-  const legacyPath = resolve(flag('legacy', '../../data/legacy/inventario-legacy.db'));
+  const principal: FuenteLegacy = {
+    etiqueta: 'inventario',
+    ruta: resolve(flag('legacy', '../../data/legacy/inventario-legacy.db')),
+  };
+
+  /**
+   * Segunda fuente: los artículos que `deportes` guardaba sin ser su dueño.
+   *
+   * Es opcional a propósito. `deportes` ya se consolidó y su volumen se va a
+   * conservar un tiempo sin uso, así que un checkout parcial sin ese archivo es
+   * normal y no puede abortar una migración de inventario.
+   */
+  const secundarias: FuenteLegacy[] = [
+    { etiqueta: 'deportes', ruta: resolve(flag('deportes', '../../products/deportes/data/app.db')), opcional: true },
+  ];
+
+  /** `--fuente <etiqueta>=<ruta>` repetible, para sumar bases a medida. */
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] !== '--fuente' || !args[i + 1]) continue;
+    const [etiqueta, ruta] = args[i + 1].split('=');
+    if (etiqueta && ruta) secundarias.push({ etiqueta, ruta: resolve(ruta) });
+    i += 1;
+  }
+
   const destinoPath = resolve(flag('destino', './data/inventario.sqlite'));
 
   let salida: ResultadoMigracion;
   try {
-    salida = migrarLegacy({ legacyPath, destinoPath, overrides });
+    salida = migrarLegacy({ fuentes: [principal, ...secundarias], destinoPath, overrides });
   } catch (err) {
     console.error(err instanceof ErrorMigracion ? err.message : err);
     process.exit(1);
@@ -394,10 +541,19 @@ function main(): void {
 
   console.log('\nMigración de inventario terminada.\n');
   for (const o of resumen.organizaciones) {
-    console.log(`  ${o.legacy} -> ${o.organizationId}  (${o.accion})`);
+    console.log(`  ${o.legacy} -> ${o.organizationId}  (${o.accion})  [${o.fuente}]`);
   }
   console.log(`\n  artículos migrados:   ${resumen.articulos}`);
-  console.log(`  movimientos migrados: ${resumen.movimientos}`);
+  console.log('  movimientos migrados:');
+  for (const f of resumen.porFuente) {
+    const detalle = f.omitidos > 0 ? ` (${f.movimientos} nuevos, ${f.omitidos} ya estaban)` : '';
+    console.log(`    ${f.etiqueta}: ${f.articulos} artículos, ${f.movimientos} movimientos${detalle}`);
+  }
+  if (resumen.fuentesSaltadas.length > 0) {
+    console.log('\n  fuentes que NO se leyeron (no estaban en el disco):');
+    for (const s of resumen.fuentesSaltadas) console.log(`    - ${s}`);
+    console.log('  Si esperabas datos de ahí, la migración está incompleta.');
+  }
   if (resumen.omitidos > 0) console.log(`  ya estaban (omitidos): ${resumen.omitidos}`);
   console.log(`  base destino:         ${destinoPath}`);
 
