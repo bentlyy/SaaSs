@@ -9,7 +9,7 @@
     "dev": "npm run dev -w @amg/platform",
     "dev:core": "npm run dev -w @amg/platform",
     "dev:landing": "npm run dev -w landing",
-    "build": "npm run build -w @saas-mini/core && npm run build -w @amg/platform && npm run build -w @amg/auth-client && npm run build -w @amg/product-runtime && npm run build -w @amg/inventario && npm run build -w @amg/citas && npm run build -w @amg/espacios",
+    "build": "npm run build -w @saas-mini/core && npm run build -w @amg/platform && npm run build -w @amg/auth-client && npm run build -w @amg/product-runtime && npm run build -w @amg/inventario && npm run build -w @amg/citas && npm run build -w @amg/espacios && npm run build -w @amg/solicitudes",
     "seed": "npm run seed -w @amg/platform",
     "sso:secret": "npm run sso:secret -w @amg/platform --",
     "dev:inventario": "npm run dev -w @amg/inventario",
@@ -18,6 +18,8 @@
     "migrate:espacios": "npm run migrate:legacy -w @amg/espacios",
     "dev:citas": "npm run dev -w @amg/citas",
     "migrate:citas": "npm run migrate:legacy -w @amg/citas",
+    "dev:solicitudes": "npm run dev -w @amg/solicitudes",
+    "migrate:solicitudes": "npm run migrate:legacy -w @amg/solicitudes",
     "test": "npm run test -ws --if-present",
     "typecheck": "npm run typecheck -ws --if-present"
   },

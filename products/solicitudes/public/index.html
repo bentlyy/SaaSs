@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solicitudes</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<!--
+  Esta página no pide usuario ni contraseña: la sesión vive en el Core y este
+  documento solo se sirve si ya la hay. Todo lo que se ve sale de la API, que
+  filtra por organización; por eso acá no hay ningún dato de ninguna empresa.
+-->
+<header>
+  <h1>Solicitudes</h1>
+  <nav id="tabs">
+    <button data-tab="tablero" class="activo">Tablero</button>
+    <button data-tab="ordenes">Órdenes</button>
+    <button data-tab="trabajos">Trabajos</button>
+    <button data-tab="tecnicos">Técnicos</button>
+    <button data-tab="clientes">Clientes</button>
+    <button data-tab="ajustes">Ajustes</button>
+  </nav>
+  <a id="salir" href="/auth/logout">Salir</a>
+</header>
+
+<main>
+  <section id="panel-tablero">
+    <div class="tarjetas" id="resumen"></div>
+    <div class="fila">
+      <div>
+        <label for="tablero-tecnico">Técnico</label>
+        <select id="tablero-tecnico"></select>
+      </div>
+      <div>
+        <label for="tablero-cliente">Cliente</label>
+        <select id="tablero-cliente"></select>
+      </div>
+      <button id="orden-nueva">Nueva orden</button>
+    </div>
+    <div id="tablero" class="tablero"></div>
+  </section>
+
+  <section id="panel-ordenes" hidden>
+    <div id="ordenes-lista"></div>
+  </section>
+
+  <section id="panel-trabajos" hidden>
+    <form id="trabajo-form">
+      <h3><span id="trabajo-form-titulo">Nuevo trabajo</span></h3>
+      <label for="trabajo-nombre">Nombre</label>
+      <input id="trabajo-nombre" required maxlength="150">
+      <label for="trabajo-duracion">Duración (minutos)</label>
+      <input id="trabajo-duracion" type="number" min="0" step="15" value="30">
+      <label for="trabajo-precio">Tarifa</label>
+      <input id="trabajo-precio" type="number" min="0" step="100" value="0">
+      <label for="trabajo-descripcion">Descripción</label>
+      <input id="trabajo-descripcion" maxlength="1000">
+      <input type="hidden" id="trabajo-id">
+      <div class="fila">
+        <button type="submit">Guardar</button>
+        <button type="button" id="trabajo-cancelar" hidden>Cancelar</button>
+      </div>
+    </form>
+    <div id="trabajos-lista"></div>
+  </section>
+
+  <section id="panel-tecnicos" hidden>
+    <form id="tecnico-form">
+      <h3><span id="tecnico-form-titulo">Nuevo técnico</span></h3>
+      <label for="tecnico-nombre">Nombre</label>
+      <input id="tecnico-nombre" required maxlength="150">
+      <label for="tecnico-telefono">Teléfono</label>
+      <input id="tecnico-telefono" maxlength="40">
+      <label for="tecnico-correo">Correo</label>
+      <input id="tecnico-correo" type="email" maxlength="200">
+      <label for="tecnico-color">Color</label>
+      <input id="tecnico-color" maxlength="9" value="#4f46e5">
+      <input type="hidden" id="tecnico-id">
+      <div class="fila">
+        <button type="submit">Guardar</button>
+        <button type="button" id="tecnico-cancelar" hidden>Cancelar</button>
+      </div>
+    </form>
+    <div id="tecnicos-lista"></div>
+  </section>
+
+  <section id="panel-clientes" hidden>
+    <form id="cliente-form">
+      <h3>Nuevo cliente</h3>
+      <label for="cliente-nombre">Nombre</label>
+      <input id="cliente-nombre" required maxlength="150">
+      <label for="cliente-telefono">Teléfono</label>
+      <input id="cliente-telefono" maxlength="40">
+      <label for="cliente-correo">Correo</label>
+      <input id="cliente-correo" type="email" maxlength="200">
+      <button type="submit">Guardar</button>
+    </form>
+    <div id="clientes-lista"></div>
+  </section>
+
+  <section id="panel-ajustes" hidden>
+    <form id="config-form">
+      <h3>Ajustes</h3>
+      <label for="cfg-moneda">Moneda</label>
+      <input id="cfg-moneda" name="currency" maxlength="5">
+      <label for="cfg-zona">Zona horaria</label>
+      <input id="cfg-zona" name="timezone" maxlength="60">
+      <label for="cfg-folio">Folio siguiente</label>
+      <input id="cfg-folio" name="nextNumber" type="number" min="1" step="1">
+      <button type="submit">Guardar ajustes</button>
+    </form>
+  </section>
+</main>
+
+<dialog id="orden-dialog">
+  <form id="orden-form">
+    <h3><span id="orden-form-titulo">Nueva orden</span></h3>
+    <label for="orden-folio">Folio</label>
+    <input id="orden-folio" type="number" min="1" step="1">
+    <label for="orden-cliente">Cliente</label>
+    <select id="orden-cliente"></select>
+    <label for="orden-tecnico">Técnico</label>
+    <select id="orden-tecnico"></select>
+    <label for="orden-bien">Sobre qué se trabaja</label>
+    <input id="orden-bien" maxlength="200" placeholder="Vehículo, máquina, instalación…">
+    <label for="orden-estado">Estado</label>
+    <select id="orden-estado">
+      <option value="received">Recibida</option>
+      <option value="estimated">Cotizada</option>
+      <option value="in_progress">En trabajo</option>
+      <option value="done">Entregada</option>
+      <option value="cancelled">Cancelada</option>
+    </select>
+    <label for="orden-entrega">Entrega estimada</label>
+    <input id="orden-entrega" type="date">
+    <label for="orden-notas">Notas</label>
+    <input id="orden-notas" maxlength="2000">
+
+    <h4>Trabajos</h4>
+    <div id="orden-trabajos" class="lineas"></div>
+    <div class="fila">
+      <div>
+        <label for="orden-trabajo-nuevo">Agregar trabajo</label>
+        <select id="orden-trabajo-nuevo"></select>
+      </div>
+      <button type="button" id="orden-trabajo-agregar">Agregar</button>
+    </div>
+
+    <h4>Repuestos</h4>
+    <div id="orden-partes" class="lineas"></div>
+    <div class="fila">
+      <div>
+        <label for="orden-parte-id">Id del repuesto</label>
+        <input id="orden-parte-id" maxlength="64" placeholder="Vive en Inventario">
+      </div>
+      <div>
+        <label for="orden-parte-nombre">Nombre del repuesto</label>
+        <input id="orden-parte-nombre" maxlength="150">
+      </div>
+      <div>
+        <label for="orden-parte-cantidad">Cantidad</label>
+        <input id="orden-parte-cantidad" type="number" min="1" step="1" value="1">
+      </div>
+      <div>
+        <label for="orden-parte-precio">Precio unitario</label>
+        <input id="orden-parte-precio" type="number" min="0" step="100" value="0">
+      </div>
+      <button type="button" id="orden-parte-agregar">Agregar</button>
+    </div>
+    <p class="total">Total: <span id="orden-total">$0</span></p>
+    <div class="fila">
+      <button type="submit">Guardar orden</button>
+      <button type="button" id="orden-cancelar">Cancelar</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="aviso" hidden></div>
+<script src="/app.js"></script>
+</body>
+</html>

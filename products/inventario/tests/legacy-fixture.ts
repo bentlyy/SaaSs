@@ -111,6 +111,44 @@ export function crearSegundaFuente(path: string): void {
 }
 
 /**
+ * Una TERCERA fuente legacy, de otro producto: `talleres`.
+ *
+ * El caso real es el inverso al de `deportes`: aqui el producto que migra ya
+ * existe en el Core, porque `solicitudes` (que absorbe a `talleres`) lo creo
+ * primero. Por eso el `tenant_id` es distinto del de las otras dos fuentes pero
+ * el slug del taller puede coincidir con una organizacion ya creada.
+ */
+export function crearTerceraFuente(path: string): void {
+  const db = new Database(path);
+  db.exec(LEGACY_DDL);
+
+  db.prepare('INSERT INTO tenants (id, name, slug) VALUES (?, ?, ?)').run(
+    'ten_legacy_4',
+    'Talleres El Mecanico',
+    'demo-talleres',
+  );
+  db.prepare('INSERT INTO users (id, name, email) VALUES (?, ?, ?)').run(
+    'usr_legacy_3',
+    'Daniel Fernandez',
+    'demo@talleres.test',
+  );
+
+  const item = db.prepare(
+    `INSERT INTO inventory_items (id, tenant_id, name, sku, quantity, min_qty, unit, price, active, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  item.run('itm_t1', 'ten_legacy_4', 'Aceite 5W-30 1L', 'ACE-5W30', 40, 8, 'unidad', 0, 1, '2026-03-01T00:00:00.000Z');
+  item.run('itm_t2', 'ten_legacy_4', 'Filtro de aceite', null, 18, 4, 'pieza', 0, 1, '2026-03-01T00:00:00.000Z');
+
+  db.prepare(
+    `INSERT INTO inventory_movements (id, tenant_id, item_id, delta, reason, user_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run('mov_t1', 'ten_legacy_4', 'itm_t1', 40, 'Stock inicial', 'usr_legacy_3', '2026-03-02T09:00:00.000Z');
+
+  db.close();
+}
+
+/**
  * Segunda fuente que repite el `tenant_id` de la principal.
  *
  * Sirve para probar que la migración se detiene: dos bases que declaran el

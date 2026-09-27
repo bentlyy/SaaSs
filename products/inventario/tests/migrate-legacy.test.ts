@@ -11,7 +11,12 @@ import {
   findUserByEmail,
   platformConfig,
 } from '@amg/platform';
-import { crearSegundaFuente, crearFuenteConTenantRepetido, crearLegacyConDatos } from './legacy-fixture.js';
+import {
+  crearSegundaFuente,
+  crearTerceraFuente,
+  crearFuenteConTenantRepetido,
+  crearLegacyConDatos,
+} from './legacy-fixture.js';
 import { migrarLegacy, type ResultadoMigracion } from '../src/migrate-legacy.js';
 import { items, legacyTenantMap, movements } from '../src/schema.js';
 
@@ -381,8 +386,68 @@ describe('migración desde varias fuentes', () => {
     expect(existsSync(destinoPath)).toBe(false);
   });
 
-  it('una fuente opcional que no está no impide migrar las demás, y avisa', () => {
+  it('lee las tres fuentes: inventario, deportes y talleres', () => {
+    // `talleres` es el caso real que motivo la tercera fuente: guardaba artículos
+    // que no eran suyos y su producto (`solicitudes`) ya lo absorbe.
+    const segunda = join(dir, 'deportes.db');
+    const tercera = join(dir, 'talleres.db');
+    crearSegundaFuente(segunda);
+    crearTerceraFuente(tercera);
+
     const { resumen, cerrar } = migrarLegacy({
+      fuentes: [
+        { etiqueta: 'inventario', ruta: legacyPath },
+        { etiqueta: 'deportes', ruta: segunda },
+        { etiqueta: 'talleres', ruta: tercera },
+      ],
+      destinoPath,
+    });
+    abiertos.push({ resumen, totalLegacy: 0, totalDestino: 0, destino: null!, cerrar });
+
+    expect(resumen.articulos).toBe(8); // 4 + 2 + 2
+    expect(resumen.movimientos).toBe(6); // 4 + 1 + 1
+    expect(resumen.organizaciones).toHaveLength(4); // 2 + 1 + 1
+    expect(resumen.porFuente.map((f) => f.etiqueta)).toEqual(['inventario', 'deportes', 'talleres']);
+  });
+
+  it('una fuente cuyo slug ya existe en el Core entra a esa organización, sin crear otra', () => {
+    // El orden real de la consolidación importa: `solicitudes` se migró antes que
+    // el inventario de `talleres`, así que la organización del taller ya estaba en
+    // el Core cuando corrió esta migración. Si acá se creara una segunda
+    // organización con el mismo slug, el stock quedaría partido en dos y
+    // `solicitudes` e `inventario` mostrarían empresas distintas.
+    const taller = findOrganizationBySlug('demo-talleres') ?? createOrganization({
+      name: 'Talleres El Mecánico',
+      slug: 'demo-talleres',
+    });
+    const tercera = join(dir, 'talleres.db');
+    crearTerceraFuente(tercera);
+
+    const { resumen, cerrar } = migrarLegacy({
+      fuentes: [
+        { etiqueta: 'inventario', ruta: legacyPath },
+        { etiqueta: 'talleres', ruta: tercera },
+      ],
+      destinoPath,
+    });
+    abiertos.push({ resumen, totalLegacy: 0, totalDestino: 0, destino: null!, cerrar });
+
+    const delTaller = resumen.organizaciones.find((o) => o.legacy.includes('demo-talleres'));
+    expect(delTaller?.accion).toBe('encontrada en el Core');
+    expect(delTaller?.organizationId).toBe(taller.id);
+
+    // Y los artículos del taller quedaron en ESA organización, no en una nueva.
+    const st = new Database(destinoPath, { readonly: true });
+    const n = (
+      st
+        .prepare('SELECT COUNT(*) c FROM items WHERE organization_id = ?')
+        .get(taller.id) as { c: number }
+    ).c;
+    st.close();
+    expect(n).toBe(2);
+  });
+
+  it('una fuente opcional que no está no impide migrar las demás, y avisa', () => {    const { resumen, cerrar } = migrarLegacy({
       fuentes: [
         { etiqueta: 'inventario', ruta: legacyPath },
         { etiqueta: 'deportes', ruta: join(dir, 'no-existe.db'), opcional: true },

@@ -509,14 +509,16 @@ function main(): void {
   };
 
   /**
-   * Segunda fuente: los artículos que `deportes` guardaba sin ser su dueño.
+   * Fuentes secundarias: artículos que otros productos legacy guardaban sin ser
+   * sus dueños.
    *
-   * Es opcional a propósito. `deportes` ya se consolidó y su volumen se va a
-   * conservar un tiempo sin uso, así que un checkout parcial sin ese archivo es
-   * normal y no puede abortar una migración de inventario.
+   * Son opcionales a propósito. `deportes` y `talleres` ya se consolidaron y sus
+   * volúmenes se van a conservar un tiempo sin uso, así que un checkout parcial
+   * sin esos archivos es normal y no puede abortar una migración de inventario.
    */
   const secundarias: FuenteLegacy[] = [
     { etiqueta: 'deportes', ruta: resolve(flag('deportes', '../../products/deportes/data/app.db')), opcional: true },
+    { etiqueta: 'talleres', ruta: resolve(flag('talleres', '../../products/talleres/data/app.db')), opcional: true },
   ];
 
   /** `--fuente <etiqueta>=<ruta>` repetible, para sumar bases a medida. */

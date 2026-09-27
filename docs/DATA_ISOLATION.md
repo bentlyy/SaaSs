@@ -11,6 +11,7 @@ los demás.**
 | `espacios.sqlite` | espacios, extras, clientes, reservas | espacios |
 | `citas.sqlite` | citas, clientes, servicios, profesionales, avisos | citas |
 | `inventario.sqlite` | artículos, movimientos, proveedores | inventario |
+| `solicitudes.sqlite` | solicitudes, líneas de trabajo, repuestos, clientes, técnicos | solicitudes |
 | ... | ... | ... |
 
 Nueve bases, nueve contenedores, nueve volúmenes Docker. **Ningún volumen se
@@ -52,6 +53,27 @@ GET /api/account/organization/otraco                   →  403
 
 Esto está concentrado en `account-routes.ts` a propósito: si la regla está
 esparcida por 40 handlers, basta uno que la olvide.
+
+## La excepción, y por qué está justificada
+
+`order_parts.item_id` es la única referencia que cruza de un producto a otro: un
+repuesto en una orden apunta a un artículo de `inventario.sqlite`.
+
+**No es una foreign key, y no lo va a ser.** No se puede poner: la tabla vive en
+otra base, y SQLite no valida FKs entre archivos. Lo que hay es un `item_id` que
+es una referencia suelta y, al lado, un `item_name` que es la **foto histórica**
+del nombre tal como estaba cuando se usó el repuesto.
+
+El snapshot es lo que hace aceptable la referencia suelta. Si mañana el artículo
+se renombra o se da de baja, la orden vieja sigue diciendo qué se usó en ella; si
+en algún momento la referencia apunta a algo que ya no existe, la orden sigue
+leyéndose. Por eso la migración reporta los `item_id` que no encuentran destino en
+vez de inventar un artículo o dejar la línea huérfana en silencio.
+
+Lo que NO hace esta excepción: ninguna consulta de `solicitudes` lee
+`inventario.sqlite`. El `item_id` viaja en la respuesta y el frontend lo consulta
+por HTTP contra `inventario`, que es su dueño. Sigue valiendo "un producto no se
+conecta a la base de otro".
 
 ## El Core no se importa desde un producto
 

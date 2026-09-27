@@ -67,22 +67,34 @@ services:
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_ESPACIOS_SECRET:?falta AMG_SSO_ESPACIOS_SECRET en .env}
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
 
-  talleres:
+  # Reemplaza al legacy `talleres`, que vivia en el puerto 3102 con su propio
+  # JWT_SECRET y su clients.json. Sus datos ya estan migrados a SOLICITUDES, que
+  # usa la misma organizacion del Core y nada de auth propio.
+  #
+  # Lo unico que se conserva del producto viejo es el VOLUMEN, declarado ABAJO y
+  # sin servicio: es la fuente de la migracion, y borrarlo seria tirar los datos
+  # que todavia no estan respaldados fuera de Docker. Los datos de vehiculo NO
+  # estan en el destino: `solicitudes` es para cualquier rubro y no tiene el
+  # concepto. Quedan solo en ese volumen.
+  solicitudes:
     <<: *app
-    container_name: saasmini-talleres
+    container_name: saasmini-solicitudes
     volumes:
-      - saasmini_data_talleres:/app/data/talleres
-      - ./ops/clients.json:/app/clients.json:ro
+      - saasmini_data_solicitudes:/app/data
     ports:
       - "127.0.0.1:3102:3000"
     environment:
       <<: *base-env
-      PRODUCT: talleres
+      PRODUCT: '@amg/solicitudes'
       PORT: "3000"
-      DB_PATH: /app/data/talleres/app.db
-      JWT_SECRET: ${TALLE_JWT:?falta TALLE_JWT en .env}
-      APP_NAME: Órdenes de Trabajo
-      APP_URL: https://ordenes.amgdeveloper.cl
+      DB_PATH: /app/data/solicitudes.sqlite
+      DB_SCHEMA_VERSION: "1"
+      APP_NAME: Solicitudes y Ordenes
+      APP_URL: https://solicitudes.amgdeveloper.cl
+      CORE_URL: https://desarrollador.amgdeveloper.cl
+      AMG_SSO_CLIENT_ID: solicitudes
+      AMG_SSO_CLIENT_SECRET: ${AMG_SSO_SOLICITUDES_SECRET:?falta AMG_SSO_SOLICITUDES_SECRET en .env}
+      AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
 
   # Inventario: sobre el runtime de AMG. No usa clientsGuard ni JWT propio: la
   # identidad y las suscripciones salen del Core por SSO.
@@ -225,16 +237,17 @@ services:
       CONTACT_EMAIL: ${CONTACT_EMAIL:-hola@amgdeveloper.cl}
 
 volumes:
-  # Los de peluqueria, recordatorios y deportes NO los usa ningun servicio: son
-  # la fuente de las migraciones a citas y a espacios. Se conservan sin tocar
-  # hasta que exista un backup externo verificado. Borrarlos con
-  # `docker volume rm` tira datos reales.
+  # Los de peluqueria, recordatorios, deportes y talleres NO los usa ningun
+  # servicio: son la fuente de las migraciones a citas, a espacios, a inventario y
+  # a solicitudes. Se conservan sin tocar hasta que exista un backup externo
+  # verificado. Borrarlos con `docker volume rm` tira datos reales.
   saasmini_data_peluqueria:
   saasmini_data_deportes:
   saasmini_data_talleres:
   saasmini_data_inventario:
   saasmini_data_espacios:
   saasmini_data_citas:
+  saasmini_data_solicitudes:
   saasmini_data_cotizaciones:
   saasmini_data_documentos:
   saasmini_data_recordatorios:
