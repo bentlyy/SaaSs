@@ -37,22 +37,11 @@ x-app: &app
     CLIENTS_GATE: allowlist
 
 services:
-  peluqueria:
-    <<: *app
-    container_name: saasmini-peluqueria
-    volumes:
-      - saasmini_data_peluqueria:/app/data/peluqueria
-      - ./ops/clients.json:/app/clients.json:ro
-    ports:
-      - "127.0.0.1:3100:3000"
-    environment:
-      <<: *base-env
-      PRODUCT: peluqueria
-      PORT: "3000"
-      DB_PATH: /app/data/peluqueria/app.db
-      JWT_SECRET: ${PELU_JWT:?falta PELU_JWT en .env}
-      APP_NAME: Agenda de Citas
-      APP_URL: https://agenda.amgdeveloper.cl
+  # peluqueria y recordatorios ya no tienen servicio: sus datos se migraron a
+  # citas (25 citas, 25 lineas, 5 avisos) y arrancar los dos seria dos puertas
+  # para el mismo producto. Sus volumenes quedan declarados ABAJO, sin servicio,
+  # porque son la fuente de la migracion: borrarlos seria tirar los datos que
+  # todavia no estan respaldados fuera de Docker.
 
   deportes:
     <<: *app
@@ -119,6 +108,28 @@ services:
       # llamada al Core por request. En produccion conviene 1.
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
 
+  # Citas: mismo runtime que inventario. Absorbe peluqueria, crm y recordatorios,
+  # que quedan como fuentes de solo lectura de la migracion.
+  citas:
+    <<: *app
+    container_name: saasmini-citas
+    volumes:
+      - saasmini_data_citas:/app/data
+    ports:
+      - "127.0.0.1:3104:3000"
+    environment:
+      <<: *base-env
+      PRODUCT: '@amg/citas'
+      PORT: "3000"
+      DB_PATH: /app/data/citas.sqlite
+      DB_SCHEMA_VERSION: "1"
+      APP_NAME: Citas
+      APP_URL: https://citas.amgdeveloper.cl
+      CORE_URL: https://desarrollador.amgdeveloper.cl
+      AMG_SSO_CLIENT_ID: citas
+      AMG_SSO_CLIENT_SECRET: ${AMG_SSO_CITAS_SECRET:?falta AMG_SSO_CITAS_SECRET en .env}
+      AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
+
   cotizaciones:
     <<: *app
     container_name: saasmini-cotizaciones
@@ -153,22 +164,8 @@ services:
       APP_NAME: Documentos y Comprobantes
       APP_URL: https://docs.amgdeveloper.cl
 
-  recordatorios:
-    <<: *app
-    container_name: saasmini-recordatorios
-    volumes:
-      - saasmini_data_recordatorios:/app/data/recordatorios
-      - ./ops/clients.json:/app/clients.json:ro
-    ports:
-      - "127.0.0.1:3106:3000"
-    environment:
-      <<: *base-env
-      PRODUCT: recordatorios
-      PORT: "3000"
-      DB_PATH: /app/data/recordatorios/app.db
-      JWT_SECRET: ${ALER_JWT:?falta ALER_JWT en .env}
-      APP_NAME: Recordatorios
-      APP_URL: https://recordatorios.amgdeveloper.cl
+  # recordatorios se retiro: los avisos son infraestructura de citas, no un
+  # producto vendible. Volumen conservado, ver la nota de arriba.
 
   crm:
     <<: *app
@@ -221,10 +218,14 @@ services:
       CONTACT_EMAIL: ${CONTACT_EMAIL:-hola@amgdeveloper.cl}
 
 volumes:
+  # Los de peluqueria y recordatorios NO los usa ningun servicio: son la fuente
+  # de la migracion a citas. Se conservan sin tocar hasta que exista un backup
+  # externo verificado. Borrarlos con `docker volume rm` tira datos reales.
   saasmini_data_peluqueria:
   saasmini_data_deportes:
   saasmini_data_talleres:
   saasmini_data_inventario:
+  saasmini_data_citas:
   saasmini_data_cotizaciones:
   saasmini_data_documentos:
   saasmini_data_recordatorios:

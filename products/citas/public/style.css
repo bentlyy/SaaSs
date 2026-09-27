@@ -1,0 +1,376 @@
+/* Citas: hoja de estilo propia. Sin framework, como el resto de los productos. */
+
+:root {
+  --bg: #f6f5f2;
+  --surface: #ffffff;
+  --ink: #1c1917;
+  --muted: #6e6860;
+  --border: #e8e4df;
+  --brand: #4f46e5;
+  --brand-soft: #eef2ff;
+  --on-brand: #ffffff;
+  --danger: #b91c1c;
+  --danger-bg: #fbe0e0;
+  --ok: #047857;
+  --ok-bg: #dbf2e8;
+  --warn: #b45309;
+  --warn-bg: #fdeecb;
+
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --r: 12px;
+  --font: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+/* --- cabecera --- */
+
+header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  padding: var(--s-3) var(--s-5);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.marca {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+
+.marca strong {
+  font-size: 17px;
+}
+
+.org,
+.rol {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.pestanas {
+  display: flex;
+  gap: var(--s-1);
+  flex: 1;
+}
+
+.pestanas button {
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.pestanas button:hover {
+  background: var(--brand-soft);
+}
+
+.pestanas button.activo {
+  background: var(--brand);
+  color: var(--on-brand);
+}
+
+.sesion {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+/* --- resumen --- */
+
+.tarjetas {
+  display: flex;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-5) 0;
+}
+
+.tarjeta {
+  flex: 1;
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+
+.tarjeta b {
+  display: block;
+  font-size: 22px;
+}
+
+.tarjeta span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* --- cuerpo --- */
+
+main {
+  padding: var(--s-4) var(--s-5) var(--s-8);
+}
+
+.fila {
+  display: flex;
+  gap: var(--s-2);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--s-3);
+}
+
+.panel {
+  padding: var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow-x: auto;
+}
+
+.vacio {
+  margin: 0;
+  padding: var(--s-6);
+  text-align: center;
+  color: var(--muted);
+}
+
+.oculto {
+  display: none;
+}
+
+/* --- tablas --- */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: var(--s-2) var(--s-3);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.hora {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.punto {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 50%;
+}
+
+/* --- controles --- */
+
+input,
+select {
+  padding: 7px 10px;
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+button {
+  padding: 7px 14px;
+  font: inherit;
+  color: var(--on-brand);
+  background: var(--brand);
+  border: 1px solid var(--brand);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+button:hover {
+  filter: brightness(1.08);
+}
+
+button.link {
+  color: var(--muted);
+  background: none;
+  border: none;
+  text-decoration: underline;
+}
+
+/* --- estados y avisos --- */
+
+.st {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.st-confirmed {
+  color: var(--ok);
+  background: var(--ok-bg);
+}
+.st-pending {
+  color: var(--warn);
+  background: var(--warn-bg);
+}
+.st-done {
+  color: #3730a3;
+  background: #e1e4fb;
+}
+.st-cancelled,
+.st-no_show {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.aviso {
+  margin: var(--s-3) var(--s-5) 0;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r);
+  font-size: 13px;
+}
+
+.aviso.error {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.error-txt {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ayuda {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+#config-form label {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+#config-form input {
+  width: 100%;
+  margin-top: 3px;
+  color: var(--ink);
+}
+
+#config-form label.check {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: 20px;
+  color: var(--ink);
+}
+
+#config-form label.check input {
+  width: auto;
+  margin: 0;
+}
+
+#config-form .acciones {
+  justify-content: flex-end;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+/* --- diálogos --- */
+
+dialog {
+  width: min(440px, 92vw);
+  padding: var(--s-5);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+dialog::backdrop {
+  background: rgb(28 25 23 / 0.35);
+}
+
+dialog h2 {
+  margin-bottom: var(--s-1);
+}
+
+dialog label {
+  display: block;
+  margin-top: var(--s-3);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+dialog input,
+dialog select {
+  width: 100%;
+  margin-top: 3px;
+  color: var(--ink);
+}
+
+.dos {
+  display: flex;
+  gap: var(--s-3);
+}
+
+.dos label {
+  flex: 1;
+}
+
+.acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  margin-top: var(--s-5);
+}

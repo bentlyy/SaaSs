@@ -264,7 +264,7 @@ export interface DiscrepanciaPrecio {
  *
  * Sólo acepta un factor si hay AL MENOS DOS muestras que coinciden y el factor es
  * un entero limpio. Con una sola muestra no hay con qué contrastar, y devolver
- * 100 "porque encaja" sería un embodiments inventado con apariencia de dato
+ * 100 "porque encaja" sería inventar una conversión con apariencia de dato
  * medido. Con una muestra, o con fuentes que no coinciden, devuelve 1 y
  * `ambiguo`: el llamador copia el valor tal cual y lo reporta.
  */

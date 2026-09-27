@@ -106,7 +106,7 @@ const LOS_NUEVE = [
  * separan para que cada commit quede con sus pruebas en verde: un test rojo en
  * un commit intermedio entrena al equipo a ignorar los tests rojos.
  */
-const NAVEGAN_AHORA = ['inventario'];
+const NAVEGAN_AHORA = ['inventario', 'citas'];
 
 /**
  * Producto retirado -> el slug que lo absorbe. Mismo mapa que `RETIRED_SLUGS` en

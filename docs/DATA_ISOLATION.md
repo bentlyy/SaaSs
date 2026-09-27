@@ -8,8 +8,8 @@ los demás.**
 | Archivo | Contenido | Producto |
 |---|---|---|
 | `core.sqlite` | usuarios, organizaciones, membresías, sesiones, catálogo, suscripciones, pagos, SSO | el Core |
-| `app.db` (peluqueria) | citas, clientes de la peluquería | agenda |
-| `app.db` (deportes) | reservas de canchas | canchas |
+| `citas.sqlite` | citas, clientes, servicios, profesionales, avisos | citas |
+| `inventario.sqlite` | artículos, movimientos, proveedores | inventario |
 | ... | ... | ... |
 
 Nueve bases, nueve contenedores, nueve volúmenes Docker. **Ningún volumen se

@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="es-CL">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Citas · AMG</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      <div class="marca">
+        <strong>Citas</strong>
+        <span class="org" id="org">cargando…</span>
+      </div>
+      <nav class="pestanas" id="pestanas">
+        <button data-vista="agenda" class="activo" type="button">Agenda</button>
+        <button data-vista="clientes" type="button">Clientes</button>
+        <button data-vista="servicios" type="button">Servicios</button>
+        <button data-vista="profesionales" type="button">Profesionales</button>
+        <button data-vista="avisos" type="button">Avisos</button>
+        <button data-vista="config" type="button">Configuración</button>
+      </nav>
+      <div class="sesion">
+        <span id="usuario"></span>
+        <span class="rol" id="rol"></span>
+        <button id="salir" class="link" type="button">Salir</button>
+      </div>
+    </header>
+
+    <section class="tarjetas" id="resumen"></section>
+
+    <div id="error" class="aviso error oculto"></div>
+
+    <main>
+      <!-- AGENDA -->
+      <section class="vista" id="vista-agenda">
+        <div class="fila">
+          <input id="fecha" type="date" />
+          <input id="buscar" type="search" placeholder="Buscar por cliente o profesional" autocomplete="off" />
+          <button id="nueva" type="button">Nueva cita</button>
+        </div>
+        <div id="dia" class="panel"></div>
+      </section>
+
+      <!-- CLIENTES -->
+      <section class="vista oculto" id="vista-clientes">
+        <div class="fila">
+          <input id="buscar-cli" type="search" placeholder="Buscar cliente" autocomplete="off" />
+          <button id="nuevo-cli" type="button">Nuevo cliente</button>
+        </div>
+        <div id="clientes" class="panel"></div>
+      </section>
+
+      <!-- SERVICIOS -->
+      <section class="vista oculto" id="vista-servicios">
+        <div class="fila"><button id="nuevo-srv" type="button">Nuevo servicio</button></div>
+        <div id="servicios" class="panel"></div>
+      </section>
+
+      <!-- PROFESIONALES -->
+      <section class="vista oculto" id="vista-profesionales">
+        <div class="fila"><button id="nuevo-per" type="button">Nuevo profesional</button></div>
+        <div id="profesionales" class="panel"></div>
+      </section>
+
+      <!-- AVISOS -->
+      <section class="vista oculto" id="vista-avisos">
+        <div class="fila"><p class="ayuda">Bitácora de intentos: un aviso fallido y su reintento aparecen los dos.</p></div>
+        <div id="avisos" class="panel"></div>
+      </section>
+
+      <!-- CONFIGURACIÓN -->
+      <section class="vista oculto" id="vista-config">
+        <div class="panel">
+          <div class="panel-cab">
+            <h2>Configuración</h2>
+          </div>
+          <p class="ayuda">
+            La razón social y los contactos se editan en AMG, no acá: están en el
+            Core, y duplicarlos sería garantizar que se desincronicen.
+          </p>
+          <form id="config-form">
+            <div class="dos">
+              <label for="timezone">Zona horaria <input id="timezone" name="timezone" type="text" maxlength="60" required /></label>
+              <label for="currency">Símbolo de moneda <input id="currency" name="currency" type="text" maxlength="5" required /></label>
+            </div>
+            <div class="dos">
+              <label for="reminderHours">Avisar con cuántas horas de anticipación
+                <input id="reminderHours" name="reminderHours" type="number" min="0" max="720" required />
+              </label>
+              <label class="check" for="emailEnabled">
+                <input id="emailEnabled" name="emailEnabled" type="checkbox" />
+                Enviar avisos por correo
+              </label>
+            </div>
+            <p class="error oculto" data-err></p>
+            <div class="acciones">
+              <button type="submit">Guardar cambios</button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <!-- Alta de cita -->
+    <dialog id="dlg">
+      <form id="form-cita" method="dialog">
+        <h2>Nueva cita</h2>
+        <p class="ayuda">Los horarios que se pisan se rechazan: el servidor lo comprueba, no el navegador.</p>
+
+        <label>Cliente <select id="c-cliente" required></select></label>
+        <label>Profesional <select id="c-profesional" required></select></label>
+        <label>Fecha <input id="c-fecha" type="date" required /></label>
+        <div class="dos">
+          <label>Desde <input id="c-hora" type="time" required value="10:00" /></label>
+          <label>Hasta <input id="c-hora-fin" type="time" required value="10:30" /></label>
+        </div>
+        <label>Servicio <select id="c-servicio"></select></label>
+        <label>Precio <input id="c-precio" type="number" min="0" step="1" value="0" /></label>
+        <label>Estado
+          <select id="c-estado">
+            <option value="confirmed">Confirmada</option>
+            <option value="pending">Por confirmar</option>
+            <option value="done">Realizada</option>
+            <option value="cancelled">Cancelada</option>
+            <option value="no_show">No asistió</option>
+          </select>
+        </label>
+        <label>Notas <input id="c-notas" type="text" maxlength="2000" /></label>
+
+        <p class="error oculto" id="c-error"></p>
+        <div class="acciones">
+          <button type="button" id="c-cancelar" class="link">Cancelar</button>
+          <button type="submit" id="c-guardar">Agendar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Alta de cliente -->
+    <dialog id="dlg-cli">
+      <form id="form-cli" method="dialog">
+        <h2>Nuevo cliente</h2>
+        <label>Nombre <input id="cli-nombre" required maxlength="150" /></label>
+        <label>Teléfono <input id="cli-telefono" maxlength="40" /></label>
+        <label>Correo <input id="cli-email" type="email" maxlength="200" /></label>
+        <label>Etiquetas <input id="cli-tags" maxlength="500" placeholder="vip, recurrente" /></label>
+        <p class="error oculto" id="cli-error"></p>
+        <div class="acciones">
+          <button type="button" id="cli-cancelar" class="link">Cancelar</button>
+          <button type="submit">Guardar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Alta de servicio -->
+    <dialog id="dlg-srv">
+      <form id="form-srv" method="dialog">
+        <h2>Nuevo servicio</h2>
+        <label>Nombre <input id="srv-nombre" required maxlength="150" /></label>
+        <div class="dos">
+          <label>Duración (min) <input id="srv-duracion" type="number" min="5" max="1440" value="30" required /></label>
+          <label>Precio <input id="srv-precio" type="number" min="0" step="1" value="0" required /></label>
+        </div>
+        <p class="error oculto" id="srv-error"></p>
+        <div class="acciones">
+          <button type="button" id="srv-cancelar" class="link">Cancelar</button>
+          <button type="submit">Guardar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Alta de profesional -->
+    <dialog id="dlg-per">
+      <form id="form-per" method="dialog">
+        <h2>Nuevo profesional</h2>
+        <label>Nombre <input id="per-nombre" required maxlength="150" /></label>
+        <label>Teléfono <input id="per-telefono" maxlength="40" /></label>
+        <label>Color <input id="per-color" type="color" value="#4f46e5" /></label>
+        <p class="error oculto" id="per-error"></p>
+        <div class="acciones">
+          <button type="button" id="per-cancelar" class="link">Cancelar</button>
+          <button type="submit">Guardar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
