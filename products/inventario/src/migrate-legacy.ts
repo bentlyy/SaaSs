@@ -376,7 +376,10 @@ function main(): void {
     i += 1;
   }
 
-  const legacyPath = resolve(flag('legacy', '../inventario/data/app.db'));
+  // La base legacy vive en `data/legacy/` en la raíz del repo, no en
+  // `products/`: el producto viejo ya no existe como carpeta y la migración tiene
+  // que poder volver a correrse meses después, aunque sea para verificar.
+  const legacyPath = resolve(flag('legacy', '../../data/legacy/inventario-legacy.db'));
   const destinoPath = resolve(flag('destino', './data/inventario.sqlite'));
 
   let salida: ResultadoMigracion;

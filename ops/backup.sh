@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Backup completo de SaaS Mini: las 8 SQLite + los archivos que NO estan en git.
+# Backup completo de AMG: las 10 SQLite (9 productos + el Core) + los archivos
+# que NO estan en git.
 #
 # Lo que no esta en git es justamente lo mas fragil:
 #   .env             -> JWT_SECRET. Si se pierde, nadie puede iniciar sesion.
@@ -34,28 +35,46 @@ docker image inspect "$IMAGEN" >/dev/null 2>&1 || fallar "no existe la imagen $I
 # producto -> volumen. Los nombres siguen docker-compose.yml.
 # Ojo: en `declare -A` el '=' va pegado a la clave. Con espacios bash lo
 # interpreta como lista de palabras y el mapa queda roto en silencio.
-# El landing queda fuera a proposito: no tiene base de datos.
 #
-# `core` no es un producto mas: es la base de la plataforma (organizaciones,
-# usuarios, suscripciones, pagos y CATALOGO). Perderla no pierde la operacion
-# diaria de los productos, pero pierde la verdad comercial y deja el deploy sin
-# billing. `inventario-v2` es la version buena del stock y hoy es la que corre
-# en produccion, asi que respaldar solo la legacy seria respaldar la copia
-# muerta. Las dos entraban antes o ninguna.
+# Son NUEVE productos y el Core, y tienen que seguir en diez. `core` no es un
+# producto mas: es la base de la plataforma (organizaciones, usuarios,
+# suscripciones, pagos y CATALOGO). Perderla no pierde la operacion diaria de
+# los productos, pero pierde la verdad comercial y deja el deploy sin billing.
+#
+# Un volumen por producto, montado en /app/data, con la base del producto
+# adentro. Si este mapa y el compose se desincronizan, el backup se da cuenta:
+# faltaba un volumen y el script sale con error en vez de "respaldar 9 de 10".
 declare -A VOL=(
-  [peluqueria]=saas-mini_saasmini_data_peluqueria
-  [crm]=saas-mini_saasmini_data_crm
-  [deportes]=saas-mini_saasmini_data_deportes
-  [talleres]=saas-mini_saasmini_data_talleres
-  [recordatorios]=saas-mini_saasmini_data_recordatorios
-  [documentos]=saas-mini_saasmini_data_documentos
+  [espacios]=saas-mini_saasmini_data_espacios
+  [citas]=saas-mini_saasmini_data_citas
   [inventario]=saas-mini_saasmini_data_inventario
+  [solicitudes]=saas-mini_saasmini_data_solicitudes
   [cotizaciones]=saas-mini_saasmini_data_cotizaciones
-  [inventario-v2]=saas-mini_saasmini_data_inventario_v2
+  [clientes]=saas-mini_saasmini_data_clientes
+  [activos]=saas-mini_saasmini_data_activos
+  [checklists]=saas-mini_saasmini_data_checklists
+  [pagos]=saas-mini_saasmini_data_pagos
   [core]=saas-mini_saasmini_data_core
 )
 [ "${#VOL[@]}" -eq 10 ] || fallar "el mapa de volúmenes está roto (${#VOL[@]} entradas en vez de 10)"
 ESPERADOS=10
+
+# producto -> ruta de SU base DENTRO del volumen. Coincide con el DB_PATH o el
+# CORE_DB_PATH del compose: los productos dejan su base en la raiz del volumen
+# como <slug>.sqlite, y el Core la tiene en core/core.sqlite.
+declare -A BD=(
+  [espacios]=espacios.sqlite
+  [citas]=citas.sqlite
+  [inventario]=inventario.sqlite
+  [solicitudes]=solicitudes.sqlite
+  [cotizaciones]=cotizaciones.sqlite
+  [clientes]=clientes.sqlite
+  [activos]=activos.sqlite
+  [checklists]=checklists.sqlite
+  [pagos]=pagos.sqlite
+  [core]=core/core.sqlite
+)
+[ "${#BD[@]}" -eq "${#VOL[@]}" ] || fallar "VOL y BD no tienen la misma cantidad de entradas"
 
 SELLO="$(date -u '+%Y%m%d-%H%M%S')"
 DEST="$DESTINO_RAIZ/$SELLO"
@@ -89,6 +108,7 @@ copias=0
 
 for p in "${!VOL[@]}"; do
   v="${VOL[$p]}"
+  b="${BD[$p]}"
   if ! docker volume inspect "$v" >/dev/null 2>&1; then
     # Volumen ausente = datos que crees respaldados y no lo estan. Cuenta como
     # fallo: un backup que se traga un producto sin avisar es peor que no tener.
@@ -108,7 +128,7 @@ for p in "${!VOL[@]}"; do
       -v "$v:/origen" \
       -v "$DEST/sqlite:/fuera" \
       -v "$RAIZ/ops/sqlite-snapshot.mjs:/app/snap.mjs:ro" \
-      "$IMAGEN" node /app/snap.mjs "/origen/app.db" "/fuera/$p.db" 2>&1); then
+      "$IMAGEN" node /app/snap.mjs "/origen/$b" "/fuera/$p.db" 2>&1); then
     copias=$((copias + 1))
     log "OK      : $p  $(printf '%s' "$salida" | sed -n 's/.*"bytes":\([0-9]*\).*/\1 bytes/p')"
     echo "$p $salida" >> "$DEST/manifest.txt"

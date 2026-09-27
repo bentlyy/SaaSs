@@ -49,17 +49,26 @@ pública hay que confirmarlos o sacarlos del catálogo activo.
 
 ### Los slugs y las URLs no son lo mismo
 
-El `slug` es la identidad comercial; `app_url` es el subdominio real. Hoy
-coinciden en varios y no en todos:
+El `slug` es la identidad comercial; `app_url` es el subdominio real. En la
+arquitectura final **coinciden siempre**: el subdominio es el slug, y esa es la
+regla que `catalog.test.ts` verifica para los nueve.
 
 | Slug | Subdominio |
 |---|---|
-| `inventario` | `stock.amgdeveloper.cl` |
-| `espacios` | `canchas.amgdeveloper.cl` |
-| `citas` | `agenda.amgdeveloper.cl` |
-| `solicitudes` | `ordenes.amgdeveloper.cl` |
-| `cotizaciones` | `presupuestos.amgdeveloper.cl` |
+| `espacios` | `espacios.amgdeveloper.cl` |
+| `citas` | `citas.amgdeveloper.cl` |
+| `inventario` | `inventario.amgdeveloper.cl` |
+| `solicitudes` | `solicitudes.amgdeveloper.cl` |
+| `cotizaciones` | `cotizaciones.amgdeveloper.cl` |
 | `clientes` | `clientes.amgdeveloper.cl` |
+| `activos` | `activos.amgdeveloper.cl` |
+| `checklists` | `checklists.amgdeveloper.cl` |
+| `pagos` | `pagos.amgdeveloper.cl` |
+
+Los subdominios anteriores (`canchas`, `agenda`, `ordenes`, `stock`,
+`presupuestos`) quedan como redirects a los nuevos. La plataforma es
+`desarrollador.amgdeveloper.cl` y no es un producto más: no tiene fila en
+`products` ni volumen propio.
 
 Los productos en transición comparten `app_url` con su equivalente canónico, que es
 justo lo que hay que tener en cuenta al migrarlos (ver `SSO.md`).

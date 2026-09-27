@@ -140,13 +140,14 @@ producto sabe quién es el usuario, después se le deja entrar.
    producto). Copiar el `.env` que hoy tiene `JWT_SECRET` y reemplazarlo por:
    ```bash
    CORE_URL=https://desarrollador.amgdeveloper.cl
-   APP_URL=https://stock.amgdeveloper.cl
+   APP_URL=https://inventario.amgdeveloper.cl
    AMG_SSO_CLIENT_ID=inventario
    AMG_SSO_CLIENT_SECRET=<npm run sso:secret -w @amg/platform -- inventario>
    ```
-   `APP_URL` es la URL real del subdominio. Puede no coincidir con el slug: hoy
-   `inventario` vive en `stock.amgdeveloper.cl`. Usar el slug como URL manda al
-   lugar equivocado.
+   `APP_URL` es la URL real del subdominio, y en la arquitectura final coincide
+   con el slug: `inventario` vive en `inventario.amgdeveloper.cl`. Si alguna vez
+   se separan, el que manda es `APP_URL`, porque es contra esa URL que el Core
+   valida el `redirect_uri`.
 
    Opcionales, con su default: `AMG_CALLBACK_PATH` (`/auth/callback`),
    `AMG_SESSION_COOKIE` (`app_session`), `AMG_SESSION_DAYS` (30),

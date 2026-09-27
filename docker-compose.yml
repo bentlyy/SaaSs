@@ -88,55 +88,31 @@ services:
       APP_NAME: Órdenes de Trabajo
       APP_URL: https://ordenes.amgdeveloper.cl
 
+  # Inventario: sobre el runtime de AMG. No usa clientsGuard ni JWT propio: la
+  # identidad y las suscripciones salen del Core por SSO.
+  #
+  # OJO: PRODUCT no es el slug del producto, es el WORKSPACE que arranca el CMD
+  # (`npm run start -w "$PRODUCT"`). El slug real lo declara src/app.ts.
+  #
+  # Este producto NO monta clients.json ni consulta clientsGuard: su puerta es
+  # `subscriptions` en el Core, que se mira en cada request. Por eso el
+  # CLIENTS_GATE heredado no aplica aqui.
   inventario:
     <<: *app
     container_name: saasmini-inventario
     volumes:
-      - saasmini_data_inventario:/app/data/inventario
-      - ./ops/clients.json:/app/clients.json:ro
+      - saasmini_data_inventario:/app/data
     ports:
       - "127.0.0.1:3103:3000"
     environment:
       <<: *base-env
-      PRODUCT: inventario
-      PORT: "3000"
-      DB_PATH: /app/data/inventario/app.db
-      JWT_SECRET: ${INV_JWT:?falta INV_JWT en .env}
-      APP_NAME: Almacenaje
-      APP_URL: https://stock.amgdeveloper.cl
-
-  # Inventario v2: el primero que corre sobre el runtime de AMG. No usa
-  # clientsGuard ni JWT propio: la identidad y las suscripciones salen del Core
-  # por SSO. Sigue conviviendo con el `inventario` legacy de arriba, que sirve
-  # desde su propia app.db. Los dos declaran el mismo APP_URL a proposito — es el
-  # mismo producto, otra implementación — asi que en despliegue solo puede
-  # quedar uno: al cortar al v2 hay que apagar el legacy.
-  inventario-v2:
-    <<: *app
-    container_name: saasmini-inventario-v2
-    volumes:
-      - saasmini_data_inventario_v2:/app/data/inventario
-    ports:
-      - "127.0.0.1:3123:3000"
-    environment:
-      <<: *base-env
-      # OJO: PRODUCT no es el slug del producto, es el WORKSPACE que arranca el
-      # CMD (`npm run start -w "$PRODUCT"`). El slug real lo declara
-      # src/app.ts y es `inventario`, el mismo que el legacy: es el mismo
-      # producto con otra implementación, y por eso comparte client_id SSO.
-      #
-      # Este producto NO monta clients.json ni consulta clientsGuard: su puerta
-      # es `subscriptions` en el Core, que se mira en cada request. Por eso el
-      # CLIENTS_GATE heredado no aplica aqui.
       PRODUCT: '@amg/inventario'
       PORT: "3000"
-      DB_PATH: /app/data/inventario/inventario.sqlite
+      DB_PATH: /app/data/inventario.sqlite
       DB_SCHEMA_VERSION: "1"
-      APP_NAME: Almacenaje
-      APP_URL: https://stock.amgdeveloper.cl
+      APP_NAME: Inventario
+      APP_URL: https://inventario.amgdeveloper.cl
       CORE_URL: https://desarrollador.amgdeveloper.cl
-      # Mismo client_id que el legacy. El secreto sale del Core con
-      # `npm run sso:secret -w @amg/platform -- inventario`.
       AMG_SSO_CLIENT_ID: inventario
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_INVENTARIO_SECRET:?falta AMG_SSO_INVENTARIO_SECRET en .env}
       # Corta el acceso al instante si le cancelan la suscripción, a costa de una
@@ -249,7 +225,6 @@ volumes:
   saasmini_data_deportes:
   saasmini_data_talleres:
   saasmini_data_inventario:
-  saasmini_data_inventario_v2:
   saasmini_data_cotizaciones:
   saasmini_data_documentos:
   saasmini_data_recordatorios:

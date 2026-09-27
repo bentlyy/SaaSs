@@ -15,3 +15,6 @@ coverage/
 server.out.log
 server.err.log
 *.log
+
+# Scripts de inspeccion temporal del repo (abiertos a mano, no son codigo)
+.inspect-*.cjs

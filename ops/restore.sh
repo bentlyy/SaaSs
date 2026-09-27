@@ -39,20 +39,37 @@ if [ -f "$BACKUP/FAILED" ] && [ "$FUERCE" -ne 1 ]; then
 fi
 
 declare -A VOL=(
-  [peluqueria]=saas-mini_saasmini_data_peluqueria
-  [crm]=saas-mini_saasmini_data_crm
-  [deportes]=saas-mini_saasmini_data_deportes
-  [talleres]=saas-mini_saasmini_data_talleres
-  [recordatorios]=saas-mini_saasmini_data_recordatorios
-  [documentos]=saas-mini_saasmini_data_documentos
+  [espacios]=saas-mini_saasmini_data_espacios
+  [citas]=saas-mini_saasmini_data_citas
   [inventario]=saas-mini_saasmini_data_inventario
+  [solicitudes]=saas-mini_saasmini_data_solicitudes
   [cotizaciones]=saas-mini_saasmini_data_cotizaciones
-  [inventario-v2]=saas-mini_saasmini_data_inventario_v2
+  [clientes]=saas-mini_saasmini_data_clientes
+  [activos]=saas-mini_saasmini_data_activos
+  [checklists]=saas-mini_saasmini_data_checklists
+  [pagos]=saas-mini_saasmini_data_pagos
   [core]=saas-mini_saasmini_data_core
 )
 [ "${#VOL[@]}" -eq 10 ] || { echo "el mapa de volúmenes está roto (${#VOL[@]} entradas en vez de 10)" >&2; exit 1; }
 v="${VOL[$PRODUCTO]:-}"
 [ -n "$v" ] || { echo "producto desconocido: $PRODUCTO" >&2; exit 2; }
+
+# ruta de SU base dentro del volumen; tiene que coincidir con el compose
+declare -A BD=(
+  [espacios]=espacios.sqlite
+  [citas]=citas.sqlite
+  [inventario]=inventario.sqlite
+  [solicitudes]=solicitudes.sqlite
+  [cotizaciones]=cotizaciones.sqlite
+  [clientes]=clientes.sqlite
+  [activos]=activos.sqlite
+  [checklists]=checklists.sqlite
+  [pagos]=pagos.sqlite
+  [core]=core/core.sqlite
+)
+b="${BD[$PRODUCTO]:-}"
+[ -n "$b" ] || { echo "producto sin ruta de base conocida: $PRODUCTO" >&2; exit 2; }
+BD_REL="$b"
 
 SNAP="$BACKUP/sqlite/$PRODUCTO.db"
 [ -f "$SNAP" ] || { echo "el backup no tiene sqlite/$PRODUCTO.db" >&2; exit 1; }
@@ -72,23 +89,50 @@ fi
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 cp "$SNAP" "$TMP/inspeccion.db"
-docker run --rm -v "$TMP:/d" "$IMAGEN" node -e '
+docker run --rm -e ESPERA_CORE="$([ "$PRODUCTO" = core ] && echo 1 || echo 0)" -v "$TMP:/d" "$IMAGEN" node -e '
   const D = require("better-sqlite3");
+  const esCore = process.env.ESPERA_CORE === "1";
   const db = new D("/d/inspeccion.db", { readonly: true, fileMustExist: true });
   const ok = db.pragma("integrity_check", { simple: true });
-  // No se cuenta una tabla fija: `tenants` existia en los productos legacy, pero
-  // en el Core las organizaciones se llaman organizations y en inventario-v2
-  // el aislamiento va por organization_id. Preguntar por `tenants` hacia que un
-  // restore valido de core o de inventario-v2 fallara con "no such table".
-  const tablas = db.prepare("select name from sqlite_master where type = ?").all("table").map(r => r.name);
-  const clave = ["tenants", "organizations", "organization"].find(t => tablas.includes(t));
-  const n = clave
-    ? db.prepare(`select count(*) as n from "${clave}"`).get().n
-    : db.prepare("select count(*) as n from sqlite_master").get().n;
-  const unidades = clave ? clave + "/s" : "tabla/s";
-  db.close();
   if (ok !== "ok") { console.error("integridad: " + ok); process.exit(1); }
-  console.log(`  integridad de la copia: OK (${n} ${unidades})`);'
+
+  const tablas = db.prepare("select name from sqlite_master where type = ?").all("table")
+    .map(r => r.name).filter(t => !t.startsWith("sqlite_"));
+  if (tablas.length === 0) { console.error("la copia no tiene ninguna tabla: no es una base de AMG"); process.exit(1); }
+
+  // Un backup integro de una base que NO es la de este producto pasaria
+  // integrity_check y dejaria el producto andando con los datos de otro. Por eso
+  // el restore tambien mira la FORMA de la base, no solo que no este corrupta:
+  //
+  //   - el Core guarda organizaciones en `organizations`
+  //   - un producto tiene que aislar por organization_id
+  //   - ningun producto guarda contrasenas: si aparece, se esta restaurando una
+  //     base legacy, que es exactamente lo que esta arquitectura prohibe
+  const columnas = (t) => db.prepare(`pragma table_info("${t}")`).all().map(c => c.name);
+  const conOrg = tablas.filter(t => columnas(t).includes("organization_id"));
+  const conPassword = tablas.filter(t =>
+    columnas(t).some(c => /password|contrasena|contraseña/i.test(c)));
+
+  if (conPassword.length) {
+    console.error("la copia tiene columnas de contrasena en: " + conPassword.join(", "));
+    console.error("eso es una base legacy. No se restaura en un producto: la identidad es del Core.");
+    process.exit(1);
+  }
+  if (esCore) {
+    if (!tablas.includes("organizations")) {
+      console.error("se pidio restaurar el core y la copia no tiene la tabla organizations");
+      process.exit(1);
+    }
+  } else if (conOrg.length === 0) {
+    console.error("la copia no tiene ninguna tabla con organization_id: no es una base de producto AMG");
+    process.exit(1);
+  }
+
+  const detalle = esCore
+    ? `${db.prepare("select count(*) as n from organizations").get().n} organizaciones`
+    : `${conOrg.length}/${tablas.length} tablas aisladas por organization_id`;
+  db.close();
+  console.log(`  integridad de la copia: OK (${detalle})`);'
 
 # 3. la app no debe estar escribiendo
 #
@@ -116,14 +160,15 @@ fi
 
 # 4.Swap con red de seguridad
 log "respaldando la BD actual como $PRODUCTO.db.pre-restore"
-docker run --rm -v "$v:/d" "$IMAGEN" node -e '
+docker run --rm -e BD="$BD_REL" -v "$v:/d" "$IMAGEN" node -e '
   const fs = require("fs");
-  fs.copyFileSync("/d/app.db", "/d/app.db.pre-restore");'
-docker run --rm -v "$v:/d" -v "$SNAP:/nuevo.db:ro" "$IMAGEN" node -e '
+  fs.copyFileSync("/d/" + process.env.BD, "/d/" + process.env.BD + ".pre-restore");'
+docker run --rm -e BD="$BD_REL" -v "$v:/d" -v "$SNAP:/nuevo.db:ro" "$IMAGEN" node -e '
   const fs = require("fs");
-  fs.copyFileSync("/nuevo.db", "/d/app.db");
-  fs.rmSync("/d/app.db-wal", { force: true });
-  fs.rmSync("/d/app.db-shm", { force: true });'
+  const b = process.env.BD;
+  fs.copyFileSync("/nuevo.db", "/d/" + b);
+  fs.rmSync("/d/" + b + "-wal", { force: true });
+  fs.rmSync("/d/" + b + "-shm", { force: true });'
 log "restaurada $PRODUCTO desde $(basename "$BACKUP")"
 
 # 5. arriba y que responda

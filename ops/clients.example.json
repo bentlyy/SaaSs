@@ -1,14 +1,15 @@
 {
+  "_comentario": "Lista de emergencia. Un producto sobre el runtime de AMG NO la lee: su puerta es la suscripcion en el Core, que se mira en cada request. Este archivo solo existe para eldia que haya que abrir un producto sin suscripcion (pruebas, un cliente al que se quiere dar acceso antes de cobrar). Vaciala cuando no se use.",
   "mode": "allowlist",
   "clients": {
-    "peluqueria": ["demo-pelu"],
-    "deportes": ["demo-deportes"],
-    "talleres": ["demo-talleres"],
+    "espacios": ["demo-espacios"],
+    "citas": ["demo-citas"],
     "inventario": ["demo-inventario"],
-    "inventario-v2": ["demo-inventario"],
+    "solicitudes": ["demo-solicitudes"],
     "cotizaciones": ["demo-cotizaciones"],
-    "documentos": ["demo-docupro"],
-    "recordatorios": ["demo-recordatorios"],
-    "crm": ["demo-crm"]
+    "clientes": ["demo-clientes"],
+    "activos": ["demo-activos"],
+    "checklists": ["demo-checklists"],
+    "pagos": ["demo-pagos"]
   }
 }

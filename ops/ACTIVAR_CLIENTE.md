@@ -55,8 +55,7 @@ saber por qué.
 Comprobación rápida de qué está mirando cada servicio:
 
 ```bash
-curl -s localhost:3100/health | jq .puerta   # legacy
-curl -s localhost:3123/health | jq .         # inventario-v2 (no usa la lista)
+curl -s localhost:3103/health | jq .   # inventario (no usa la lista: mira suscripciones)
 ```
 
 ## Procedimiento manual

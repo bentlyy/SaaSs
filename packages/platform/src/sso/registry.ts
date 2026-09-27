@@ -119,7 +119,7 @@ export function listSsoClients(): SsoClientInfo[] {
  * ¿Este redirect_uri está permitido para este cliente?
  *
  * Comparación EXACTA de string, nunca prefijo ni comodín. Un `startsWith` acá es
- * un open redirect con ankle: `https://stock.amgdeveloper.cl.evil.com`.
+ * un open redirect con ankle: `https://inventario.amgdeveloper.cl.evil.com`.
  */
 export function isRedirectUriAllowed(client: SsoClientInfo, redirectUri: string): boolean {
   if (!redirectUri) return false;

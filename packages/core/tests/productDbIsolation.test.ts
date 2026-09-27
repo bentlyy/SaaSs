@@ -92,14 +92,75 @@ export function problemas(servs: Servicio[]): string[] {
 const compose = readFileSync(join(RAIZ, 'docker-compose.yml'), 'utf8');
 const reales = servicios(compose);
 
+/** Los nueve, y el Core. Este es el contrato de despliegue. */
+const LOS_NUEVE = [
+  'espacios', 'citas', 'inventario', 'solicitudes', 'cotizaciones',
+  'clientes', 'activos', 'checklists', 'pagos',
+];
+
+/**
+ * Los que YA están sobre el runtime y tienen su compose definitivo.
+ *
+ * SeVa llenando producto por producto. El día del último, esta lista es igual a
+ * `LOS_NUEVE` y `catalog.test.ts` pasa a ser el que hace cumplir el número. Se
+ * separan para que cada commit quede con sus pruebas en verde: un test rojo en
+ * un commit intermedio entrena al equipo a ignorar los tests rojos.
+ */
+const NAVEGAN_AHORA = ['inventario'];
+
+/**
+ * Producto retirado -> el slug que lo absorbe. Mismo mapa que `RETIRED_SLUGS` en
+ * packages/platform/src/seed.ts, que se copia en vez de importarse para que este
+ * test no dependa de la plataforma.
+ */
+const RETIRADO_ABSORBIDO_POR: Record<string, string> = {
+  'inventario-v2': 'inventario',
+  peluqueria: 'citas',
+  deportes: 'espacios',
+  talleres: 'solicitudes',
+  crm: 'clientes',
+  documentos: 'cotizaciones',
+  recordatorios: 'citas',
+};
+
+/**
+ * El bloque de un servicio, para poder mirarle el environment.
+ *
+ * OJO: el corte de arriba se COME los dos espacios del sangrado, así que un
+ * bloque empieza en `nombre:`, no en `  nombre:`.
+ */
+function bloqueDe(nombre: string): string {
+  return compose.split(/\n {2}(?=\S)/).find((b) => b.startsWith(`${nombre}:`)) ?? '';
+}
+
 describe('aislamiento entre productos en producción', () => {
-  it('declara los nueve productos, v2 incluido', () => {
+  it('declara cada producto ya migrado y el Core', () => {
     const declarados = reales.map((s) => s.nombre);
-    for (const nombre of [
-      'peluqueria', 'deportes', 'talleres', 'inventario', 'inventario-v2',
-      'cotizaciones', 'documentos', 'recordatorios', 'crm',
-    ]) {
+    for (const nombre of [...NAVEGAN_AHORA, 'landing']) {
       expect(declarados, `falta el servicio ${nombre} en docker-compose.yml`).toContain(nombre);
+    }
+  });
+
+  it('cada producto retirado desaparece en cuanto su reemplazo está en el aire', () => {
+    // El viejo puede quedarse mientras su reemplazo no exista — es lo que evita
+    // dejar a un cliente sin servicio a mitad de la migración. Pero en cuanto el
+    // nuevo está arriba, los dos a la vez son un incidente: dos puertas, dos
+    // dominios y dos bases para el mismo producto.
+    const declarados = reales.map((s) => s.nombre);
+    for (const [viejo, nuevo] of Object.entries(RETIRADO_ABSORBIDO_POR)) {
+      if (!NAVEGAN_AHORA.includes(nuevo)) continue;
+      expect(declarados, `${viejo} sigue en el compose y ${nuevo} ya lo reemplaza`).not.toContain(viejo);
+    }
+  });
+
+  it('cada producto migrado tiene su base con el nombre del slug', () => {
+    for (const slug of NAVEGAN_AHORA) {
+      const servicio = reales.find((s) => s.nombre === slug);
+      expect(servicio, `falta el servicio ${slug}`).toBeDefined();
+      expect(
+        servicio!.dbPath.endsWith(`/${slug}.sqlite`),
+        `${slug} guarda su base en ${servicio!.dbPath} y se espera ${slug}.sqlite`,
+      ).toBe(true);
     }
   });
 
@@ -109,26 +170,49 @@ describe('aislamiento entre productos en producción', () => {
     expect(problemas(reales), `docker-compose.yml:\n- ${problemas(reales).join('\n- ')}`).toEqual([]);
   });
 
-  it('landing guarda el Core en su propio volumen, no en el de un producto', () => {
+  it('el Core guarda su base en su propio volumen, no en el de un producto', () => {
     const landing = reales.find((s) => s.nombre === 'landing');
     expect(landing, 'landing no declara CORE_DB_PATH').toBeDefined();
-    expect(landing!.dbPath).not.toBe(reales.find((s) => s.nombre === 'peluqueria')?.dbPath);
+    expect(landing!.dbPath.endsWith('core.sqlite')).toBe(true);
+    for (const slug of NAVEGAN_AHORA) {
+      expect(landing!.dbPath).not.toBe(reales.find((s) => s.nombre === slug)?.dbPath);
+    }
+  });
+
+  it('ningún producto migrado declara un JWT propio', () => {
+    // La identidad es del Core, por SSO. Un JWT_SECRET por producto es la firma
+    // de un producto que todavía tiene su propio login, que es exactamente lo
+    // que esta arquitectura elimina.
+    for (const slug of NAVEGAN_AHORA) {
+      expect(bloqueDe(slug), `${slug} declara JWT_SECRET`).not.toMatch(/JWT_SECRET/);
+      expect(bloqueDe(slug), `${slug} no declara su client_id de SSO`).toMatch(/AMG_SSO_CLIENT_ID/);
+      expect(bloqueDe(slug), `${slug} no apunta al Core`).toMatch(/CORE_URL: https:\/\/desarrollador\.amgdeveloper\.cl/);
+    }
+  });
+
+  it('ningún producto migrado monta la lista de clientes', () => {
+    // clients.json era la puerta de los legacy. Sobre el runtime la puerta es
+    // la suscripción en el Core; si un producto vuelve a montarlo, tiene dos
+    // puertas y no se sabe cuál manda.
+    for (const slug of NAVEGAN_AHORA) {
+      expect(bloqueDe(slug), `${slug} monta clients.json`).not.toMatch(/clients\.json/);
+    }
   });
 });
 
 describe('las reglas muerden (compose de mentira)', () => {
   const base = [
     'services:',
-    '  peluqueria:',
+    '  citas:',
     '    volumes:',
-    '      - saasmini_data_peluqueria:/app/data/peluqueria',
+    '      - saasmini_data_citas:/app/data',
     '    environment:',
-    '      DB_PATH: /app/data/peluqueria/app.db',
-    '  talleres:',
+    '      DB_PATH: /app/data/citas.sqlite',
+    '  solicitudes:',
     '    volumes:',
-    '      - saasmini_data_talleres:/app/data/talleres',
+    '      - saasmini_data_solicitudes:/app/data',
     '    environment:',
-    '      DB_PATH: /app/data/talleres/app.db',
+    '      DB_PATH: /app/data/solicitudes.sqlite',
     '',
   ].join('\n');
 
@@ -137,22 +221,22 @@ describe('las reglas muerden (compose de mentira)', () => {
   });
 
   it('detecta dos productos con la misma base', () => {
-    const roto = base.replace('/app/data/talleres/app.db', '/app/data/peluqueria/app.db');
+    const roto = base.replace('/app/data/solicitudes.sqlite', '/app/data/citas.sqlite');
     expect(problemas(servicios(roto)).join()).toMatch(/base compartida/);
   });
 
   it('detecta una ruta relativa', () => {
-    const roto = base.replace('/app/data/talleres/app.db', './data/app.db');
+    const roto = base.replace('/app/data/solicitudes.sqlite', './data/app.db');
     expect(problemas(servicios(roto)).join()).toMatch(/relativa/);
   });
 
   it('detecta una base fuera de su volumen', () => {
-    const roto = base.replace('DB_PATH: /app/data/talleres/app.db', 'DB_PATH: /tmp/app.db');
+    const roto = base.replace('DB_PATH: /app/data/solicitudes.sqlite', 'DB_PATH: /tmp/app.db');
     expect(problemas(servicios(roto)).join()).toMatch(/fuera de su volumen/);
   });
 
   it('detecta volúmenes repetidos', () => {
-    const roto = base.replace('saasmini_data_talleres:/app/data/talleres', 'saasmini_data_peluqueria:/app/data/talleres');
+    const roto = base.replace('saasmini_data_solicitudes:/app/data', 'saasmini_data_citas:/app/data');
     expect(problemas(servicios(roto)).join()).toMatch(/volúmenes repetidos/);
   });
 });
@@ -185,15 +269,19 @@ describe('desarrollo: el cwd es la única garantía, y hay que saberlo', () => {
     }
   });
 
-  it('las plantillas legacy usan la convención relativa compartida', () => {
-    // No es un error: es el convenio actual, y solo vale si el proceso arranca
-    // con cwd = carpeta del producto (lo que hace `npm start -w`). Se deja
-    // escrito para que nadie lo lea como garantía: la garantía real es el
-    // compose, que usa absolutas. `inventario-v2` queda fuera porque comparte
-    // volumen con `inventario` a propósito y usa otro nombre de archivo.
-    const legacy = productos.filter((p) => p !== 'inventario-v2' && p !== 'landing');
-    for (const producto of legacy) {
-      expect(leerEnvEjemplo(producto).DB_PATH, `products/${producto}`).toBe('./data/app.db');
+  it('ningún producto migrado usa el app.db compartido en desarrollo', () => {
+    // `./data/app.db` era el convenio legacy y era la trampa: dos productos con el
+    // cwd equivocado abrían el MISMO archivo. En la arquitectura final cada
+    // producto escribe un archivo con su nombre, así que un cwd equivocado abre
+    // otra base en vez de la del vecino.
+    //
+    // Solo se mira lo migrado: los legacy siguen con la convención vieja
+    // mientras su reemplazo no exista, y eso es lo que se está migrando.
+    for (const producto of NAVEGAN_AHORA) {
+      const declarada = leerEnvEjemplo(producto).DB_PATH;
+      if (!declarada) continue;
+      expect(declarada, `products/${producto} sigue en el app.db compartido`).not.toBe('./data/app.db');
+      expect(declarada, `products/${producto} sigue en el app.db compartido`).not.toBe('data/app.db');
     }
   });
 

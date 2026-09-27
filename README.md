@@ -166,21 +166,31 @@ límite y detección automática de vencidos; por cliente se consulta su resumen
 historial de visitas y seguimientos abiertos (`GET /api/customers/:id` y
 `GET /api/followups/stats`).
 
-## Probar el MVP (landing / pantalla principal)
+## Probar la plataforma (web de AMG)
 
 ```bash
-npm run dev:landing    # http://localhost:3008
+npm run dev    # http://localhost:3008
 ```
 
-Pantalla principal de la suite AMG: mapa de las 8 herramientas operativas, cada
-una con acceso directo a su subdominio (`agenda.amgdeveloper.cl`,
-`canchas.amgdeveloper.cl`, `ordenes.amgdeveloper.cl`, `stock.amgdeveloper.cl`,
-`presupuestos.amgdeveloper.cl`, `docs.amgdeveloper.cl`, `recordatorios.amgdeveloper.cl`
-y `clientes.amgdeveloper.cl`).
+La plataforma central vive en **`https://desarrollador.amgdeveloper.cl`**
+(construido con `docker compose up -d landing`, puerto `3108`). Desde ahí se entra
+a los nueve productos, cada uno en su subdominio:
 
-En producción el landing se sirve en **`https://desarrollo.amgdeveloper.cl`**
-(construido con `docker compose up -d landing`, puerto `3108`). Registro DNS en
-`ops/cloudflare-amgdeveloper.zone`.
+| Producto | Subdominio |
+|---|---|
+| Reserva de Espacios | `espacios.amgdeveloper.cl` |
+| Reserva de Citas | `citas.amgdeveloper.cl` |
+| Inventario | `inventario.amgdeveloper.cl` |
+| Solicitudes y Órdenes | `solicitudes.amgdeveloper.cl` |
+| Cotizaciones | `cotizaciones.amgdeveloper.cl` |
+| Gestión de Clientes | `clientes.amgdeveloper.cl` |
+| Control de Activos | `activos.amgdeveloper.cl` |
+| Checklists e Inspecciones | `checklists.amgdeveloper.cl` |
+| Control de Pagos | `pagos.amgdeveloper.cl` |
+
+Los subdominios anteriores (`agenda`, `canchas`, `ordenes`, `stock`,
+`presupuestos`, `docs`, `recordatorios`) quedan como redirects a estos. Registro
+DNS en `ops/cloudflare-amgdeveloper.zone`.
 
 ## Comandos
 
