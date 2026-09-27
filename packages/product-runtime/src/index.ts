@@ -38,3 +38,21 @@ export { createProductApp, startProduct, type ProductContext, type ProductDefini
 export { AppError, asyncHandler, errorHandler, notFound } from './errors.js';
 export { createId, nowIso } from './ids.js';
 export { logger } from './logger.js';
+export {
+  LegacyReader,
+  ErrorMigracion,
+  resolverOrganizacion,
+  mapearAutores,
+  autoresSinCore,
+  detectarFactor,
+  unidadesDeLineas,
+  anotarDiscrepancia,
+  type LegacyTenant,
+  type LegacyUser,
+  type AutorLegacy,
+  type ResolucionOrganizacion,
+  type AccionOrganizacion,
+  type OpcionesOrganizacion,
+  type DiscrepanciaPrecio,
+  type InformeMigracion,
+} from './legacy.js';
