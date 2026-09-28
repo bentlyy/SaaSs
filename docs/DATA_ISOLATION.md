@@ -8,15 +8,15 @@ los demás.**
 | Archivo | Contenido | Producto | Puerto |
 |---|---|---|---|
 | `core.sqlite` | usuarios, organizaciones, membresías, sesiones, catálogo, suscripciones, pagos, SSO | el Core | 3108 |
-| `espacios.sqlite` | espacios, extras, clientes, reservas | espacios | 3101 |
 | `citas.sqlite` | citas, clientes, servicios, profesionales, avisos | citas | 3100 |
-| `inventario.sqlite` | artículos, movimientos, proveedores | inventario | 3103 |
+| `espacios.sqlite` | espacios, extras, clientes, reservas | espacios | 3101 |
 | `solicitudes.sqlite` | solicitudes, líneas de trabajo, repuestos, clientes, técnicos | solicitudes | 3102 |
+| `inventario.sqlite` | artículos, movimientos, proveedores | inventario | 3103 |
 | `cotizaciones.sqlite` | cotizaciones, líneas, clientes | cotizaciones | 3104 |
-| `clientes.sqlite` | clientes y seguimientos | clientes | 3107 |
-| `activos.sqlite` | activos, movimientos, estados | activos | 3109 |
-| `checklists.sqlite` | plantillas, ejecuciones, items firmados | checklists | 3110 |
-| `pagos.sqlite` | cargos, abonos, saldos | pagos | 3111 |
+| `clientes.sqlite` | clientes y seguimientos | clientes | 3105 |
+| `activos.sqlite` | activos, movimientos, estados | activos | 3106 |
+| `checklists.sqlite` | plantillas, ejecuciones, items firmados | checklists | 3107 |
+| `pagos.sqlite` | cargos, abonos, saldos | pagos | 3109 |
 
 Nueve bases de negocio, nueve contenedores, nueve volúmenes Docker. **Ningún
 volumen se comparte.** Un contenedor comprometido no puede leer ni escribir la

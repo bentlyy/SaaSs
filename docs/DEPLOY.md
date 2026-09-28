@@ -45,10 +45,10 @@ slug** de cada uno, todos `A` a `146.181.55.59`:
 | `solicitudes` | solicitudes | 3102 |
 | `inventario` | inventario | 3103 |
 | `cotizaciones` | cotizaciones | 3104 |
-| `clientes` | clientes | 3107 |
-| `activos` | activos | 3109 |
-| `checklists` | checklists | 3110 |
-| `pagos` | pagos | 3111 |
+| `clientes` | clientes | 3105 |
+| `activos` | activos | 3106 |
+| `checklists` | checklists | 3107 |
+| `pagos` | pagos | 3109 |
 
 `desarrollo` (el Core) ya está bien, y `docs` + `recordatorios` se **conservan**
 retirados: sus redirects los necesitan (ver sección de certificado).

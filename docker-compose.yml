@@ -27,16 +27,18 @@
 #   3102    solicitudes.amgdeveloper.cl        solicitudes
 #   3103    inventario.amgdeveloper.cl         inventario
 #   3104    cotizaciones.amgdeveloper.cl       cotizaciones
-#   3107    clientes.amgdeveloper.cl           clientes
+#   3105    clientes.amgdeveloper.cl           clientes
+#   3106    activos.amgdeveloper.cl            activos
+#   3107    checklists.amgdeveloper.cl         checklists
 #   3108    desarrollo.amgdeveloper.cl         Core
-#   3109    activos.amgdeveloper.cl            activos
-#   3110    checklists.amgdeveloper.cl         checklists
-#   3111    pagos.amgdeveloper.cl              pagos
+#   3109    pagos.amgdeveloper.cl              pagos
 
-# Los puertos 3105 (documentos) y 3106 (recordatorios) quedan LIBRES a proposito:
-# sus productos se retiraron. No se reciclan porque un dominio viejo que todavia
-# se teclea (docs.*, recordatorios.*) debe seguir levando a la redireccion nueva,
-# no a un producto que hoy este asignado a otro.
+# El rango 3100-3109 queda COMPLETO a proposito: los productos que ocupaban 3105
+# (docs) y 3106 (recordatorios) se retiraron y sus puertos se reasignaron a
+# clientes y activos para no dejar huecos. Es seguro porque los dominios viejos
+# redirigen por NOMBRE (301 a cotizaciones/citas, ver ops/nginx.conf), nunca por
+# puerto: reciclar el numero no cruza a nadie. 3110 y 3111 quedan libres hacia
+# arriba para productos futuros.
 
 # Tres dominios (activos, checklists, pagos) son NUEVOS: necesitan registro DNS y
 # certificado antes de publicar. `ops/nginx.conf` los trae ya, pero sin DNS el
@@ -193,7 +195,7 @@ services:
     volumes:
       - saasmini_data_clientes:/app/data
     ports:
-      - "127.0.0.1:3107:3000"
+      - "127.0.0.1:3105:3000"
     environment:
       <<: *base-env
       PRODUCT: '@amg/clientes'
@@ -216,7 +218,7 @@ services:
     volumes:
       - saasmini_data_activos:/app/data
     ports:
-      - "127.0.0.1:3109:3000"
+      - "127.0.0.1:3106:3000"
     environment:
       <<: *base-env
       PRODUCT: '@amg/activos'
@@ -239,7 +241,7 @@ services:
     volumes:
       - saasmini_data_checklists:/app/data
     ports:
-      - "127.0.0.1:3110:3000"
+      - "127.0.0.1:3107:3000"
     environment:
       <<: *base-env
       PRODUCT: '@amg/checklists'
@@ -262,7 +264,7 @@ services:
     volumes:
       - saasmini_data_pagos:/app/data
     ports:
-      - "127.0.0.1:3111:3000"
+      - "127.0.0.1:3109:3000"
     environment:
       <<: *base-env
       PRODUCT: '@amg/pagos'

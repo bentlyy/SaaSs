@@ -38,16 +38,16 @@ cada request. Una SQLite por producto, aislada por `organization_id`. Ver
 
 | Producto | Subdominio | Puerto |
 |---|---|---|
-| Reserva de Espacios | `espacios.amgdeveloper.cl` | 3101 |
 | Reserva de Citas | `citas.amgdeveloper.cl` | 3100 |
-| Inventario | `inventario.amgdeveloper.cl` | 3103 |
+| Reserva de Espacios | `espacios.amgdeveloper.cl` | 3101 |
 | Solicitudes y Órdenes | `solicitudes.amgdeveloper.cl` | 3102 |
+| Inventario | `inventario.amgdeveloper.cl` | 3103 |
 | Cotizaciones | `cotizaciones.amgdeveloper.cl` | 3104 |
-| Gestión de Clientes | `clientes.amgdeveloper.cl` | 3107 |
-| Control de Activos | `activos.amgdeveloper.cl` | 3109 |
-| Checklists e Inspecciones | `checklists.amgdeveloper.cl` | 3110 |
-| Control de Pagos | `pagos.amgdeveloper.cl` | 3111 |
+| Gestión de Clientes | `clientes.amgdeveloper.cl` | 3105 |
+| Control de Activos | `activos.amgdeveloper.cl` | 3106 |
+| Checklists e Inspecciones | `checklists.amgdeveloper.cl` | 3107 |
 | Core | `desarrollo.amgdeveloper.cl` | 3108 |
+| Control de Pagos | `pagos.amgdeveloper.cl` | 3109 |
 
 Los subdominios viejos (`agenda`, `canchas`, `ordenes`, `stock`,
 `presupuestos`, `docs`, `recordatorios`) quedan como redirects a estos. El

@@ -20,7 +20,7 @@ donde una contraseña se filtra. Ahora la contraseña existe en un solo lado.
 | Package | `@amg/platform` | `@saas-mini/core` + `products/<x>` |
 | Base | `core.sqlite` | `data/<x>/app.db` |
 | Guarda | usuarios, organizaciones, membresías, sesiones, catálogo, suscripciones, pagos, SSO | lo de su dominio: citas, stock, órdenes... |
-| Puerto | `3108` (host) | `3100`-`3111` (host) |
+| Puerto | `3108` (host) | `3100`-`3109` (host) |
 | Dominio | `desarrollo.amgdeveloper.cl` | un subdominio por producto |
 | Contraseñas | sí, es el único | **no tiene** |
 
