@@ -319,12 +319,6 @@ footer a { min-height: 24px; display: inline-flex; align-items: center; }
 <span>Crear cuenta</span>
 </a>
 </div>
-<a class="hidden lg:inline-flex items-center justify-center bg-primary-container text-on-primary hover:bg-neutral-800 transition-all duration-200 active:scale-95 text-body-sm font-body-sm font-medium px-4 py-2 rounded-lg shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="#herramientas">
-<span>Ver el mapa de herramientas</span>
-<svg aria-hidden="true" class="w-4 h-4 ml-1.5 text-on-primary" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
-<path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"></path>
-</svg>
-</a>
 </div>
 </nav>
 </header>
@@ -577,6 +571,30 @@ Entornos demo activos
 </div>
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="tus-aplicaciones-grid"></div>
 <div class="hidden" id="tus-aplicaciones-vacio"></div>
+</div>
+</section>
+<!-- ============================================================ -->
+<!-- 2c. TU CUENTA (solo visible con sesión)                     -->
+<!-- ============================================================ -->
+<section class="hidden py-margin-desktop bg-surface-container-low scroll-mt-20 border-b border-outline-variant/30" id="mi-cuenta">
+<div class="max-w-7xl mx-auto px-gutter-desktop">
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6">
+<div>
+<div class="inline-flex items-center gap-2 mb-2">
+<span aria-hidden="true" class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">MI CUENTA · SESIÓN INICIADA</span>
+</div>
+<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">Tu cuenta</h2>
+<p class="text-body-md font-body-md text-on-surface-variant mt-2 max-w-2xl" id="mi-cuenta-sub">Tus datos y los ajustes de la organización.</p>
+</div>
+<div class="text-right hidden sm:block">
+<span class="text-label-mono font-label-mono text-outline">IDENTIDAD Y ORGANIZACIÓN</span>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6" id="mi-cuenta-grid">
+<div class="lg:col-span-7" id="mi-cuenta-datos"></div>
+<div class="lg:col-span-5" id="mi-cuenta-acciones"></div>
+</div>
 </div>
 </section>
 <!-- ============================================================ -->

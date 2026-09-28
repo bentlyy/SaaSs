@@ -129,9 +129,12 @@
       el('a', { class: CLASE_GHOST, href: '/login', text: 'Ingresar' }),
       el('a', { class: CLASE_SOLID, href: '/registro', text: 'Crear cuenta' }),
     ];
+    /* Con sesión, todo vive en la landing: las "líneas" navegan por anclas a
+     * las secciones de abajo y nunca se sale de /*. Los ajustes profundos
+     * (contraseña, miembros, facturación) quedan detrás de /mi-cuenta. */
     return [
-      el('a', { class: CLASE_GHOST, href: '/mis-aplicaciones', text: 'Mis aplicaciones' }),
-      el('a', { class: CLASE_GHOST, href: '/mi-cuenta', text: 'Mi cuenta' }),
+      el('a', { class: CLASE_GHOST, href: '/#tus-aplicaciones', text: 'Mis aplicaciones' }),
+      el('a', { class: CLASE_GHOST, href: '/#mi-cuenta', text: 'Mi cuenta' }),
       el('button', { class: CLASE_SOLID, type: 'button', text: 'Salir', onclick: signOut }),
     ];
   }
@@ -207,6 +210,75 @@
     });
   }
 
+  /* ── sección "Tu cuenta" ──────────────────────────────────────────────── */
+
+  var ROLES = { owner: 'Dueño', admin: 'Administrador', member: 'Miembro' };
+
+  var BOTON_PRIMARIO = 'w-full inline-flex items-center justify-center px-4 py-2.5 rounded-lg bg-primary-container text-on-primary hover:bg-neutral-800 transition-all duration-200 active:scale-95 text-body-sm font-body-sm font-medium shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary';
+  var BOTON_SECUNDARIO = 'w-full inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-body-sm font-body-sm font-medium border border-outline-variant/60 text-primary hover:bg-surface-container-low transition-all duration-200 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary';
+
+  function avatarInicial(name) {
+    return String(name || '?').trim().charAt(0).toUpperCase() || '?';
+  }
+
+  function dato(label, value) {
+    return el('div', {},
+      el('dt', { class: 'text-label-mono-xs font-label-mono-xs text-on-surface-variant', text: label }),
+      el('dd', { class: 'text-body-md font-body-md text-primary mt-1', text: value || '—' }),
+    );
+  }
+
+  function renderCuenta(session) {
+    var section = document.getElementById('mi-cuenta');
+    var datos = document.getElementById('mi-cuenta-datos');
+    var acciones = document.getElementById('mi-cuenta-acciones');
+    var sub = document.getElementById('mi-cuenta-sub');
+    if (!section) return;
+    if (!session) {
+      section.classList.add('hidden');
+      return;
+    }
+    section.classList.remove('hidden');
+    if (sub) sub.textContent = 'Los datos de tu sesión y la organización con la que operás. Los ajustes profundos viven en la página de cuenta.';
+
+    var rol = ROLES[session.role] || session.role || 'Miembro';
+    var org = session.organization ? session.organization.name : '—';
+    var nombre = session.user ? session.user.name : '—';
+    var email = session.user ? session.user.email : '—';
+
+    mount(datos,
+      el('article', { class: 'bg-surface-container-lowest rounded-3xl p-6 border border-outline-variant/60 bento-shadow h-full' },
+        el('div', { class: 'flex items-center gap-4' },
+          el('span', { class: 'w-12 h-12 rounded-full bg-primary text-on-primary grid place-items-center text-headline-md font-headline-md', text: avatarInicial(nombre) }),
+          el('div', { class: 'min-w-0' },
+            el('p', { class: 'text-headline-sm font-headline-sm text-primary tracking-tight truncate', text: nombre }),
+            el('p', { class: 'text-body-sm font-body-sm text-on-surface-variant truncate', text: email }),
+          ),
+        ),
+        el('dl', { class: 'mt-6 pt-6 border-t border-outline-variant/40 grid grid-cols-1 sm:grid-cols-2 gap-5' },
+          dato('ORGANIZACIÓN', org),
+          dato('ROL', rol),
+          dato('CORREO', email),
+          dato('SESIÓN DE', nombre),
+        ),
+      ),
+    );
+
+    mount(acciones,
+      el('article', { class: 'bg-surface-container-lowest rounded-3xl p-6 border border-outline-variant/60 bento-shadow h-full flex flex-col justify-between' },
+        el('div', {},
+          el('p', { class: 'text-label-caps font-label-caps text-on-surface-variant', text: 'SESIÓN' }),
+          el('p', { class: 'text-headline-sm font-headline-sm text-primary tracking-tight mt-1', text: 'Operás como ' + rol }),
+          el('p', { class: 'text-body-sm font-body-sm text-on-surface-variant mt-2', text: 'En Ajustes podés cambiar la contraseña y administrar miembros y facturación.' }),
+        ),
+        el('div', { class: 'mt-6 grid gap-3' },
+          el('a', { class: BOTON_SECUNDARIO, href: '/mi-cuenta', text: 'Editar perfil y seguridad' }),
+          el('button', { class: BOTON_PRIMARIO, type: 'button', text: 'Cerrar sesión', onclick: signOut }),
+        ),
+      ),
+    );
+  }
+
   /* ── arranque ────────────────────────────────────────────────────────── */
 
   function boot() {
@@ -216,6 +288,7 @@
         var nav = document.getElementById('auth-nav');
         if (nav) mount(nav, navAuth(!session));
         renderApps(session);
+        renderCuenta(session);
       });
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
