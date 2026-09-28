@@ -28,11 +28,7 @@
       else if (value === true) node.setAttribute(key, '');
       else node.setAttribute(key, String(value));
     }
-    for (var i = 2; i < arguments.length; i++) {
-      var child = arguments[i];
-      if (child === null || child === undefined || child === false || child === '') continue;
-      node.appendChild(child.nodeType ? child : document.createTextNode(String(child)));
-    }
+    for (var i = 2; i < arguments.length; i++) append(node, arguments[i]);
     return node;
   }
 
