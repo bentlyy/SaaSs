@@ -24,7 +24,7 @@ import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqli
  * (`template_items_json`), y ademas crea las filas propias en `run_items`.
  *
  * El motivo es que la plantilla sigue viva y se sigue editando. Si la corrida
- * leyera la plantilla, agregar un punto a la checklist de seguridad MIERDE la
+ * leyera la plantilla, agregar un punto a la checklist de seguridad MEZCLARIA la
  * historia: las inspecciones de marzo empezarian a mostrar un punto que todavia
  * no existia, y las de diciembre no mostrarian el punto que se agrego en
  * septiembre. Un informe de cumplimiento tiene que poder decir "en marzo se
@@ -38,8 +38,16 @@ import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqli
  * deja de usarse, se creo por error) el historial NO se borra con ella. Una
  * inspeccion ya firmada es un hecho; el papel con el que se firmo es un medio.
  *
- * `runs.template_name` tambien es NOT NULL y no se derivan de la plantilla: es
+ * `runs.template_name` tambien es NOT NULL y no se deriva de la plantilla: es
  * la foto del nombre, y sin el nombre la corrida queda sin saber QUE se reviso.
+ *
+ * Los items de la plantilla viven EN SECCIONES (`sections`), y el item conoce
+ * su seccion. La corrida NO copia las secciones a una tabla propia: la seccion
+ * viaja en el snapshot como el nombre con el que se revisaba (el mismo criterio
+ * que `template_name`), y los puntos ya copiados en `run_items` se agrupan por
+ * ese nombre a la hora de mostrar. `item_id` en `run_items` es el enlace con el
+ * item de la plantilla del que salio, para poder volver a el; no lo hace
+ * dependiente de la plantilla, porque lleva la copia de todo lo que muestra.
  *
  * ESTE PRODUCTO NO TIENE FUENTE LEGACY. Ninguno de los nueve productos viejos
  * traia un modulo de inspecciones, asi que no hay `legacy_tenant_map` que
@@ -47,8 +55,9 @@ import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqli
  * llena es ruido que invites a escribir un migrador sin datos de donde leer.
  *
  * NO hay tabla de personas. Quien llena una corrida es la identidad del Core, que
- * llega en el token; y quien figura como "ubicacion" es un texto libre ("bodega
- * 2", "faena norte"), no una ficha de cliente, de proveedor ni de recurso.
+ * llega en el token; `performed_by` es la FOTO del nombre de quien la realizo, y
+ * quien figura como "ubicacion" es un texto libre ("bodega 2", "faena norte"), no
+ * una ficha de cliente, de proveedor ni de recurso.
  *
  * TODA tabla lleva `organization_id` NOT NULL con su indice, y todas las
  * consultas filtran por el. No hay `tenant_id`: la identidad la trae el Core.
@@ -63,7 +72,7 @@ import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqli
  *
  * `active` es lo que decide si la plantilla aparece en el formulario de "empezar
  * una corrida". Desactivar es el equivalente a archivar: la plantilla sigue
- * existiendo y las corridas viejas siguen Apuntando a ella, pero nadie la elige
+ * existiendo y las corridas viejas siguen apuntando a ella, pero nadie la elige
  * para una corrida nueva. Por eso es un entero y no un `deleted_at`: desactivar
  * es reversible sin perder nada, y borrar es otra decision.
  *
@@ -87,24 +96,62 @@ export const templates = sqliteTable(
 );
 
 /**
+ * Una seccion de la plantilla: el grupo con nombre en que se ordenan sus puntos.
+ *
+ * "Extintores", "Iluminacion", "Equipos de proteccion". La seccion existe porque
+ * una plantilla real se piensa por grupos y se reordena por grupos, no punto a
+ * punto. Los items no tienen numero global dentro de la plantilla: se numeran
+ * DENTRO de su seccion (1..N), y el UNIQUE va en `(section_id, position)`.
+ *
+ * `sort_order` ordena las secciones de una plantilla sin huecos (1..N), y se
+ * renumeran al borrar o reordenar, igual que los `position` de los items.
+ */
+export const sections = sqliteTable(
+  'sections',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id').notNull(),
+    templateId: text('template_id')
+      .notNull()
+      .references(() => templates.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    /** Numero de la seccion dentro de su plantilla, sin agujeros. */
+    sortOrder: integer('sort_order').notNull(),
+  },
+  (t) => [
+    uniqueIndex('idx_checklists_sections_template_order').on(t.templateId, t.sortOrder),
+    index('idx_checklists_sections_org_template').on(t.organizationId, t.templateId),
+  ],
+);
+
+/**
  * Un punto de la plantilla.
  *
- * `position` arranca en 1 y es UNIQUE junto a `template_id`, y ese es el motivo
- * de que el UNIQUE exista: es la garantia real de que no haya dos puntos con el
- * mismo numero. El indice UNIQUE va primero en `(template_id, position)` porque
- * la plantilla sola ya identifica a una organizacion, y anadir `organization_id`
- * al UNIQUE no evitaria ningun choque real.
+ * `position` arranca en 1 DENTRO de su seccion y es UNIQUE junto a `section_id`,
+ * y ese es el motivo de que el UNIQUE exista: es la garantia real de que no haya
+ * dos puntos con el mismo numero en la misma seccion. El indice UNIQUE va primero
+ * en `(section_id, position)` porque la seccion sola ya identifica a una
+ * organizacion e incluso a una plantilla, y anadir `organization_id` al UNIQUE no
+ * evitaria ningun choque real.
  *
- * `position` no se deja con huecos: cuando se borra un punto, los siguientes se
- * renumeran a 1..N dentro de una transaccion. Un "3" donde no hay 1 ni 2 no es
- * un detalle estetico: quien llena la corrida responde por posicion, y una lista
- * con huecos obliga a leer el numero suelto en vez de seguir el orden.
+ * `position` no se deja con huecos: cuando se borra un punto, los siguientes de
+ * su seccion se renumeran a 1..N dentro de una transaccion. Un "3" donde no hay 1
+ * ni 2 no es un detalle estetico: quien llena la corrida responde por posicion
+ * (global de la corrida, no por seccion), y el editor de la plantilla sigue el
+ * orden de la seccion.
+ *
+ * `type` dice COMO se responde el punto, y los cuatro tipos son cerrados:
+ * `yes_no` se responde cumple/no cumple/no aplica, `text` con un texto libre,
+ * `number` con un numero y `select` eligiendo una de las opciones de
+ * `options_json`. Un texto libre permitiria escribir "cualitativo" y la columna
+ * dejaria de poder decidir el control que se pinta al llenar la corrida.
+ * `options_json` guarda las opciones de `select` como JSON de strings.
  *
  * `required` dice si el punto IMPORTA para poder cerrar la corrida. Un punto
  * opcional se puede dejar sin responder; uno obligatorio no. Por eso el
  * `required=1` es lo que `POST /api/runs/:id/completar` cuenta antes de cerrar.
  *
- * `organization_id` esta aunque la plantilla ya lo determine: es la regla del
+ * `organization_id` esta aunque la seccion ya lo determine: es la regla del
  * producto, y sin el indice que lo arranca el filtro obligatorio seria un barrido
  * de tabla.
  */
@@ -116,13 +163,23 @@ export const templateItems = sqliteTable(
     templateId: text('template_id')
       .notNull()
       .references(() => templates.id, { onDelete: 'cascade' }),
+    sectionId: text('section_id')
+      .notNull()
+      .references(() => sections.id, { onDelete: 'cascade' }),
     position: integer('position').notNull(),
     label: text('label').notNull(),
     /** 1 = obligatorio para poder completar la corrida. 0 = opcional. */
     required: integer('required').notNull().default(1),
+    /**
+     * Como se responde: 'yes_no' | 'text' | 'number' | 'select'. `yes_no` es el
+     * unico que responde con `ok/fail/na`; los demas con `value_text`.
+     */
+    type: text('type').notNull().default('yes_no'),
+    /** JSON con las opciones de `select`, o NULL en los demas tipos. */
+    optionsJson: text('options_json'),
   },
   (t) => [
-    uniqueIndex('idx_checklists_template_items_template_position').on(t.templateId, t.position),
+    uniqueIndex('idx_checklists_template_items_section_position').on(t.sectionId, t.position),
     index('idx_checklists_template_items_org_template').on(t.organizationId, t.templateId),
   ],
 );
@@ -133,8 +190,19 @@ export const templateItems = sqliteTable(
  * `status` tiene TRES valores cerrados y no un texto libre, porque las tres
  * respuestas a "en que esta esta corrida" son distintas de verdad: `in_progress`
  * se esta llenando, `done` se cerro firmada y `canceled` se abandono a medias. Un
- * quinto valor libre permitiria escribir "terminada" o "cerrada" y la columna
- * dejaria de poder filtrarse, que es la unica razon por la que existe.
+ * texto libre permitiria escribir "terminada" o "cerrada" y la columna dejaria de
+ * poder filtrarse, que es la unica razon por la que existe.
+ *
+ * `result` es el Veredicto GLOBAL de la inspeccion, distinto de los items y
+ * distinto del estado: `approved` es aprobo, `observed` es salio con
+ * observaciones y `rejected` es se rechazo. Es NULL mientras la corrida no se
+ * completa, y se decide al cerrarla (o por PATCH, a proposito). No se deriva solo
+ * de los items: rechazar una inspeccion es un juicio del inspector, y el juicio
+ * no se adivina.
+ *
+ * `performed_by` es la FOTO del nombre de quien realizo la inspeccion, tomada de
+ * la identidad del Core al empezar la corrida. No es una referencia a una tabla de
+ * personas: es el nombre de ese dia, igual que `template_name`.
  *
  * `started_at` y `completed_at` son Instantes ISO, no fechas. Una inspeccion
  * importa la hora: "se hizo a las 9 de la manana y a las 11 ya no" es informacion
@@ -165,11 +233,18 @@ export const runs = sqliteTable(
     templateId: text('template_id').references(() => templates.id, { onDelete: 'set null' }),
     /** FOTO del nombre de la plantilla en el momento de la corrida. */
     templateName: text('template_name').notNull(),
-    /** FOTO de los puntos: `[{ "position": 1, "label": "...", "required": 1 }]`. */
+    /**
+     * FOTO de los puntos: `[{ "position": 1, "label": "...", "required": 1,
+     * "type": "yes_no", "options": ["..."], "section": "Seguridad" }]`.
+     */
     templateItemsJson: text('template_items_json').notNull(),
     /** Donde se hizo: texto libre. "Bodega 2", "faena norte", "casa del cliente". */
     location: text('location'),
     status: text('status').notNull().default('in_progress'),
+    /** Veredicto global: 'approved' | 'observed' | 'rejected', o NULL sin cerrar. */
+    result: text('result'),
+    /** FOTO del nombre de quien la realizo, tomada de la identidad del Core. */
+    performedBy: text('performed_by'),
     notes: text('notes'),
     /** Instante ISO de cuando empezo. */
     startedAt: text('started_at').notNull(),
@@ -192,20 +267,30 @@ export const runs = sqliteTable(
  * Viene del snapshot, no de la plantilla: si el punto se respondiera leyendo
  * `template_items`, cambiar la plantilla despues cambiaria lo ya ejecutado.
  *
- * `result` es NULL mientras no se contesta, y despues vale `ok`, `fail` o `na`.
- * Es NULL y no `pending` a proposito: "sin responder" no es un resultado, y por
- * eso la invariante de `completar` busca justamente los NULL con `required = 1`.
- * Los tres valores son cerrados porque son las tres respuestas a una pregunta de
- * inspeccion; un texto libre permitiria escribir "va bien" y la columna dejaria de
- * poder resumirse.
+ * `item_id` es el enlace con el item de la plantilla del que salio (NULL en una
+ * corrida libre o si la plantilla se borro). Es solo un puntero: todo lo que se
+ * muestra viaja en la fila (`label`, `type`, `required`, `options_json`), y la
+ * corrida no depende de la plantilla para pintarse ni para validarse.
+ *
+ * La respuesta es UNA de dos columnas, segun `type`:
+ *
+ *   - `result` se usa en los `yes_no` y vale `ok`, `fail` o `na`. Es NULL
+ *     mientras no se contesta, y a proposito: "sin responder" no es un resultado,
+ *     y por eso la invariante de `completar` busca justamente los NULL con
+ *     `required = 1`. Los tres valores son cerrados porque son las tres respuestas
+ *     a una pregunta de inspeccion; un texto libre permitiria escribir "va bien" y
+ *     la columna dejaria de poder resumirse.
+ *   - `value_text` se usa en `text`, `number` y `select`: la respuesta concreta
+ *     ("temperatura 22", "zona A"). En los `yes_no` queda NULL.
  *
  * `answered_at` se sella en el servidor cuando se registra la respuesta. Es lo
  * que distingue "el punto se respondio el jueves" de "la corrida se completo el
  * viernes": son datos distintos y el que sirve para auditar es el primero.
  *
- * `position` es UNIQUE con `run_id` por la misma razon que en la plantilla: dos
- * puntos con el mismo numero en la misma corrida no se distinguen al responderlos
- * ni al contarlos.
+ * `position` es UNIQUE con `run_id` y es GLOBAL a la corrida (1..N a traves de
+ * todas sus secciones), por la misma razon que en la plantilla: dos puntos con el
+ * mismo numero en la misma corrida no se distinguen al responderlos ni al
+ * contarlos. La seccion viaja en el snapshot para agrupar al mostrar.
  */
 export const runItems = sqliteTable(
   'run_items',
@@ -215,10 +300,18 @@ export const runItems = sqliteTable(
     runId: text('run_id')
       .notNull()
       .references(() => runs.id, { onDelete: 'cascade' }),
+    /** El item de la plantilla del que salio este punto, o NULL (libre/borrado). */
+    itemId: text('item_id').references(() => templateItems.id, { onDelete: 'set null' }),
     position: integer('position').notNull(),
     label: text('label').notNull(),
     /** Copia del `required` del snapshot, no del de la plantilla de hoy. */
     required: integer('required').notNull().default(1),
+    /** Copia del `type` del snapshot, para pintar y validar sin mirar la plantilla. */
+    type: text('type').notNull().default('yes_no'),
+    /** Copia de las opciones de `select`, para validar y pintar. */
+    optionsJson: text('options_json'),
+    /** La respuesta concreta de `text`/`number`/`select`. NULL en `yes_no`. */
+    valueText: text('value_text'),
     result: text('result'),
     /** Que se vio en ese punto: la foto de la falla, no un estado. */
     note: text('note'),
@@ -228,6 +321,40 @@ export const runItems = sqliteTable(
   (t) => [
     uniqueIndex('idx_checklists_run_items_run_position').on(t.runId, t.position),
     index('idx_checklists_run_items_org_run').on(t.organizationId, t.runId),
+  ],
+);
+
+/**
+ * Un archivo adjunto a una corrida: foto o documento de la inspeccion.
+ *
+ * El contenido vive en disco, en la carpeta `attachments/` al lado de la base.
+ * Aca se guarda solo la referencia: el archivo en la base la haria crecer sin
+ * limite y no se podria servir con rango. `path` es relativo a la carpeta de
+ * datos (como `attachments/<id>`), nunca absoluto, y al servir se reconstruye
+ * desde el id del adjunto con `basename` para no confiar en rutas de afuera.
+ *
+ * `filename` es el NOMBRE ORIGINAL con el que se envio el archivo, solo para
+ * mostrarlo y nombrar la descarga: el archivo en disco se llama como el id, porque
+ * un nombre llegado de afuera no vale para armar una ruta.
+ */
+export const attachments = sqliteTable(
+  'attachments',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id').notNull(),
+    runId: text('run_id')
+      .notNull()
+      .references(() => runs.id, { onDelete: 'cascade' }),
+    filename: text('filename').notNull(),
+    /** Ruta relativa a la carpeta de datos del producto. El archivo vive en disco. */
+    path: text('path').notNull(),
+    mimeType: text('mime_type'),
+    sizeBytes: integer('size_bytes').notNull().default(0),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [
+    index('idx_checklists_attachments_org').on(t.organizationId, t.runId),
+    index('idx_checklists_attachments_run').on(t.runId),
   ],
 );
 
@@ -261,8 +388,10 @@ export const settings = sqliteTable(
 
 export const checklistsSchema = {
   templates,
+  sections,
   templateItems,
   runs,
   runItems,
+  attachments,
   settings,
 };

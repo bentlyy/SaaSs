@@ -583,7 +583,7 @@ describe('aislamiento entre organizaciones', () => {
 describe('el esquema', () => {
   it('las tablas del producto son las que declara y ninguna mas', () => {
     const tablas = tp.tables();
-    for (const t of ['quotes', 'quote_lines', 'settings', 'legacy_tenant_map']) {
+    for (const t of ['quotes', 'quote_lines', 'settings']) {
       expect(tablas, `falta la tabla ${t}`).toContain(t);
     }
     // Este producto NO es dueno de los clientes ni del catalogo de servicios: si
@@ -594,7 +594,7 @@ describe('el esquema', () => {
   });
 
   it('cada tabla de negocio lleva organization_id y un indice por organizacion', () => {
-    for (const tabla of ['quotes', 'quote_lines', 'settings', 'legacy_tenant_map']) {
+    for (const tabla of ['quotes', 'quote_lines', 'settings']) {
       const columnas = tp.sqlite.prepare(`PRAGMA table_info(${tabla})`).all() as Array<{ name: string }>;
       expect(columnas.map((c) => c.name), `${tabla} sin organization_id`).toContain('organization_id');
 

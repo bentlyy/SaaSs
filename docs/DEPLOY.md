@@ -1,8 +1,8 @@
 # Desplegar en producción
 
-Este es el camino para pasar de la suite nueva al servidor OCI. Todo lo que se
-puede automatizar está en `ops/deploy.sh`; lo que queda aquí son los tres pasos
-que **no** se pueden automatizar y que, en este orden, bloquean a los demás.
+Este es el camino para pasar la suite al servidor OCI. Todo lo que se puede
+automatizar está en `ops/deploy.sh`; lo que queda aquí son los tres pasos que
+**no** se pueden automatizar y que, en este orden, bloquean a los demás.
 
 Si algo de acá contradice al código, el código manda.
 
@@ -15,7 +15,7 @@ Si algo de acá contradice al código, el código manda.
 | Proyecto de Docker | `saas-mini` (los volúmenes son `saas-mini_saasmini_data_*`) |
 | Nginx | `/etc/nginx/conf.d/saas-mini.conf` (productos) y `desarrollo.conf` (el Core) |
 | Certificado | `saasmini-nuevo`, cubre los once nombres de abajo |
-| Datos | volúmenes Docker. `ops/backup.sh` saca los nueve + el Core; `ops/backup-legacy.sh` saca los siete legacy |
+| Datos | volúmenes Docker. `ops/backup.sh` saca los nueve + el Core |
 
 ## Orden, y por qué en este orden
 
@@ -26,37 +26,31 @@ Si algo de acá contradice al código, el código manda.
 4. El stack (ops/deploy.sh)        depende del 3: si no, los dominios dan 502
 ```
 
-hacer el 3 antes del 1 deja los dominios nuevos sirviendo con un certificado que
-no los cubre: el navegador muestra un aviso rojo en vez de dejar entrar. Hacer el
-4 antes del 3 deja los seis dominios viejos apuntando a puertos que ya no tienen
-nadie escuchando: 502 en todos a la vez.
+Hacer el 3 antes del 1 deja los dominios sirviendo con un certificado que no los
+cubre: el navegador muestra un aviso rojo en vez de dejar entrar. Hacer el 4
+antes del 3 deja los dominios apuntando a puertos que no tienen nadie
+escuchando: 502 en todos a la vez.
 
 ---
 
 ## 1. DNS
 
-En el panel de Cloudflare, dejar los nueve nombres de producto **igual que el slug**
-de cada uno, todos `A` a `146.181.55.59`:
-
-Renombrar (ya existen con el nombre viejo):
-
-| De (viejo) | A (nuevo) | Producto | Puerto |
-|---|---|---|---|
-| `agenda` | `citas` | citas | 3100 |
-| `canchas` | `espacios` | espacios | 3101 |
-| `ordenes` | `solicitudes` | solicitudes | 3102 |
-| `stock` | `inventario` | inventario | 3103 |
-| `presupuestos` | `cotizaciones` | cotizaciones | 3104 |
-
-Crear:
+En el panel de Cloudflare, dejar los nueve nombres de producto **igual que el
+slug** de cada uno, todos `A` a `146.181.55.59`:
 
 | Nombre | Producto | Puerto |
 |---|---|---|
+| `citas` | citas | 3100 |
+| `espacios` | espacios | 3101 |
+| `solicitudes` | solicitudes | 3102 |
+| `inventario` | inventario | 3103 |
+| `cotizaciones` | cotizaciones | 3104 |
+| `clientes` | clientes | 3107 |
 | `activos` | activos | 3109 |
 | `checklists` | checklists | 3110 |
 | `pagos` | pagos | 3111 |
 
-`clientes` y `desarrollo` ya están bien, y `docs` + `recordatorios` se **conservan**
+`desarrollo` (el Core) ya está bien, y `docs` + `recordatorios` se **conservan**
 retirados: sus redirects los necesitan (ver sección de certificado).
 
 Proxy naranja (activado) está bien: el challenge de Let's Encrypt sigue llegando
@@ -138,56 +132,34 @@ Y luego:
 bash ops/deploy.sh
 ```
 
-El script, en orden: comprueba que los volúmenes legacy existen, rellena los
-secretos, construye la imagen, **respalda los volúmenes legacy y para si el
-respaldo falla**, levanta el Core solo, copia los nueve secretos SSO del Core al
-`.env`, crea la empresa y el usuario, migra los datos uno por uno, levanta los
-nueve y pregunta `/health` a cada uno.
+El script, en orden: rellena los secretos, construye la imagen, levanta el Core
+solo, copia los nueve secretos SSO del Core al `.env`, crea la empresa y el
+usuario con su suscripción, levanta los nueve y pregunta `/health` a cada uno.
 
 Variables para iterar:
 
 | | |
 |---|---|
 | `AMG_SKIP_BUILD=1` | no reconstruir la imagen |
-| `AMG_SKIP_MIGRATIONS=1` | no migrar |
-| `AMG_SKIP_LEGACY_BACKUP=1` | desplegar sin respaldar (solo si ya se respaldó a mano) |
-| `AMG_VERBOSE=1` | ver el informe completo de cada migración |
 
 ## Qué queda a mano después
 
 - **Copiar el respaldo fuera del servidor.** Un respaldo en el mismo disco que
   los datos no sobrevive a un fallo de ese disco, y este servidor no tiene RAID.
   Es el paso que más se olvida y el que más caro sale.
-- **No borrar los volúmenes legacy.** Hasta que exista un respaldo externo
-  verificado, son lo único que no se puede regenerar si un migrador tenía un bug.
 - Crear los registros DNS nuevos (paso 1) y comprobar que los dominios abren.
 
 ## Volver atrás
 
-Si algo sale mal después del paso 4, los datos siguen ahí: el script no borra
-volúmenes legacy en ningún momento, y los migradores son idempotentes, así que
-volver a correrlo no duplica filas.
+Si algo sale mal después del paso 4, los datos siguen ahí: el script no toca las
+bases salvo para migrar su esquema hacia adelante, así que correr el deploy de
+nuevo no pierde filas.
 
 ```bash
-# 1. Parar el stack nuevo
+# Parar el stack y volver a levantar desde un backup bueno
 cd ~/projects/saas-mini && docker compose -p saas-mini down
+bash ops/restore.sh latest <producto>
 ```
 
-Volver al legacy de verdad son tres cosas, y conviene tenerlas claras **antes**
-de necesitarlas:
-
-1. **Restaurar los volúmenes** desde un `ops/backup-legacy.sh`. Cada carpeta
-   lleva un `MANIFIESTO.txt` con el `.db` de cada producto y el volumen del que
-   salió.
-2. **El `docker-compose.yml` viejo**, que está en el historial de git:
-   `git log --oneline -- docker-compose.yml` y volver a ese commit. Los puertos
-   viejos (3105, 3106) y los seis servicios originales.
-3. **Nginx**: el archivo anterior está en el servidor como
-   `/etc/nginx/conf.d/saas-mini.conf.pre-tls`, pero ese es el de antes de TLS y
-   **no sirve tal cual**. Lo que hay que hacer es rehacer los `server_name` con
-   los puertos del punto 2. Por eso el paso 3 de este documento deja el `map` en
-   un archivo del repo: es el mismo archivo el que hay que volver a poner, y es
-   legible, a diferencia de un `nginx.conf` generado.
-
-Vale la pena tener un `ops/nginx-legacy.conf` guardado **antes** del primer
-despliegue, no cuando haya que volver atrás con urgencia.
+- **Nginx**: el archivo del repo (paso 3) es el mismo que hay que volver a
+  poner; es legible, a diferencia de un `nginx.conf` generado a mano.

@@ -1,7 +1,7 @@
 /**
  * Interfaz de checklists e inspecciones.
  *
- * Cuatro reglas que no son de estilo sino de arquitectura:
+ * Reglas que no son de estilo sino de arquitectura:
  *
  *   1. No hay datos escritos en el navegador. La pagina se sirve vacia y todo
  *      entra por la API, que es la que filtra por organizacion. Si el HTML
@@ -17,21 +17,33 @@
  *
  *   3. Los puntos que se ven en una ficha son los de LA CORRIDA, no los de la
  *      plantilla. Por eso la pantalla nunca vuelve a pedir la plantilla para
- *      mostrarlos: la corrida ya lleva su copia, y una plantilla cambiada despues
- *      no puede alterar lo que se responde.
+ *      mostrarlos: la corrida ya lleva su copia (tipo, opciones y seccion
+ *      incluidos), y una plantilla cambiada despues no puede alterar lo que se
+ *      responde.
  *
- *   4. La numeracion de los puntos la muestra el servidor (1..N, sin huecos) y la
- *      pantalla no la recalcula. Si la recalculara, el "3" que ve la persona y el
- *      que se manda al responder serian dos numeros distintos en cuanto alguien
- *      borre un punto en otra pestania.
+ *   4. Los numeros los muestra el servidor (secciones y puntos 1..N sin huecos)
+ *      y la pantalla no los recalcula. Si los recalculara, el "3" que ve la
+ *      persona y el que se manda al responder serian dos numeros distintos en
+ *      cuanto alguien borre un punto en otra pestania.
+ *
+ *   5. Cada punto se responde SEGUN SU TIPO: Si/No con tres botones, y texto,
+ *      numero o seleccion con su campo y su boton Guardar. El select solo puede
+ *      elegir de las opciones del snapshot de la corrida, que son las de ese dia.
+ *
+ *   6. Un punto respondido es un hecho. De una corrida no se quita nada: editar
+ *      la plantilla cambia lo que vendra, no lo que ya paso.
  */
 
 const $ = (sel) => document.querySelector(sel);
 
+const RESPUESTAS = ['ok', 'fail', 'na'];
+
 const estado = {
   plantillas: [],
-  /** Los puntos de la plantilla abierta en el editor, en orden. */
-  puntos: [],
+  /** La estructura de la plantilla abierta en el editor (`/estructura`). */
+  estructura: { template: null, sections: [] },
+  /** El punto que se esta editando en el editor, para saber a donde mandar el PATCH. */
+  puntoEditando: null,
   corridas: [],
   cfg: { currency: '$', timezone: 'America/Santiago' },
   /** La corrida abierta en la ficha, para reescribirla al responder un punto. */
@@ -81,6 +93,19 @@ const ETIQUETA_RESULTADO = {
   na: 'No aplica',
 };
 
+const ETIQUETA_TIPO = {
+  yes_no: 'Si / No',
+  text: 'Texto',
+  number: 'Numero',
+  select: 'Seleccion',
+};
+
+const ETIQUETA_RESULTADO_GLOBAL = {
+  approved: 'Aprobado',
+  observed: 'Observado',
+  rejected: 'Rechazado',
+};
+
 /**
  * Una linea del textarea de puntos a la lista que espera la API.
  *
@@ -104,7 +129,19 @@ function puntosDesdeTexto(texto) {
     .filter((punto) => punto.label !== '');
 }
 
+/** Las opciones de un select escritas en un textarea (una por linea). */
+function opcionesDesdeTexto(texto) {
+  return String(texto ?? '')
+    .split(/\r?\n/)
+    .map((linea) => linea.trim())
+    .filter(Boolean);
+}
+
 const instanteCorto = (iso) => (iso ? new Date(iso).toLocaleString('es-CL') : '');
+
+function tamanoCorto(bytes) {
+  return bytes >= 1024 ? `${(bytes / 1024).toFixed(0)} KB` : `${bytes} B`;
+}
 
 /** `null` es "todavia no hay nada que medir": se muestra como un guion. */
 function porcentaje(valor) {
@@ -140,6 +177,10 @@ async function pintarTablero() {
     tarjeta(tablero.porStatus.in_progress, 'En curso'),
     tarjeta(tablero.porStatus.done, 'Completadas'),
     tarjeta(tablero.porStatus.canceled, 'Canceladas'),
+    tarjeta(tablero.porResultado.approved, 'Aprobadas'),
+    tarjeta(tablero.porResultado.observed, 'Observadas'),
+    tarjeta(tablero.porResultado.rejected, 'Rechazadas'),
+    tarjeta(tablero.porResultado.sin, 'Sin veredicto'),
     tarjeta(porcentaje(tablero.cumplimientoPromedioPct), 'Cumplimiento promedio'),
   ].join('');
 
@@ -237,13 +278,14 @@ function abrirPlantilla(plantilla) {
   $('#plantilla-nombre').value = plantilla?.name ?? '';
   $('#plantilla-descripcion').value = plantilla?.description ?? '';
   // Al editar NO se tocan los puntos que ya estan: se editan en el editor de
-  // abajo, uno por uno, con su propio endpoint. Volver a mandar el textarea
-  // sobreescribiria la lista de la plantilla con lo que la pantalla recuerda, y en
-  // cuanto alguien abriera la misma plantilla en otra pestania se perderian los
-  // puntos que agrego.
+  // abajo, por seccion y uno por uno, con sus propios endpoints. Volver a mandar
+  // el textarea sobreescribiria la lista de la plantilla con lo que la pantalla
+  // recuerda, y en cuanto alguien abriera la misma plantilla en otra pestania se
+  // perderian los puntos que agrego.
   $('#plantilla-items').value = '';
   $('#plantilla-items').disabled = Boolean(plantilla);
   $('#plantilla-editor').hidden = !plantilla;
+  estado.puntoEditando = null;
   if (plantilla) {
     $('#plantilla-seleccionada').textContent = plantilla.name;
     abrirPuntos(plantilla.id);
@@ -251,27 +293,89 @@ function abrirPlantilla(plantilla) {
 }
 
 async function abrirPuntos(plantillaId) {
-  const datos = await api(`/api/templates/${plantillaId}/items`);
-  estado.puntos = datos.items;
+  const datos = await api(`/api/templates/${plantillaId}/estructura`);
+  estado.estructura = datos;
   $('#plantilla-seleccionada').textContent =
-    estado.plantillas.find((t) => t.id === plantillaId)?.name ?? '';
-  $('#plantilla-puntos-lista').innerHTML = datos.items.length
-    ? datos.items
-        .map(
-          (p) =>
-            '<div class="linea"><span><strong>' +
-            p.position +
-            '.</strong> ' +
-            escapar(p.label) +
-            ' ' +
-            (p.required ? '<small>(obligatorio)</small>' : '<small>(opcional)</small>') +
+    estado.plantillas.find((t) => t.id === plantillaId)?.name ?? datos.template.name ?? '';
+  pintarEditor();
+}
+
+/**
+ * Pinta el editor completo: la lista de secciones con sus puntos, el selector de
+ * seccion del form de agregar y los forms de edicion (que quedan ocultos).
+ *
+ * Los `position` que se muestran son los de la API: las secciones ya vienen
+ * 1..N y los puntos de cada seccion 1..N, renumerados por el servidor.
+ */
+function pintarEditor() {
+  const { sections } = estado.estructura;
+
+  // El selector de seccion del form de agregar un punto.
+  const elegida = $('#punto-seccion').value;
+  $('#punto-seccion').innerHTML = sections
+    .map((s, i) => `<option value="${escapar(s.id)}">${i + 1}. ${escapar(s.name)}</option>`)
+    .join('');
+  if (!sections.some((s) => s.id === elegida)) {
+    $('#punto-seccion').value = sections[0]?.id ?? '';
+  } else {
+    $('#punto-seccion').value = elegida;
+  }
+
+  $('#plantilla-secciones-lista').innerHTML = sections.length
+    ? sections
+        .map((s, i) => {
+          const puntos = s.items.length
+            ? s.items
+                .map(
+                  (p) =>
+                    '<div class="linea"><span><strong>' +
+                    p.position +
+                    '.</strong> ' +
+                    escapar(p.label) +
+                    ' <small>(' +
+                    escapar(ETIQUETA_TIPO[p.type] ?? p.type) +
+                    ' · ' +
+                    (p.required ? 'obligatorio' : 'opcional') +
+                    ')</small></span><span class="estado">' +
+                    '<button type="button" data-editar-item="' +
+                    p.id +
+                    '">Editar</button> ' +
+                    '<button type="button" data-quitar="' +
+                    p.id +
+                    '">Quitar</button></span></div>',
+                )
+                .join('')
+            : '<div class="ficha vacia">Esta seccion no tiene puntos todavia</div>';
+          return (
+            '<section class="seccion"><div class="seccion-cabecera"><strong>' +
+            (i + 1) +
+            '.</strong>' +
+            '<span class="seccion-nombre">' +
+            escapar(s.name) +
             '</span><span class="estado">' +
-            '<button type="button" data-quitar="' +
-            p.id +
-            '">Quitar</button></span></div>',
-        )
+            '<button type="button" data-seccion-subir="' +
+            s.id +
+            '">Subir</button> ' +
+            '<button type="button" data-seccion-bajar="' +
+            s.id +
+            '">Bajar</button> ' +
+            '<button type="button" data-seccion-renombrar="' +
+            s.id +
+            '">Renombrar</button> ' +
+            '<button type="button" data-seccion-borrar="' +
+            s.id +
+            '">Borrar seccion</button></span></div>' +
+            '<div class="seccion-puntos">' +
+            puntos +
+            '</div></section>'
+          );
+        })
         .join('')
-    : '<div class="ficha vacia">Esta plantilla no tiene puntos todavia</div>';
+    : '<div class="ficha vacia">Esta plantilla no tiene secciones todavia. Agrega una abajo o empieza por los puntos.</div>';
+
+  // Los forms de edicion arrancan siempre ocultos; se abren al pulsar Editar.
+  estado.puntoEditando = null;
+  $('#punto-editar-form').hidden = true;
 }
 
 $('#plantilla-cancelar').addEventListener('click', () => {
@@ -294,8 +398,8 @@ $('#plantilla-form').addEventListener('submit', async (e) => {
       await api(`/api/templates/${id}`, { method: 'PATCH', body: cuerpo });
     } else {
       // Los puntos iniciales van en la misma llamada que la plantilla: el servidor
-      // los escribe en la misma transaccion, y asi no queda una plantilla a la que
-      // le falte la mitad de la lista.
+      // los escribe en la misma transaccion, en la seccion "General", y asi no
+      // queda una plantilla a la que le falte la mitad de la lista.
       const items = puntosDesdeTexto($('#plantilla-items').value);
       await api('/api/templates', { method: 'POST', body: { ...cuerpo, items } });
     }
@@ -308,56 +412,151 @@ $('#plantilla-form').addEventListener('submit', async (e) => {
   }
 });
 
-$('#plantillas-lista').addEventListener('click', async (e) => {
+/**
+ * Mueve una seccion una posicion, mandando el orden NUEVO entero a la API.
+ *
+ * El servidor exige la lista completa del orden y renumera a 1..N: por eso aca
+ * no se toca ningun numero, solo se intercambian los ids y se pregunta de nuevo.
+ */
+async function moverSeccion(seccionId, delta) {
+  const orden = estado.estructura.sections.map((s) => s.id);
+  const indice = orden.indexOf(seccionId);
+  const destino = indice + delta;
+  if (indice < 0 || destino < 0 || destino >= orden.length) return;
+  [orden[indice], orden[destino]] = [orden[destino], orden[indice]];
+  const plantillaId = $('#plantilla-id').value;
+  try {
+    await api(`/api/templates/${plantillaId}/sections/ordenar`, { method: 'POST', body: { order: orden } });
+    await abrirPuntos(plantillaId);
+    await recargar();
+    avisar('Seccion movida');
+  } catch (err) {
+    avisar(err.message, true);
+  }
+}
+
+/** Abre el form de renombrar la seccion con el nombre actual listo para editar. */
+function abrirRenombrarSeccion(seccion) {
+  $('#seccion-renombrar-id').value = seccion.id;
+  $('#seccion-renombrar-nombre').value = seccion.name;
+  $('#seccion-renombrar-form').hidden = false;
+  $('#seccion-renombrar-nombre').focus();
+}
+
+$('#seccion-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const plantillaId = $('#plantilla-id').value;
+  if (!plantillaId) return;
+  try {
+    await api(`/api/templates/${plantillaId}/sections`, {
+      method: 'POST',
+      body: { name: $('#seccion-nombre').value },
+    });
+    $('#seccion-nombre').value = '';
+    await abrirPuntos(plantillaId);
+    await recargar();
+    avisar('Seccion agregada');
+  } catch (err) {
+    avisar(err.message, true);
+  }
+});
+
+$('#seccion-renombrar-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const plantillaId = $('#plantilla-id').value;
+  try {
+    await api(
+      `/api/templates/${plantillaId}/sections/${$('#seccion-renombrar-id').value}`,
+      { method: 'PATCH', body: { name: $('#seccion-renombrar-nombre').value } },
+    );
+    $('#seccion-renombrar-form').hidden = true;
+    await abrirPuntos(plantillaId);
+    await recargar();
+    avisar('Seccion renombrada');
+  } catch (err) {
+    avisar(err.message, true);
+  }
+});
+
+$('#seccion-renombrar-cancelar').addEventListener('click', () => {
+  $('#seccion-renombrar-form').hidden = true;
+});
+
+// El editor de secciones delega todo (clic en botones, envio de forms): los
+// controles viven adentro de la lista y cambian con cada repintado.
+$('#plantilla-secciones-lista').addEventListener('click', async (e) => {
   const boton = e.target.closest('button');
   if (!boton) return;
+  const plantillaId = $('#plantilla-id').value;
   try {
-    if (boton.dataset.editar) {
-      abrirPlantilla(estado.plantillas.find((t) => t.id === boton.dataset.editar));
-    } else if (boton.dataset.puntos) {
-      $('#plantilla-id').value = boton.dataset.puntos;
-      $('#plantilla-seleccionada').textContent =
-        estado.plantillas.find((t) => t.id === boton.dataset.puntos)?.name ?? '';
-      $('#plantilla-editor').hidden = false;
-      await abrirPuntos(boton.dataset.puntos);
-    } else if (boton.dataset.toggle) {
-      // El toggle va por PATCH y no por un endpoint propio: `active` es un campo
-      // mas de la plantilla, y desactivarla es editarla.
-      const plantilla = estado.plantillas.find((t) => t.id === boton.dataset.toggle);
-      await api(`/api/templates/${plantilla.id}`, { method: 'PATCH', body: { active: plantilla.active ? 0 : 1 } });
+    if (boton.dataset.seccionSubir) {
+      await moverSeccion(boton.dataset.seccionSubir, -1);
+    } else if (boton.dataset.seccionBajar) {
+      await moverSeccion(boton.dataset.seccionBajar, 1);
+    } else if (boton.dataset.seccionRenombrar) {
+      const seccion = estado.estructura.sections.find((s) => s.id === boton.dataset.seccionRenombrar);
+      if (seccion) abrirRenombrarSeccion(seccion);
+    } else if (boton.dataset.seccionBorrar) {
+      // Borrar una seccion borra SUS PUNTOS con ella; las corriadas ya hechas no
+      // se tocan, que es lo que dice el aviso.
+      if (!confirm('Se borran la seccion y sus puntos de la plantilla. Las corridas quedan con su copia.')) return;
+      await api(`/api/templates/${plantillaId}/sections/${boton.dataset.seccionBorrar}`, { method: 'DELETE' });
+      await abrirPuntos(plantillaId);
       await recargar();
-      avisar(plantilla.active ? 'Plantilla desactivada' : 'Plantilla activada');
-    } else if (boton.dataset.duplicar) {
-      await api(`/api/templates/${boton.dataset.duplicar}/duplicar`, { method: 'POST' });
+      avisar('Seccion borrada y renumerada');
+    } else if (boton.dataset.quitar) {
+      // El servidor renumera lo que queda a 1..N y devuelve la lista nueva: por eso
+      // esta pantalla repinta con la respuesta en vez de tapar el numero en local.
+      await api(`/api/templates/${plantillaId}/items/${boton.dataset.quitar}`, { method: 'DELETE' });
+      await abrirPuntos(plantillaId);
       await recargar();
-      avisar('Plantilla duplicada con sus puntos');
-    } else if (boton.dataset.borrar) {
-      // Borrar la plantilla NO borra las corridas: el servidor las deja con su
-      // copia. El aviso lo dice, porque "borre la plantilla" suena a "borre el
-      // historial" y no lo es.
-      await api(`/api/templates/${boton.dataset.borrar}`, { method: 'DELETE' });
-      if ($('#plantilla-id').value === boton.dataset.borrar) {
-        $('#plantilla-id').value = '';
-        $('#plantilla-editor').hidden = true;
-      }
-      await recargar();
-      avisar('Plantilla borrada. Las corridas quedan con su copia.');
+      avisar('Punto quitado y renumerado');
+    } else if (boton.dataset.editarItem) {
+      const punto = estado.estructura.sections
+        .flatMap((s) => s.items)
+        .find((p) => p.id === boton.dataset.editarItem);
+      if (!punto) return;
+      estado.puntoEditando = punto.id;
+      $('#punto-editar-id').value = punto.id;
+      $('#punto-editar-label').value = punto.label;
+      $('#punto-editar-tipo').value = punto.type;
+      $('#punto-editar-required').checked = Boolean(punto.required);
+      $('#punto-editar-opciones').value = (punto.options ?? []).join('\n');
+      $('#punto-editar-opciones-caja').hidden = punto.type !== 'select';
+      $('#punto-editar-form').hidden = false;
+      $('#punto-editar-label').focus();
     }
   } catch (err) {
     avisar(err.message, true);
   }
 });
 
+// Las opciones solo significan para un punto de seleccion: el campo aparece y
+// desaparece con el tipo elegido, y no se presta a llenar opciones inutiles.
+$('#punto-tipo').addEventListener('change', () => {
+  $('#punto-opciones-caja').hidden = $('#punto-tipo').value !== 'select';
+});
+
+$('#punto-editar-tipo').addEventListener('change', () => {
+  $('#punto-editar-opciones-caja').hidden = $('#punto-editar-tipo').value !== 'select';
+});
+
 $('#punto-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const plantillaId = $('#plantilla-id').value;
   if (!plantillaId) return;
+  const tipo = $('#punto-tipo').value;
+  const cuerpo = {
+    label: $('#punto-label').value,
+    required: $('#punto-requerido').checked ? 1 : 0,
+    type: tipo,
+    sectionId: $('#punto-seccion').value || undefined,
+  };
+  if (tipo === 'select') cuerpo.options = opcionesDesdeTexto($('#punto-opciones').value);
   try {
-    await api(`/api/templates/${plantillaId}/items`, {
-      method: 'POST',
-      body: { label: $('#punto-label').value, required: $('#punto-requerido').checked ? 1 : 0 },
-    });
+    await api(`/api/templates/${plantillaId}/items`, { method: 'POST', body: cuerpo });
     $('#punto-label').value = '';
+    $('#punto-opciones').value = '';
     await abrirPuntos(plantillaId);
     await recargar();
     avisar('Punto agregado');
@@ -366,20 +565,32 @@ $('#punto-form').addEventListener('submit', async (e) => {
   }
 });
 
-$('#plantilla-puntos-lista').addEventListener('click', async (e) => {
-  const boton = e.target.closest('button');
-  if (!boton) return;
+$('#punto-editar-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
   const plantillaId = $('#plantilla-id').value;
+  const itemId = $('#punto-editar-id').value;
+  const tipo = $('#punto-editar-tipo').value;
+  const cuerpo = {
+    label: $('#punto-editar-label').value,
+    required: $('#punto-editar-required').checked ? 1 : 0,
+    type: tipo,
+  };
+  if (tipo === 'select') cuerpo.options = opcionesDesdeTexto($('#punto-editar-opciones').value);
   try {
-    // El servidor renumera lo que queda a 1..N y devuelve la lista nueva: por eso
-    // esta pantalla repinta con la respuesta en vez de tapar el numero en local.
-    await api(`/api/templates/${plantillaId}/items/${boton.dataset.quitar}`, { method: 'DELETE' });
+    await api(`/api/templates/${plantillaId}/items/${itemId}`, { method: 'PATCH', body: cuerpo });
+    $('#punto-editar-form').hidden = true;
+    estado.puntoEditando = null;
     await abrirPuntos(plantillaId);
     await recargar();
-    avisar('Punto quitado y renumerado');
+    avisar('Punto actualizado');
   } catch (err) {
     avisar(err.message, true);
   }
+});
+
+$('#punto-editar-cancelar').addEventListener('click', () => {
+  $('#punto-editar-form').hidden = true;
+  estado.puntoEditando = null;
 });
 
 // ─────────────────────────────────────────────────────────────────────── corridas
@@ -399,7 +610,7 @@ function pintarCorridas() {
   });
 
   $('#corridas-lista').innerHTML = lista.length
-    ? '<table><thead><tr><th>Plantilla</th><th>Lugar</th><th>Estado</th><th>Empezo</th><th>Cerrada</th><th>Acciones</th></tr></thead><tbody>' +
+    ? '<table><thead><tr><th>Plantilla</th><th>Lugar</th><th>Estado</th><th>Responsable</th><th>Veredicto</th><th>Empezo</th><th>Cerrada</th><th>Acciones</th></tr></thead><tbody>' +
       lista
         .map(
           (r) =>
@@ -411,6 +622,10 @@ function pintarCorridas() {
             '</td><td>' +
             escapar(ETIQUETA_RUN[r.status] ?? r.status) +
             '</td><td>' +
+            escapar(r.performedBy ?? '—') +
+            '</td><td>' +
+            escapar(r.result ? ETIQUETA_RESULTADO_GLOBAL[r.result] ?? r.result : '—') +
+            '</td><td>' +
             escapar(instanteCorto(r.startedAt)) +
             '</td><td>' +
             escapar(instanteCorto(r.completedAt) || '—') +
@@ -418,7 +633,9 @@ function pintarCorridas() {
             '<button type="button" data-ficha="' +
             r.id +
             '">Ficha</button> ' +
-            (r.status === 'in_progress' ? '<button type="button" data-completar="' + r.id + '">Completar</button> ' : '') +
+            (r.status === 'in_progress'
+              ? '<button type="button" data-completar="' + r.id + '">Completar</button> '
+              : '') +
             '</td></tr>',
         )
         .join('') +
@@ -478,7 +695,94 @@ $('#corridas-lista').addEventListener('click', async (e) => {
 // ────────────────────────────────────────────────────────────────────────── ficha
 
 /**
- * La ficha de una corrida: su datos, el resumen y cada punto por responder.
+ * El control de UN punto de la corrida, segun su tipo.
+ *
+ * Si/No se responde con los tres botones (y el que esta elegido queda marcado);
+ * texto, numero y seleccion con su campo y su boton Guardar. Cuando la corrida ya
+ * esta cerrada, en vez de controles se muestra la respuesta tal como quedo.
+ */
+function controlPunto(p, editable) {
+  if (editable) {
+    if (p.type === 'yes_no') {
+      return (
+        '<span class="acciones">' +
+        RESPUESTAS.map(
+          (resultado) =>
+            '<button type="button" data-marcar="' +
+            p.position +
+            '" data-resultado="' +
+            resultado +
+            '"' +
+            (p.result === resultado ? ' class="activo"' : '') +
+            '>' +
+            escapar(ETIQUETA_RESULTADO[resultado]) +
+            '</button>',
+        ).join('') +
+        '</span>'
+      );
+    }
+    const opciones = p.options ?? [];
+    const campo =
+      p.type === 'select'
+        ? '<select id="item-valor-' +
+          p.position +
+          '"><option value="">Elegir…</option>' +
+          opciones
+            .map((o) => '<option value="' + escapar(o) + '">' + escapar(o) + '</option>')
+            .join('') +
+          '</select>'
+        : '<input id="item-valor-' +
+          p.position +
+          '" type="' +
+          (p.type === 'number' ? 'number' : 'text') +
+          '" maxlength="4000">';
+    return (
+      '<span class="acciones">' +
+      campo +
+      '<button type="button" data-guardar-valor="' +
+      p.position +
+      '">Guardar</button></span>'
+    );
+  }
+  if (p.type === 'yes_no') {
+    return '<span class="respuesta">' + (p.result ? escapar(ETIQUETA_RESULTADO[p.result]) : '—') + '</span>';
+  }
+  return '<span class="respuesta">' + (p.valueText ? escapar(p.valueText) : '—') + '</span>';
+}
+
+/** Una linea de la ficha: el punto con bos controles y su nota. */
+function puntoHtml(p, editable) {
+  return (
+    '<div class="punto ' +
+    escapar(p.result ?? 'sin') +
+    '"><span class="numero">' +
+    p.position +
+    '.</span><span class="texto"><strong>' +
+    escapar(p.label) +
+    '</strong> <small>(' +
+    escapar(ETIQUETA_TIPO[p.type] ?? p.type) +
+    ' · ' +
+    (p.required ? 'obligatorio' : 'opcional') +
+    ')</small>' +
+    (p.answeredAt ? '<br><small>respondido ' + escapar(instanteCorto(p.answeredAt)) + '</small>' : '') +
+    '</span>' +
+    controlPunto(p, editable) +
+    (editable
+      ? '<input class="nota" id="item-nota-' +
+        p.position +
+        '" maxlength="2000" placeholder="Nota del punto" value="' +
+        escapar(p.note ?? '') +
+        '">'
+      : p.note
+        ? '<span class="nota-texto">' + escapar(p.note) + '</span>'
+        : '') +
+    '</div>'
+  );
+}
+
+/**
+ * La ficha de una corrida: sus datos, el resumen, sus puntos agrupados por la
+ * seccion del SNAPSHOT, el veredicto global y sus adjuntos.
  *
  * Los puntos que se pintan son los de `run_items`, es decir los que el servidor
  * copio de la plantilla al empezar. La plantilla no se vuelve a pedir nunca, y esa
@@ -492,6 +796,57 @@ async function abrirFicha(runId) {
   estado.corridaId = runId;
 
   const editable = r.status === 'in_progress';
+
+  // La seccion de cada punto sale del snapshot de la corrida, y los puntos se
+  // agrupan con ella: un punto nunca se muestra bajo la seccion equivocada por
+  // mas que la plantilla haya cambiado de nombre despues.
+  const seccionDe = {};
+  ficha.snapshot.items.forEach((p) => {
+    seccionDe[p.position] = p.section ?? null;
+  });
+  const grupos = [];
+  for (const p of ficha.items) {
+    const seccion = seccionDe[p.position] ?? null;
+    const ultimo = grupos[grupos.length - 1];
+    if (!ultimo || ultimo.nombre !== seccion) grupos.push({ nombre: seccion, items: [] });
+    grupos[grupos.length - 1].items.push(p);
+  }
+  const puntoscHtml = grupos
+    .map(
+      (g) =>
+        (g.nombre ? '<h4>' + escapar(g.nombre) + '</h4>' : '') +
+        g.items.map((p) => puntoHtml(p, editable)).join(''),
+    )
+    .join('');
+
+  const adjuntosHtml =
+    '<h4>Adjuntos</h4>' +
+    (ficha.attachments.length
+      ? '<div class="adjuntos">' +
+        ficha.attachments
+          .map(
+            (a) =>
+              '<div class="adjunto"><a href="' +
+              a.url +
+              '" download="' +
+              escapar(a.filename) +
+              '">' +
+              escapar(a.filename) +
+              '</a> <small>' +
+              tamanoCorto(a.sizeBytes) +
+              (a.createdAt ? ' &middot; ' + escapar(instanteCorto(a.createdAt)) : '') +
+              '</small>' +
+              (editable
+                ? ' <button type="button" data-adjunto-borrar="' + a.id + '">Quitar</button>'
+                : '') +
+              '</div>',
+          )
+          .join('')
+      : '<div class="ficha vacia">Sin adjuntos</div>') +
+    (editable
+      ? '<form id="adjunto-form"><div class="fila"><input type="file" id="adjunto-archivo" accept="image/*,video/*,application/pdf,application/*"><button type="submit">Adjuntar archivo</button></div></form>'
+      : '');
+
   $('#ficha').innerHTML =
     '<h3>' +
     escapar(r.templateName) +
@@ -499,9 +854,17 @@ async function abrirFicha(runId) {
     '<p class="meta">' +
     escapar(ETIQUETA_RUN[r.status] ?? r.status) +
     (r.location ? ' &middot; ' + escapar(r.location) : '') +
+    (r.performedBy ? ' &middot; responsable: ' + escapar(r.performedBy) : '') +
     ' &middot; empezo ' +
     escapar(instanteCorto(r.startedAt)) +
     (r.completedAt ? ' &middot; cerrada ' + escapar(instanteCorto(r.completedAt)) : '') +
+    '</p>' +
+    '<p class="meta">' +
+    (r.result
+      ? 'Veredicto: <strong>' + escapar(ETIQUETA_RESULTADO_GLOBAL[r.result] ?? r.result) + '</strong>'
+      : r.status === 'done'
+        ? 'Veredicto: —'
+        : '') +
     '</p>' +
     '<p class="meta">Cumplimiento ' +
     escapar(porcentaje(resumen.cumplimientoPct)) +
@@ -519,53 +882,24 @@ async function abrirFicha(runId) {
     (r.notes ? '<dl><dt>Notas</dt><dd>' + escapar(r.notes) + '</dd></dl>' : '') +
     '<h4>Puntos de esta corrida</h4>' +
     '<div class="puntos">' +
-    ficha.items
-      .map(
-        (p) =>
-          '<div class="punto ' +
-          escapar(p.result ?? 'sin') +
-          '"><span class="numero">' +
-          p.position +
-          '.</span>' +
-          '<span class="texto"><strong>' +
-          escapar(p.label) +
-          '</strong>' +
-          (p.required ? '' : ' <small>(opcional)</small>') +
-          (p.answeredAt ? '<br><small>respondido ' + escapar(instanteCorto(p.answeredAt)) + '</small>' : '') +
-          '</span>' +
-          '<span class="acciones">' +
-          ['ok', 'fail', 'na']
-            .map(
-              (resultado) =>
-                '<button type="button" data-marcar="' +
-                p.position +
-                '" data-resultado="' +
-                resultado +
-                '"' +
-                (editable ? '' : ' disabled') +
-                '>' +
-                escapar(ETIQUETA_RESULTADO[resultado]) +
-                '</button>',
-            )
-            .join('') +
-          '</span>' +
-          (editable
-            ? '<input class="nota" id="item-nota-' +
-              p.position +
-              '" maxlength="2000" placeholder="Nota del punto" value="' +
-              escapar(p.note ?? '') +
-              '">'
-            : p.note
-              ? '<span class="nota-texto">' + escapar(p.note) + '</span>'
-              : '') +
-          '</div>',
-      )
-      .join('') +
-    '</div>';
+    (puntoscHtml || '<div class="ficha vacia">No hay puntos que revisar</div>') +
+    '</div>' +
+    adjuntosHtml;
+
+  // Los campos de respuesta de texto, numero y seleccion se rellenan despues del
+  // innerHTML: un `<select>` no se deja preseleccionado con el atributo value.
+  if (editable) {
+    for (const p of ficha.items) {
+      if (p.type === 'yes_no') continue;
+      const campo = document.getElementById('item-valor-' + p.position);
+      if (campo) campo.value = p.valueText ?? '';
+    }
+  }
 
   $('#corrida-editar-lugar').value = r.location ?? '';
   $('#corrida-editar-notas').value = r.notes ?? '';
   $('#corrida-editar-estado').value = r.status;
+  $('#corrida-editar-resultado').value = r.result ?? '';
   // Reabrir solo tiene sentido cerrada, y completar solo abierta: dejar
   // habilitados los botones que la maquina de estados no acepta es formar a la
   // gente para recibir un 409.
@@ -576,16 +910,41 @@ async function abrirFicha(runId) {
   $('#ficha-dialog').showModal();
 }
 
-/** Un punto se responde por su POSICION, y con la nota que este en su campo. */
+/**
+ * Responder un punto de la ficha.
+ *
+ * Hay dos clases de clic: los botones de Si/No (marcar) y el Guardar de texto,
+ * numero y seleccion. Los dos mandan por la POSICION del punto y con la nota del
+ * campo de la fila; la diferencia es que los primeros mandan `result` y los
+ * segundos `valueText`.
+ */
 $('#ficha').addEventListener('click', async (e) => {
   const boton = e.target.closest('button');
-  if (!boton || !boton.dataset.marcar) return;
-  const nota = document.getElementById(`item-nota-${boton.dataset.marcar}`);
+  if (!boton) return;
+  const notaEl = document.getElementById(`item-nota-${boton.dataset.marcar ?? boton.dataset.guardarValor}`);
+  const nota = notaEl ? notaEl.value || null : null;
   try {
-    await api(`/api/runs/${estado.corridaId}/items/${boton.dataset.marcar}`, {
-      method: 'POST',
-      body: { result: boton.dataset.resultado, note: nota ? nota.value || null : null },
-    });
+    if (boton.dataset.marcar) {
+      await api(`/api/runs/${estado.corridaId}/items/${boton.dataset.marcar}`, {
+        method: 'POST',
+        body: { result: boton.dataset.resultado, note: nota },
+      });
+    } else if (boton.dataset.guardarValor) {
+      const valorEl = document.getElementById(`item-valor-${boton.dataset.guardarValor}`);
+      await api(`/api/runs/${estado.corridaId}/items/${boton.dataset.guardarValor}`, {
+        method: 'POST',
+        body: { valueText: valorEl ? valorEl.value : null, note: nota },
+      });
+    } else if (boton.dataset.adjuntoBorrar) {
+      await api(`/api/runs/${estado.corridaId}/attachments/${boton.dataset.adjuntoBorrar}`, {
+        method: 'DELETE',
+      });
+      await abrirFicha(estado.corridaId);
+      avisar('Adjunto quitado');
+      return;
+    } else {
+      return;
+    }
     await abrirFicha(estado.corridaId);
     avisar('Respuesta registrada');
   } catch (err) {
@@ -593,8 +952,45 @@ $('#ficha').addEventListener('click', async (e) => {
   }
 });
 
+/** Subir un adjunto: el navegador lo convierte a base64 y la API lo guarda. */
+$('#ficha').addEventListener('submit', async (e) => {
+  if (!e.target.matches('#adjunto-form')) return;
+  e.preventDefault();
+  const archivo = document.getElementById('adjunto-archivo').files[0];
+  if (!archivo) {
+    avisar('Elige un archivo primero', true);
+    return;
+  }
+  if (archivo.size > 750_000) {
+    avisar('El archivo no puede superar 750 KB', true);
+    return;
+  }
+  try {
+    const data = await new Promise((resolver, rechazar) => {
+      const lector = new FileReader();
+      lector.onload = () => resolver(lector.result);
+      lector.onerror = () => rechazar(new Error('No se pudo leer el archivo'));
+      lector.readAsDataURL(archivo);
+    });
+    const separado = String(data).indexOf(';base64,');
+    await api(`/api/runs/${estado.corridaId}/attachments`, {
+      method: 'POST',
+      body: {
+        filename: archivo.name,
+        mimeType: archivo.type || null,
+        data: separado >= 0 ? String(data).slice(separado + ';base64,'.length) : String(data),
+      },
+    });
+    await abrirFicha(estado.corridaId);
+    avisar('Archivo adjuntado');
+  } catch (err) {
+    avisar(err.message, true);
+  }
+});
+
 $('#corrida-editar-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const resultado = $('#corrida-editar-resultado').value;
   try {
     await api(`/api/runs/${estado.corridaId}`, {
       method: 'PATCH',
@@ -602,6 +998,7 @@ $('#corrida-editar-form').addEventListener('submit', async (e) => {
         location: $('#corrida-editar-lugar').value || null,
         notes: $('#corrida-editar-notas').value || null,
         status: $('#corrida-editar-estado').value,
+        result: resultado || null,
       },
     });
     await recargar();
@@ -616,8 +1013,14 @@ $('#corrida-editar-form').addEventListener('submit', async (e) => {
 
 /** Cerrar la corrida. El 400 con los puntos que faltan se muestra tal cual. */
 async function completar(runId) {
+  const resultado = $('#corrida-editar-resultado').value;
   try {
-    await api(`/api/runs/${runId}/completar`, { method: 'POST' });
+    // El veredicto solo se manda si se eligio: si no, el servidor lo deriva de
+    // los puntos (aprobado si no hay "no cumple", observado si los hay).
+    await api(`/api/runs/${runId}/completar`, {
+      method: 'POST',
+      body: resultado ? { result: resultado } : {},
+    });
     await recargar();
     await abrirFicha(runId);
     avisar('Corrida completada y sellada');

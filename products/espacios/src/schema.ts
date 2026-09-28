@@ -1,4 +1,3 @@
-import { sql } from 'drizzle-orm';
 import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 /**
@@ -85,6 +84,55 @@ export const addons = sqliteTable(
     updatedAt: text('updated_at'),
   },
   (t) => [index('idx_espacios_addons_org').on(t.organizationId)],
+);
+
+/**
+ * Horarios de disponibilidad POR ESPACIO.
+ *
+ * Sin una fila acá, la jornada del espacio es la general de la organización
+ * (`settings`). Con una fila, ese día de la semana se atiende según el rango que
+ * dice la fila. `weekday` es el día de la semana de JavaScript (0 = domingo) y
+ * las horas van en minutos desde medianoche, como las de `settings`.
+ */
+export const availability = sqliteTable(
+  'availability',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id').notNull(),
+    spaceId: text('space_id')
+      .notNull()
+      .references(() => spaces.id, { onDelete: 'cascade' }),
+    weekday: integer('weekday').notNull(),
+    startTime: integer('start_time').notNull(),
+    endTime: integer('end_time').notNull(),
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at'),
+  },
+  (t) => [index('idx_espacios_availability_org').on(t.organizationId)],
+);
+
+/**
+ * Bloqueos puntuales: mantenciones, eventos, cierres.
+ *
+ * A diferencia de `availability`, que repite a la semana, un bloqueo es UNA
+ * franja concreta con fecha y hora, y durante ese rato el espacio no se puede
+ * reservar aunque el calendario semanal diga que sí.
+ */
+export const blocks = sqliteTable(
+  'blocks',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id').notNull(),
+    spaceId: text('space_id')
+      .notNull()
+      .references(() => spaces.id, { onDelete: 'cascade' }),
+    startAt: text('start_at').notNull(),
+    endAt: text('end_at').notNull(),
+    reason: text('reason'),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [index('idx_espacios_blocks_org').on(t.organizationId)],
 );
 
 /**
@@ -175,26 +223,13 @@ export const settings = sqliteTable(
  * `organization_id`. Es lo que hace que la migración sea re-ejecutable: la
  * segunda corrida lee el mapa y no vuelve a crear la organización.
  */
-export const legacyTenantMap = sqliteTable(
-  'legacy_tenant_map',
-  {
-    legacyTenantId: text('legacy_tenant_id').primaryKey(),
-    legacySlug: text('legacy_slug').notNull(),
-    legacyName: text('legacy_name').notNull(),
-    organizationId: text('organization_id').notNull(),
-    migratedAt: text('migrated_at')
-      .notNull()
-      .default(sql`(datetime('now'))`),
-  },
-  (t) => [uniqueIndex('idx_espacios_map_org').on(t.organizationId)],
-);
-
 export const espaciosSchema = {
   customers,
   spaces,
   addons,
+  availability,
+  blocks,
   bookings,
   bookingAddons,
   settings,
-  legacyTenantMap,
 };

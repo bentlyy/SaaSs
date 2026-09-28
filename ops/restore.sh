@@ -11,7 +11,7 @@
 set -euo pipefail
 
 RAIZ="${SAASMINI_RAIZ:-$HOME/projects/saas-mini}"
-IMAGEN="${SAASMINI_IMAGEN:-$(docker inspect -f '{{.Config.Image}}' saasmini-crm 2>/dev/null || true)}"
+IMAGEN="${SAASMINI_IMAGEN:-$(docker inspect -f '{{.Config.Image}}' saasmini-landing 2>/dev/null || true)}"
 IMAGEN="${IMAGEN:-saas-mini:latest}"
 FUERCE=0
 

@@ -14,6 +14,8 @@ import {
 import {
   appointmentServices,
   appointments,
+  availability,
+  blocks,
   customers,
   reminders,
   services,
@@ -154,35 +156,77 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       }
 
       const base = new Date(dia);
-      // La jornada se pide en minutos desde medianoche, que es como la
-      // entiende quien configura: "abro a las 9:30". Se separa en horas y
-      // minutos para no perder los :30.
-      const desde = new Date(base);
-      desde.setUTCHours(0, Math.floor(jornadaDesde / 60), jornadaDesde % 60, 0);
-      const hasta = new Date(base);
-      hasta.setUTCHours(0, Math.floor(jornadaHasta / 60), jornadaHasta % 60, 0);
-
-      const duracion = Math.max(...serviciosDel.map((s) => s.durationMin));
-      const ocupadas = db
-        .select({ startAt: appointments.startAt, endAt: appointments.endAt })
-        .from(appointments)
+      // El horario de atención se define por DÍA DE LA SEMANA (0 = domingo,
+      // como `Date.getUTCDay`). Si el profesional tiene horario ese día, manda
+      // ese; si no, cae a la jornada que pide la consulta, que es como se
+      // preguntaba antes de que existieran los horarios por profesional.
+      const weekday = base.getUTCDay();
+      const delDia = db
+        .select()
+        .from(availability)
         .where(
           and(
-            eq(appointments.organizationId, org),
-            eq(appointments.staffId, profesional),
-            sql`${appointments.status} NOT IN ('cancelled','no_show')`,
-            sql`${appointments.startAt} < ${hasta.toISOString()}`,
-            sql`${appointments.endAt} > ${desde.toISOString()}`,
+            eq(availability.organizationId, org),
+            eq(availability.staffId, profesional),
+            eq(availability.weekday, weekday),
+            eq(availability.active, true),
           ),
         )
+        .orderBy(asc(availability.startTime))
         .all();
+      const jornadas =
+        delDia.length > 0
+          ? delDia.map((a) => ({ desde: a.startTime, hasta: a.endTime }))
+          : [{ desde: jornadaDesde, hasta: jornadaHasta }];
 
+      const desde = new Date(base);
+      desde.setUTCHours(Math.floor(jornadas[0]!.desde / 60), jornadas[0]!.desde % 60, 0, 0);
+      const hasta = new Date(base);
+      hasta.setUTCHours(Math.floor(jornadas[jornadas.length - 1]!.hasta / 60), jornadas[jornadas.length - 1]!.hasta % 60, 0, 0);
+
+      const [ocupadas, bloqueos] = await Promise.all([
+        db
+          .select({ startAt: appointments.startAt, endAt: appointments.endAt })
+          .from(appointments)
+          .where(
+            and(
+              eq(appointments.organizationId, org),
+              eq(appointments.staffId, profesional),
+              sql`${appointments.status} NOT IN ('cancelled','no_show')`,
+              sql`${appointments.startAt} < ${hasta.toISOString()}`,
+              sql`${appointments.endAt} > ${desde.toISOString()}`,
+            ),
+          )
+          .all(),
+        db
+          .select({ startAt: blocks.startAt, endAt: blocks.endAt })
+          .from(blocks)
+          .where(
+            and(
+              eq(blocks.organizationId, org),
+              eq(blocks.staffId, profesional),
+              sql`${blocks.startAt} < ${hasta.toISOString()}`,
+              sql`${blocks.endAt} > ${desde.toISOString()}`,
+            ),
+          )
+          .all(),
+      ]);
+
+      const duracion = Math.max(...serviciosDel.map((s) => s.durationMin));
       const huecos: Array<{ startAt: string; endAt: string }> = [];
-      for (let t = desde.getTime(); t + duracion * 60_000 <= hasta.getTime(); t += salto * 60_000) {
-        const ini = new Date(t).toISOString();
-        const fin = new Date(t + duracion * 60_000).toISOString();
-        const choca = ocupadas.some((o) => o.startAt < fin && o.endAt > ini);
-        if (!choca) huecos.push({ startAt: ini, endAt: fin });
+      for (const jornada of jornadas) {
+        const desdeJ = new Date(base);
+        desdeJ.setUTCHours(Math.floor(jornada.desde / 60), jornada.desde % 60, 0, 0);
+        const hastaJ = new Date(base);
+        hastaJ.setUTCHours(Math.floor(jornada.hasta / 60), jornada.hasta % 60, 0, 0);
+
+        for (let t = desdeJ.getTime(); t + duracion * 60_000 <= hastaJ.getTime(); t += salto * 60_000) {
+          const ini = new Date(t).toISOString();
+          const fin = new Date(t + duracion * 60_000).toISOString();
+          const chocaOcupado = ocupadas.some((o) => o.startAt < fin && o.endAt > ini);
+          const chocaBloqueo = bloqueos.some((b) => b.startAt < fin && b.endAt > ini);
+          if (!chocaOcupado && !chocaBloqueo) huecos.push({ startAt: ini, endAt: fin });
+        }
       }
 
       res.json({
@@ -190,6 +234,229 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         services: serviciosDel,
         slots: huecos,
       });
+    }),
+  );
+
+  // ───────────────────────────────────────────── horarios y bloqueos
+
+  /**
+   * Horario semanal de un profesional.
+   *
+   * El horario va en minutos desde medianoche, como `from`/`until` de la
+   * disponibilidad, y el `weekday` es el de `Date.getUTCDay` (0 = domingo). Un
+   * horario no se pisa con otro del MISMO profesional y día: dos rangos que se
+   * solapan son dos reglas que se contradicen.
+   */
+  const horarioSchema = z
+    .object({
+      staffId: id,
+      weekday: z.coerce.number().int().min(0).max(6),
+      startTime: z.coerce.number().int().min(0).max(1439),
+      endTime: z.coerce.number().int().min(1).max(1440),
+      active: booleano.default(true),
+    })
+    .refine((v) => v.endTime > v.startTime, {
+      message: 'El horario tiene que terminar después de empezar',
+      path: ['endTime'],
+    });
+
+  function horariosQueSePisan(
+    org: string,
+    staffId: string,
+    weekday: number,
+    startTime: number,
+    endTime: number,
+    excluirId?: string,
+  ) {
+    const cond = [
+      eq(availability.organizationId, org),
+      eq(availability.staffId, staffId),
+      eq(availability.weekday, weekday),
+      sql`${availability.startTime} < ${endTime}`,
+      sql`${availability.endTime} > ${startTime}`,
+    ];
+    if (excluirId) cond.push(ne(availability.id, excluirId));
+    return db.select({ id: availability.id }).from(availability).where(and(...cond)).all();
+  }
+
+  router.get(
+    '/api/schedules',
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const cond = [eq(availability.organizationId, org)];
+      if (typeof req.query.staffId === 'string' && req.query.staffId) {
+        cond.push(eq(availability.staffId, req.query.staffId));
+      }
+      const items = db
+        .select()
+        .from(availability)
+        .where(and(...cond))
+        .orderBy(asc(availability.weekday), asc(availability.startTime))
+        .all();
+      res.json({ items });
+    }),
+  );
+
+  router.post(
+    '/api/schedules',
+    requireRole('member'),
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const cuerpo = horarioSchema.parse(req.body);
+      const pro = db.select({ id: staff.id }).from(staff).where(and(eq(staff.id, cuerpo.staffId), eq(staff.organizationId, org))).get();
+      if (!pro) throw new AppError(400, 'Ese profesional no es de tu organización');
+      if (horariosQueSePisan(org, cuerpo.staffId, cuerpo.weekday, cuerpo.startTime, cuerpo.endTime).length > 0) {
+        throw new AppError(409, 'Ese profesional ya tiene un horario que se pisa ese día');
+      }
+
+      const ahora = nowIso();
+      const creado = db
+        .insert(availability)
+        .values({
+          id: createId('citahor'),
+          organizationId: org,
+          staffId: cuerpo.staffId,
+          weekday: cuerpo.weekday,
+          startTime: cuerpo.startTime,
+          endTime: cuerpo.endTime,
+          active: cuerpo.active,
+          createdAt: ahora,
+        })
+        .returning()
+        .get();
+      res.status(201).json(creado);
+    }),
+  );
+
+  router.patch(
+    '/api/schedules/:id',
+    requireRole('member'),
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const idHorario = id.parse(req.params.id);
+      const existente = db
+        .select()
+        .from(availability)
+        .where(and(eq(availability.id, idHorario), eq(availability.organizationId, org)))
+        .get();
+      if (!existente) throw new AppError(404, 'Ese horario no existe');
+      // El PATCH parte del horario que ya existe: el cliente cambia solo lo que
+      // quiere, y el choque se vuelve a validar contra los demás.
+      const cuerpo = horarioSchema.parse({
+        staffId: existente.staffId,
+        weekday: existente.weekday,
+        startTime: existente.startTime,
+        endTime: existente.endTime,
+        active: existente.active,
+        ...req.body,
+      });
+      const pro = db.select({ id: staff.id }).from(staff).where(and(eq(staff.id, cuerpo.staffId), eq(staff.organizationId, org))).get();
+      if (!pro) throw new AppError(400, 'Ese profesional no es de tu organización');
+      if (
+        horariosQueSePisan(org, cuerpo.staffId, cuerpo.weekday, cuerpo.startTime, cuerpo.endTime, idHorario).length > 0
+      ) {
+        throw new AppError(409, 'Ese profesional ya tiene un horario que se pisa ese día');
+      }
+
+      const actualizado = db
+        .update(availability)
+        .set({ ...cuerpo, updatedAt: nowIso() })
+        .where(eq(availability.id, idHorario))
+        .returning()
+        .get();
+      res.json(actualizado);
+    }),
+  );
+
+  router.delete(
+    '/api/schedules/:id',
+    requireRole('member'),
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const idHorario = id.parse(req.params.id);
+      const borrado = db
+        .delete(availability)
+        .where(and(eq(availability.id, idHorario), eq(availability.organizationId, org)))
+        .returning()
+        .get();
+      if (!borrado) throw new AppError(404, 'Ese horario no existe');
+      res.json({ ok: true, deleted: true });
+    }),
+  );
+
+  /**
+   * Bloqueo puntual de un profesional: vacaciones, una reunión, un cierre. Es
+   * UNA franja con fecha y hora, no una regla semanal.
+   */
+  const bloqueoSchema = z
+    .object({
+      staffId: id,
+      startAt: isoFecha,
+      endAt: isoFecha,
+      reason: z.string().trim().max(300).nullable().optional(),
+    })
+    .refine((v) => Date.parse(v.endAt) > Date.parse(v.startAt), {
+      message: 'El bloqueo tiene que terminar después de empezar',
+      path: ['endAt'],
+    });
+
+  router.get(
+    '/api/blocks',
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const cond = [eq(blocks.organizationId, org)];
+      if (typeof req.query.staffId === 'string' && req.query.staffId) {
+        cond.push(eq(blocks.staffId, req.query.staffId));
+      }
+      const items = db
+        .select()
+        .from(blocks)
+        .where(and(...cond))
+        .orderBy(asc(blocks.startAt))
+        .all();
+      res.json({ items });
+    }),
+  );
+
+  router.post(
+    '/api/blocks',
+    requireRole('member'),
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const cuerpo = bloqueoSchema.parse(req.body);
+      const pro = db.select({ id: staff.id }).from(staff).where(and(eq(staff.id, cuerpo.staffId), eq(staff.organizationId, org))).get();
+      if (!pro) throw new AppError(400, 'Ese profesional no es de tu organización');
+
+      const creado = db
+        .insert(blocks)
+        .values({
+          id: createId('citablq'),
+          organizationId: org,
+          staffId: cuerpo.staffId,
+          startAt: cuerpo.startAt,
+          endAt: cuerpo.endAt,
+          reason: cuerpo.reason ?? null,
+          createdAt: nowIso(),
+        })
+        .returning()
+        .get();
+      res.status(201).json(creado);
+    }),
+  );
+
+  router.delete(
+    '/api/blocks/:id',
+    requireRole('member'),
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const idBloqueo = id.parse(req.params.id);
+      const borrado = db
+        .delete(blocks)
+        .where(and(eq(blocks.id, idBloqueo), eq(blocks.organizationId, org)))
+        .returning()
+        .get();
+      if (!borrado) throw new AppError(404, 'Ese bloqueo no existe');
+      res.json({ ok: true, deleted: true });
     }),
   );
 
@@ -318,6 +585,31 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         `Ese profesional ya tiene una cita de ${choca[0].startAt} a ${choca[0].endAt}. ` +
           'Las citas no se pueden pisar.',
       );
+    }
+
+    // Un bloqueo deja el rato inutilizable aunque el horario semanal diga lo
+    // contrario: el profesional no agenda en un día libre, y eso se decide acá,
+    // en el servidor, no pintando gris la franja en el navegador.
+    if (cuerpo.staffId) {
+      const bloqueado = db
+        .select({ id: blocks.id, startAt: blocks.startAt, endAt: blocks.endAt, reason: blocks.reason })
+        .from(blocks)
+        .where(
+          and(
+            eq(blocks.organizationId, org),
+            eq(blocks.staffId, cuerpo.staffId),
+            sql`${blocks.startAt} < ${cuerpo.endAt}`,
+            sql`${blocks.endAt} > ${cuerpo.startAt}`,
+          ),
+        )
+        .get();
+      if (bloqueado) {
+        throw new AppError(
+          409,
+          `Ese profesional está bloqueado de ${bloqueado.startAt} a ${bloqueado.endAt}` +
+            `${bloqueado.reason ? ` (${bloqueado.reason})` : ''}. No se puede agendar en ese rato.`,
+        );
+      }
     }
 
     const ahora = nowIso();

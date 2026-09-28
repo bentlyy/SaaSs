@@ -53,12 +53,4 @@ CREATE TABLE IF NOT EXISTS settings (
 -- Una fila por organizacion: el indice unico es lo que garantiza que dos
 -- personas guardando la configuracion a la vez no leave dos filas compitiendo.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_settings_org ON settings(organization_id);
-
-CREATE TABLE IF NOT EXISTS legacy_tenant_map (
-  legacy_tenant_id TEXT PRIMARY KEY,
-  legacy_slug TEXT,
-  legacy_name TEXT,
-  organization_id TEXT NOT NULL,
-  migrated_at TEXT NOT NULL
-);
 `;

@@ -1,4 +1,3 @@
-import { sql } from 'drizzle-orm';
 import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 /**
@@ -195,36 +194,9 @@ export const settings = sqliteTable(
   (t) => [uniqueIndex('idx_clientes_settings_org').on(t.organizationId)],
 );
 
-/**
- * Mapa tenant legacy -> organizacion del Core.
- *
- * Se declara al final porque es la tabla de la que salen todas las
- * `organization_id`. Es lo que hace que la migracion sea re-ejecutable: la
- * segunda corrida lee el mapa y no vuelve a buscar ni a crear la organizacion.
- *
- * El indice UNIQUE de `organization_id` es tambien la garantia de que un tenant
- * legacy no se mapea a dos organizaciones distintas, que es exactamente el
- * duplicate que este producto tiene que evitar cuando varias organizaciones del
- * CoreCompeten por el mismo slug del legacy.
- */
-export const legacyTenantMap = sqliteTable(
-  'legacy_tenant_map',
-  {
-    legacyTenantId: text('legacy_tenant_id').primaryKey(),
-    legacySlug: text('legacy_slug').notNull(),
-    legacyName: text('legacy_name').notNull(),
-    organizationId: text('organization_id').notNull(),
-    migratedAt: text('migrated_at')
-      .notNull()
-      .default(sql`(datetime('now'))`),
-  },
-  (t) => [uniqueIndex('idx_clientes_map_org').on(t.organizationId)],
-);
-
 export const clientesSchema = {
   customers,
   followups,
   interactions,
   settings,
-  legacyTenantMap,
 };

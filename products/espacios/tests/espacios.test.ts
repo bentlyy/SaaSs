@@ -425,6 +425,191 @@ describe('disponibilidad', () => {
   });
 });
 
+describe('horarios y bloqueos de espacio', () => {
+  async function nuevoHorario(
+    orgId: string,
+    spaceId: string,
+    datos: Record<string, unknown> = {},
+  ): Promise<any> {
+    const res = await comoMiembro(orgId)
+      .post('/api/schedules')
+      .send({ spaceId, weekday: 2, startTime: 9 * 60, endTime: 12 * 60, ...datos });
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    return res.body;
+  }
+
+  it('el horario semanal del espacio manda, y sin él cae a la jornada general', async () => {
+    const espacio = await nuevoEspacio(TEST_ORG_A, { name: 'Cancha con Horario' });
+    await nuevoHorario(TEST_ORG_A, espacio, { startTime: 9 * 60, endTime: 12 * 60 });
+
+    // Martes 2026-10-13 (weekday 2): el horario propio de 9:00 a 12:00. El
+    // intervalo es medio abierto: la franja de las 12 no entra porque termina
+    // justo a las 12.
+    const martes = await comoMiembro(TEST_ORG_A)
+      .get('/api/availability')
+      .query({ spaceId: espacio, date: '2026-10-13' });
+    expect(martes.status, JSON.stringify(martes.body)).toBe(200);
+    expect(martes.body.slots.map((s: any) => s.startAt.slice(11, 16))).toEqual(['09:00', '10:00', '11:00']);
+
+    // Miércoles 2026-10-14 (weekday 3): sin fila, cae a la jornada general 08:00-22:00.
+    const miercoles = await comoMiembro(TEST_ORG_A)
+      .get('/api/availability')
+      .query({ spaceId: espacio, date: '2026-10-14' });
+    expect(miercoles.status).toBe(200);
+    const horasMie = miercoles.body.slots.map((s: any) => s.startAt.slice(11, 16));
+    expect(horasMie[0]).toBe('08:00');
+    expect(horasMie).toContain('21:00');
+  });
+
+  it('dos horarios que se pisan del mismo espacio y día se rechazan', async () => {
+    const espacio = await nuevoEspacio(TEST_ORG_A, { name: 'Cancha que se Pisa' });
+    const a = await nuevoHorario(TEST_ORG_A, espacio, { startTime: 9 * 60, endTime: 12 * 60 });
+
+    // Se superponen de 11 a 12.
+    const pisa = await comoMiembro(TEST_ORG_A)
+      .post('/api/schedules')
+      .send({ spaceId: espacio, weekday: 2, startTime: 11 * 60, endTime: 14 * 60 });
+    expect(pisa.status).toBe(409);
+
+    // Un horario que empieza justo cuando termina el otro no se pisa.
+    const aledano = await comoMiembro(TEST_ORG_A)
+      .post('/api/schedules')
+      .send({ spaceId: espacio, weekday: 2, startTime: 12 * 60, endTime: 14 * 60 });
+    expect(aledano.status, JSON.stringify(aledano.body)).toBe(201);
+
+    // Otro día de la semana no choca con los de hoy.
+    const otroDia = await comoMiembro(TEST_ORG_A)
+      .post('/api/schedules')
+      .send({ spaceId: espacio, weekday: 3, startTime: 10 * 60, endTime: 13 * 60 });
+    expect(otroDia.status, JSON.stringify(otroDia.body)).toBe(201);
+
+    // Pero mover el primero al miércoles lo haría pisar con el recién creado.
+    const movido = await comoMiembro(TEST_ORG_A).patch(`/api/schedules/${a.id}`).send({ weekday: 3 });
+    expect(movido.status).toBe(409);
+  });
+
+  it('un horario inactivo no manda y vuelve a valer la jornada general', async () => {
+    const espacio = await nuevoEspacio(TEST_ORG_A, { name: 'Cancha de Día off' });
+    const horario = await nuevoHorario(TEST_ORG_A, espacio, { startTime: 9 * 60, endTime: 12 * 60 });
+
+    const apagado = await comoMiembro(TEST_ORG_A).patch(`/api/schedules/${horario.id}`).send({ active: false });
+    expect(apagado.status, JSON.stringify(apagado.body)).toBe(200);
+    expect(apagado.body.active).toBe(false);
+
+    const martes = await comoMiembro(TEST_ORG_A)
+      .get('/api/availability')
+      .query({ spaceId: espacio, date: '2026-10-13' });
+    const horas = martes.body.slots.map((s: any) => s.startAt.slice(11, 16));
+    // Sin horario activo el espacio vuelve a la jornada general: la franja de
+    // las 8 sale de nuevo, y las de las 9-11 que daba el horario desactivado
+    // también podrían salir (son parte de la jornada). Lo que ya no hay es
+    // horario propio: el día es completo, no se corta a las 12.
+    expect(horas[0]).toBe('08:00');
+    expect(horas).toContain('21:00');
+  });
+
+  it('un bloqueo quita esa franja de la disponibilidad', async () => {
+    const espacio = await nuevoEspacio(TEST_ORG_A, { name: 'Cancha Bloqueada' });
+    await nuevoHorario(TEST_ORG_A, espacio, { startTime: 9 * 60, endTime: 12 * 60 });
+
+    const bloqueo = await comoMiembro(TEST_ORG_A)
+      .post('/api/blocks')
+      .send({ spaceId: espacio, startAt: '2026-10-13T10:00:00.000Z', endAt: '2026-10-13T11:00:00.000Z', reason: 'Reunión' });
+    expect(bloqueo.status, JSON.stringify(bloqueo.body)).toBe(201);
+    expect(bloqueo.body.reason).toBe('Reunión');
+
+    const martes = await comoMiembro(TEST_ORG_A)
+      .get('/api/availability')
+      .query({ spaceId: espacio, date: '2026-10-13' });
+    // La franja de las 10 desapareció; la de las 11 está intacta.
+    expect(martes.body.slots.map((s: any) => s.startAt.slice(11, 16))).toEqual(['09:00', '11:00']);
+  });
+
+  it('no deja reservar sobre un rato bloqueado, pero sí justo alrededor', async () => {
+    const espacio = await nuevoEspacio(TEST_ORG_A, { name: 'Cancha de Reserva Bloqueada' });
+    const cliente = await nuevoCliente(TEST_ORG_A, 'Cliente de Bloqueo de Reserva');
+
+    await comoMiembro(TEST_ORG_A)
+      .post('/api/blocks')
+      .send({ spaceId: espacio, startAt: '2026-10-13T14:00:00.000Z', endAt: '2026-10-13T15:00:00.000Z', reason: 'Mantención' });
+
+    const encima = await comoMiembro(TEST_ORG_A)
+      .post('/api/bookings')
+      .send({ spaceId: espacio, customerId: cliente, startAt: '2026-10-13T14:00:00.000Z', endAt: '2026-10-13T15:00:00.000Z' });
+    expect(encima.status).toBe(409);
+
+    const atravesando = await comoMiembro(TEST_ORG_A)
+      .post('/api/bookings')
+      .send({ spaceId: espacio, customerId: cliente, startAt: '2026-10-13T13:30:00.000Z', endAt: '2026-10-13T14:30:00.000Z' });
+    expect(atravesando.status).toBe(409);
+
+    // Alrededor del bloqueo, el espacio está libre: el bloqueo no ensucia la
+    // cancha fuera de su franja.
+    const antes = await comoMiembro(TEST_ORG_A)
+      .post('/api/bookings')
+      .send({ spaceId: espacio, customerId: cliente, startAt: '2026-10-13T13:00:00.000Z', endAt: '2026-10-13T14:00:00.000Z' });
+    expect(antes.status, JSON.stringify(antes.body)).toBe(201);
+
+    const despues = await comoMiembro(TEST_ORG_A)
+      .post('/api/bookings')
+      .send({ spaceId: espacio, customerId: cliente, startAt: '2026-10-13T15:00:00.000Z', endAt: '2026-10-13T16:00:00.000Z' });
+    expect(despues.status, JSON.stringify(despues.body)).toBe(201);
+  });
+
+  it('rechaza un bloqueo que termina antes de empezar y un horario al revés', async () => {
+    const espacio = await nuevoEspacio(TEST_ORG_A, { name: 'Cancha Imposible de Bloquear' });
+
+    const bloqueo = await comoMiembro(TEST_ORG_A)
+      .post('/api/blocks')
+      .send({ spaceId: espacio, startAt: '2026-10-13T16:00:00.000Z', endAt: '2026-10-13T14:00:00.000Z' });
+    expect(bloqueo.status).toBe(400);
+
+    const horario = await comoMiembro(TEST_ORG_A)
+      .post('/api/schedules')
+      .send({ spaceId: espacio, weekday: 2, startTime: 12 * 60, endTime: 9 * 60 });
+    expect(horario.status).toBe(400);
+  });
+
+  it('los horarios y bloqueos de otra organización no se ven ni se tocan', async () => {
+    const espacioA = await nuevoEspacio(TEST_ORG_A, { name: 'Cancha Confidencial A' });
+    const espacioB = await nuevoEspacio(TEST_ORG_B, { name: 'Cancha Confidencial B' });
+
+    const horarioA = await nuevoHorario(TEST_ORG_A, espacioA, { startTime: 9 * 60, endTime: 12 * 60 });
+    const bloqueoA = await comoMiembro(TEST_ORG_A)
+      .post('/api/blocks')
+      .send({ spaceId: espacioA, startAt: '2026-10-13T10:00:00.000Z', endAt: '2026-10-13T11:00:00.000Z' });
+
+    // B no ve las filas de A ni siquiera preguntando por el espacio de A.
+    const horariosB = await comoAdmin(TEST_ORG_B).get('/api/schedules').query({ spaceId: espacioA });
+    expect(horariosB.body.items).toHaveLength(0);
+    const bloqueosB = await comoAdmin(TEST_ORG_B).get('/api/blocks').query({ spaceId: espacioA });
+    expect(bloqueosB.body.items).toHaveLength(0);
+
+    // A no puede inventarle horarios ni bloqueos a un espacio de B.
+    const inventarHorario = await comoMiembro(TEST_ORG_A)
+      .post('/api/schedules')
+      .send({ spaceId: espacioB, weekday: 2, startTime: 9 * 60, endTime: 12 * 60 });
+    expect([403, 400, 404]).toContain(inventarHorario.status);
+
+    const inventarBloqueo = await comoMiembro(TEST_ORG_A)
+      .post('/api/blocks')
+      .send({ spaceId: espacioB, startAt: '2026-10-13T10:00:00.000Z', endAt: '2026-10-13T11:00:00.000Z' });
+    expect([403, 400, 404]).toContain(inventarBloqueo.status);
+
+    // Y B no puede tocar los de A con ids que no debería conocer.
+    const borrarHorario = await comoAdmin(TEST_ORG_B).delete(`/api/schedules/${horarioA.id}`);
+    expect([403, 404]).toContain(borrarHorario.status);
+    const borrarBloqueo = await comoAdmin(TEST_ORG_B).delete(`/api/blocks/${bloqueoA.body.id}`);
+    expect([403, 404]).toContain(borrarBloqueo.status);
+
+    // Siguen intactos para A.
+    const horariosA = await comoAdmin(TEST_ORG_A).get('/api/schedules').query({ spaceId: espacioA });
+    expect(horariosA.body.items).toHaveLength(1);
+    const bloqueosA = await comoAdmin(TEST_ORG_A).get('/api/blocks').query({ spaceId: espacioA });
+    expect(bloqueosA.body.items).toHaveLength(1);
+  });
+});
+
 describe('ajustes', () => {
   it('guarda y devuelve la jornada de la organización', async () => {
     const res = await comoAdmin(TEST_ORG_A)

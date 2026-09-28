@@ -1,31 +1,27 @@
 /**
- * Interfaz de solicitudes y ordenes.
+ * Interfaz de solicitudes (helpdesk).
  *
- * Dos reglas que no son de estilo sino de arquitectura:
+ * Una regla que no es de estilo sino de arquitectura:
  *
- *   1. No hay datos escritos en el navegador. La pagina se sirve vacia y todo
- *      entra por la API, que es la que filtra por organizacion. Si el HTML
- *      trajera datos, el servidor tendria que confiar en que el navegador no los
- *      altere.
+ *   No hay datos escritos en el navegador. La pagina se sirve vacia y todo
+ *   entra por la API, que es la que filtra por organizacion. Si el HTML
+ *   trajera datos, el servidor tendria que confiar en que el navegador no los
+ *   altere.
  *
- *   2. La pantalla NO decide el folio ni el total. No sabe si esta orden es la
- *      numero 8 o la 9: eso lo dice el servidor, que es el unico que ve las
- *      ordenes de las otras organizaciones. El total que se muestra aca es una
- *      aproximacion para leerlo antes de guardar, y el que queda escrito es el
- *      que calcula la API.
+ * Y una segunda: la pantalla NO decide el folio. No sabe si esta solicitud es
+ * la numero 8 o la 9: eso lo dice el servidor, que es el unico que ve las
+ * solicitudes de las otras organizaciones. El folio que se muestra es la
+ * propuesta del servidor, y se puede cambiar.
  */
 
 const $ = (sel) => document.querySelector(sel);
-const dinero = (centavos) =>
-  `${estado.cfg.currency}${(centavos / 100).toLocaleString('es-CL', { minimumFractionDigits: 0 })}`;
 
 const estado = {
-  trabajos: [],
-  clientes: [],
-  tecnicos: [],
   cfg: { currency: '$', nextNumber: 1 },
-  /** Las líneas de la orden que se está editando, antes de guardarla. */
-  borrador: { services: [], parts: [] },
+  /** La solicitud abierta en el dialogo: null cuando es una nueva. */
+  editando: null,
+  /** El hilo de la solicitud abierta, para no repetir la consulta. */
+  hilo: { comments: [], attachments: [], history: [] },
 };
 
 async function api(ruta, opciones = {}) {
@@ -38,7 +34,6 @@ async function api(ruta, opciones = {}) {
   if (!res.ok) {
     const err = new Error(datos.error ?? 'No se pudo completar la operacion');
     err.status = res.status;
-    err.detalle = datos;
     throw err;
   }
   return datos;
@@ -53,124 +48,114 @@ function avisar(mensaje, malo = false) {
   caja.t = setTimeout(() => { caja.hidden = true; }, 5000);
 }
 
-// ─────────────────────────────────────────────────────────────── carga de datos
-
-async function cargar() {
-  const [trabajos, clientes, tecnicos, cfg] = await Promise.all([
-    api('/api/services'),
-    api('/api/customers'),
-    api('/api/technicians'),
-    api('/api/settings'),
-  ]);
-  estado.trabajos = trabajos.items;
-  estado.clientes = clientes.items;
-  estado.tecnicos = tecnicos.items;
-  estado.cfg = cfg.settings;
-  pintar();
-}
-
-const nombreDe = (lista, id) => lista.find((x) => x.id === id)?.name ?? null;
-const etiquetaEstado = (e) =>
-  ({
-    received: 'Recibida',
-    estimated: 'Cotizada',
-    in_progress: 'En trabajo',
-    done: 'Entregada',
-    cancelled: 'Cancelada',
-  })[e] ?? e;
-
-function opciones(lista, vacio) {
-  return (
-    `<option value="">${vacio}</option>` +
-    lista.map((x) => `<option value="${x.id}">${escapar(x.name)}</option>`).join('')
-  );
-}
-
 function escapar(texto) {
   return String(texto ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────── tablero
+const ETIQUETAS_ESTADO = {
+  open: 'Abierta',
+  in_progress: 'En curso',
+  resolved: 'Resuelta',
+  closed: 'Cerrada',
+  cancelled: 'Cancelada',
+};
 
-async function pintarTablero() {
-  const [resumen, tablero] = await Promise.all([api('/api/resumen'), api('/api/tablero')]);
+const ETIQUETAS_PRIORIDAD = { low: 'Baja', medium: 'Media', high: 'Alta', urgent: 'Urgente' };
 
-  $('#resumen').innerHTML = [
-    ['Abiertas', resumen.abiertas],
-    ['Por cotizar', resumen.porEstado.estimated],
-    ['Entregadas', resumen.porEstado.done],
-    ['Por cobrar', dinero(resumen.porCobrarCents)],
-  ]
-    .map(([titulo, valor]) => `<div class="tarjeta"><strong>${valor}</strong><span>${titulo}</span></div>`)
-    .join('');
+const etiquetaEstado = (e) => ETIQUETAS_ESTADO[e] ?? e;
+const etiquetaPrioridad = (p) => ETIQUETAS_PRIORIDAD[p] ?? p;
 
-  $('#tablero').innerHTML = tablero.columnas
-    .map(
-      (c) => `
-      <div class="columna">
-        <h4>${etiquetaEstado(c.estado)} (${c.ordenes.length})</h4>
-        ${
-          c.ordenes.length === 0
-            ? '<div class="ficha vacia">Sin órdenes</div>'
-            : c.ordenes
-                .map(
-                  (o) => `
-          <div class="ficha" data-orden="${o.id}">
-            <strong>#${o.number} · ${escapar(o.customerName ?? 'Sin cliente')}</strong>
-            <span>${escapar(o.asset ?? o.notes ?? 'Sin detalle')}</span>
-            <span>${o.technicianName ? escapar(o.technicianName) : 'Sin técnico'} · ${dinero(o.totalCents)}</span>
-          </div>`,
-                )
-                .join('')
-        }
-      </div>`,
-    )
-    .join('');
-
-  for (const ficha of document.querySelectorAll('.ficha[data-orden]')) {
-    ficha.addEventListener('click', () => abrirOrden(ficha.dataset.orden));
-  }
+/** La fecha se muestra como vino: lo importante es el dia, no la hora. */
+function fecha(texto) {
+  if (!texto) return '—';
+  const f = texto.slice(0, 10);
+  const [y, m, d] = f.split('-');
+  return `${d}/${m}/${y}`;
 }
 
-async function pintarOrdenes() {
-  const { orders } = await api('/api/orders?limit=200');
-  $('#ordenes-lista').innerHTML = orders.length === 0
-    ? '<p>Todavía no hay órdenes.</p>'
-    : `<table>
-        <thead><tr><th>Folio</th><th>Cliente</th><th>Sobre qué</th><th>Técnico</th><th>Estado</th><th>Entrega</th><th>Total</th><th></th></tr></thead>
-        <tbody>
-          ${orders
-            .map(
-              (o) => `<tr>
-                <td>#${o.number}</td>
-                <td>${escapar(nombreDe(estado.clientes, o.customerId) ?? '—')}</td>
-                <td>${escapar(o.asset ?? '—')}</td>
-                <td>${escapar(nombreDe(estado.tecnicos, o.technicianId) ?? '—')}</td>
-                <td>${etiquetaEstado(o.status)}</td>
-                <td>${escapar(o.estimatedDelivery ?? '—')}</td>
-                <td>${dinero(o.totalCents)}</td>
-                <td>
-                  <button data-ver="${o.id}">Ver</button>
-                  <button data-borrar="${o.id}">Borrar</button>
-                </td>
-              </tr>`,
-            )
-            .join('')}
-        </tbody>
-      </table>`;
+const hoy = new Date();
+const hoyIso = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(
+  hoy.getDate(),
+).padStart(2, '0')}`;
+
+// ─────────────────────────────────────────────────────────────── pantalla principal
+
+async function cargar() {
+  const cfg = await api('/api/settings');
+  estado.cfg = cfg.settings;
+}
+
+async function pintarResumen() {
+  const r = await api('/api/resumen');
+  $('#resumen').innerHTML = [
+    ['Abiertas', r.abiertas, ''],
+    ['Vencidas', r.vencidas, 'urgente'],
+    ['Resueltas', r.resueltas, ''],
+    ['Prioridad alta', r.alta, 'urgente'],
+  ]
+    .map(
+      ([titulo, valor, clase]) =>
+        `<div class="tarjeta ${clase}"><strong>${valor}</strong><span>${titulo}</span></div>`,
+    )
+    .join('');
+}
+
+async function pintarLista() {
+  const q = encodeURIComponent($('#filtro-q').value.trim());
+  const status = $('#filtro-estado').value;
+  const priority = $('#filtro-prioridad').value;
+  const params = new URLSearchParams({ limit: '500' });
+  if (status) params.set('status', status);
+  if (priority) params.set('priority', priority);
+  if (q) params.set('q', q);
+  const { requests } = await api(`/api/requests?${params.toString()}`);
+
+  if (requests.length === 0) {
+    $('#solicitudes-lista').innerHTML = '<p>Todavía no hay solicitudes.</p>';
+    return;
+  }
+
+  const claseEstado = (s) => ({ closed: 'cerrada', cancelled: 'cerrada' })[s] ?? '';
+  const clasePrioridad = (p) => ({ high: 'alta', urgent: 'urgente' })[p] ?? '';
+  const vencida = (r) =>
+    r.status === 'open' || r.status === 'in_progress' ? r.dueAt !== null && r.dueAt < hoyIso : false;
+
+  $('#solicitudes-lista').innerHTML = `<table>
+    <thead><tr><th>Folio</th><th>Título</th><th>Solicitante</th><th>Responsable</th><th>Prioridad</th><th>Estado</th><th>Vence</th><th></th></tr></thead>
+    <tbody>
+      ${requests
+        .map(
+          (r) => `<tr>
+            <td>#${r.number}</td>
+            <td>${escapar(r.title)}</td>
+            <td>${escapar(r.requesterName)}</td>
+            <td>${escapar(r.responsibleName ?? '—')}</td>
+            <td><span class="etiqueta ${clasePrioridad(r.priority)}">${etiquetaPrioridad(r.priority)}</span></td>
+            <td><span class="etiqueta ${claseEstado(r.status)}">${etiquetaEstado(r.status)}</span></td>
+            <td><span class="etiqueta ${vencida(r) ? 'vencida' : ''}">${fecha(r.dueAt)}</span></td>
+            <td>
+              <button data-ver="${r.id}">Ver</button>
+              <button data-borrar="${r.id}">Borrar</button>
+            </td>
+          </tr>`,
+        )
+        .join('')}
+    </tbody>
+  </table>`;
 
   for (const b of document.querySelectorAll('[data-ver]')) {
-    b.addEventListener('click', () => abrirOrden(b.dataset.ver));
+    b.addEventListener('click', () => abrirSolicitud(b.dataset.ver));
   }
   for (const b of document.querySelectorAll('[data-borrar]')) {
     b.addEventListener('click', async () => {
-      if (!confirm('¿Borrar la orden y sus líneas?')) return;
+      if (!confirm('¿Borrar la solicitud con su hilo y sus adjuntos?')) return;
       try {
-        await api(`/api/orders/${b.dataset.borrar}`, { method: 'DELETE' });
-        avisar('Orden borrada');
-        await recargar();
+        await api(`/api/requests/${b.dataset.borrar}`, { method: 'DELETE' });
+        avisar('Solicitud borrada');
+        await pintarLista();
+        await pintarResumen();
       } catch (e) {
         avisar(e.message, true);
       }
@@ -178,352 +163,185 @@ async function pintarOrdenes() {
   }
 }
 
-// ──────────────────────────────────────────────────────────────────── catálogos
+// ────────────────────────────────────────────────────────────────────── diálogo
 
-function pintarTrabajos() {
-  $('#trabajos-lista').innerHTML = `<table>
-    <thead><tr><th>Nombre</th><th>Duración</th><th>Tarifa</th><th>Descripción</th><th></th></tr></thead>
-    <tbody>
-      ${
-        estado.trabajos
-          .map(
-            (t) => `<tr>
-          <td>${escapar(t.name)}</td>
-          <td>${t.durationMin} min</td>
-          <td>${dinero(t.priceCents)}</td>
-          <td>${escapar(t.description ?? '—')}</td>
-          <td>
-            <button data-editar="${t.id}">Editar</button>
-            <button data-borrar-trabajo="${t.id}">Borrar</button>
-          </td>
-        </tr>`,
-          )
-          .join('') || '<tr><td colspan="5">Sin trabajos.</td></tr>'
-      }
-    </tbody>
-  </table>`;
-
-  for (const b of document.querySelectorAll('[data-editar]')) {
-    b.addEventListener('click', () => {
-      const t = estado.trabajos.find((x) => x.id === b.dataset.editar);
-      $('#trabajo-id').value = t.id;
-      $('#trabajo-nombre').value = t.name;
-      $('#trabajo-duracion').value = t.durationMin;
-      $('#trabajo-precio').value = t.priceCents;
-      $('#trabajo-descripcion').value = t.description ?? '';
-      $('#trabajo-form-titulo').textContent = `Editar ${t.name}`;
-      $('#trabajo-cancelar').hidden = false;
-    });
-  }
-  for (const b of document.querySelectorAll('[data-borrar-trabajo]')) {
-    b.addEventListener('click', async () => {
-      try {
-        await api(`/api/services/${b.dataset.borrarTrabajo}`, { method: 'DELETE' });
-        avisar('Trabajo borrado');
-        await recargar();
-      } catch (e) {
-        avisar(e.message, true);
-      }
-    });
-  }
-}
-
-function pintarTecnicos() {
-  $('#tecnicos-lista').innerHTML = `<table>
-    <thead><tr><th>Nombre</th><th>Teléfono</th><th>Correo</th><th></th></tr></thead>
-    <tbody>
-      ${
-        estado.tecnicos
-          .map(
-            (t) => `<tr>
-          <td><span style="color:${escapar(t.color)}">●</span> ${escapar(t.name)}</td>
-          <td>${escapar(t.phone ?? '—')}</td>
-          <td>${escapar(t.email ?? '—')}</td>
-          <td>
-            <button data-editar-tecnico="${t.id}">Editar</button>
-            <button data-borrar-tecnico="${t.id}">Borrar</button>
-          </td>
-        </tr>`,
-          )
-          .join('') || '<tr><td colspan="4">Sin técnicos.</td></tr>'
-      }
-    </tbody>
-  </table>`;
-
-  for (const b of document.querySelectorAll('[data-editar-tecnico]')) {
-    b.addEventListener('click', () => {
-      const t = estado.tecnicos.find((x) => x.id === b.dataset.editarTecnico);
-      $('#tecnico-id').value = t.id;
-      $('#tecnico-nombre').value = t.name;
-      $('#tecnico-telefono').value = t.phone ?? '';
-      $('#tecnico-correo').value = t.email ?? '';
-      $('#tecnico-color').value = t.color ?? '#4f46e5';
-      $('#tecnico-form-titulo').textContent = `Editar ${t.name}`;
-      $('#tecnico-cancelar').hidden = false;
-    });
-  }
-  for (const b of document.querySelectorAll('[data-borrar-tecnico]')) {
-    b.addEventListener('click', async () => {
-      try {
-        await api(`/api/technicians/${b.dataset.borrarTecnico}`, { method: 'DELETE' });
-        avisar('Técnico borrado');
-        await recargar();
-      } catch (e) {
-        avisar(e.message, true);
-      }
-    });
-  }
-}
-
-function pintarClientes() {
-  $('#clientes-lista').innerHTML = `<table>
-    <thead><tr><th>Nombre</th><th>Teléfono</th><th>Correo</th><th></th></tr></thead>
-    <tbody>
-      ${
-        estado.clientes
-          .map(
-            (c) => `<tr>
-          <td>${escapar(c.name)}</td>
-          <td>${escapar(c.phone ?? '—')}</td>
-          <td>${escapar(c.email ?? '—')}</td>
-          <td><button data-borrar-cliente="${c.id}">Borrar</button></td>
-        </tr>`,
-          )
-          .join('') || '<tr><td colspan="4">Sin clientes.</td></tr>'
-      }
-    </tbody>
-  </table>`;
-
-  for (const b of document.querySelectorAll('[data-borrar-cliente]')) {
-    b.addEventListener('click', async () => {
-      try {
-        await api(`/api/customers/${b.dataset.borrarCliente}`, { method: 'DELETE' });
-        avisar('Cliente borrado');
-        await recargar();
-      } catch (e) {
-        avisar(e.message, true);
-      }
-    });
-  }
-}
-
-// ──────────────────────────────────────────────────────────────── diálogo orden
-
-function pintarLineas() {
-  $('#orden-trabajos').innerHTML =
-    estado.borrador.services
-      .map(
-        (l, i) => `<div class="linea">
-        <span>${escapar(nombreDe(estado.trabajos, l.serviceId) ?? l.serviceId)}</span>
-        <span>${dinero(l.priceCents ?? 0)}</span>
-        <button type="button" class="quitar" data-quitar-servicio="${i}">Quitar</button>
-      </div>`,
-      )
-      .join('') || '<p class="ficha vacia">Sin trabajos.</p>';
-
-  $('#orden-partes').innerHTML =
-    estado.borrador.parts
-      .map(
-        (p, i) => `<div class="linea">
-        <span>${escapar(p.itemName)}</span>
-        <span>${p.qty} × ${dinero(p.unitPriceCents)}</span>
-        <button type="button" class="quitar" data-quitar-parte="${i}">Quitar</button>
-      </div>`,
-      )
-      .join('') || '<p class="ficha vacia">Sin repuestos.</p>';
-
-  // Solo una estimación para leerla antes de guardar. El que queda escrito es el
-  // que calcula el servidor.
-  const total =
-    estado.borrador.services.reduce((acc, l) => acc + (l.priceCents ?? 0), 0) +
-    estado.borrador.parts.reduce((acc, p) => acc + p.qty * p.unitPriceCents, 0);
-  $('#orden-total').textContent = dinero(total);
-
-  for (const b of document.querySelectorAll('[data-quitar-servicio]')) {
-    b.addEventListener('click', () => {
-      estado.borrador.services.splice(Number(b.dataset.quitarServicio), 1);
-      pintarLineas();
-    });
-  }
-  for (const b of document.querySelectorAll('[data-quitar-parte]')) {
-    b.addEventListener('click', () => {
-      estado.borrador.parts.splice(Number(b.dataset.quitarParte), 1);
-      pintarLineas();
-    });
-  }
-}
-
-async function abrirOrden(idOrden) {
-  const { order, services: trabajos, parts } = await api(`/api/orders/${idOrden}`);
-  $('#orden-form-titulo').textContent = `Orden #${order.number}`;
-  $('#orden-folio').value = order.number;
-  $('#orden-cliente').value = order.customerId ?? '';
-  $('#orden-tecnico').value = order.technicianId ?? '';
-  $('#orden-bien').value = order.asset ?? '';
-  $('#orden-estado').value = order.status;
-  $('#orden-entrega').value = order.estimatedDelivery ?? '';
-  $('#orden-notas').value = order.notes ?? '';
-  estado.borrador = { services: trabajos, parts };
-  estado.editando = order.id;
-  pintarLineas();
-  $('#orden-dialog').showModal();
-}
-
-function abrirNueva() {
-  $('#orden-form-titulo').textContent = 'Nueva orden';
-  // `estado.cfg` YA es el objeto de ajustes (ver `cargar()`), asi que el folio
-  // siguiente se lee directo de ahi y no de un `settings` anidado que no existe.
-  $('#orden-folio').value = estado.cfg.nextNumber;
-  $('#orden-cliente').value = '';
-  $('#orden-tecnico').value = '';
-  $('#orden-bien').value = '';
-  $('#orden-estado').value = 'received';
-  $('#orden-entrega').value = '';
-  $('#orden-notas').value = '';
-  estado.borrador = { services: [], parts: [] };
+function limpiaFormulario() {
   estado.editando = null;
-  pintarLineas();
-  $('#orden-dialog').showModal();
+  estado.hilo = { comments: [], attachments: [], history: [] };
+  $('#solicitud-form').reset();
+  // El folio propuesto sale de los ajustes que ya trajo el servidor.
+  $('#sol-folio').value = estado.cfg.nextNumber;
+  $('#sol-prioridad').value = 'medium';
+  $('#sol-estado').value = 'open';
+  $('#solicitud-form-titulo').textContent = 'Nueva solicitud';
+  $('#solicitud-guardar').textContent = 'Guardar solicitud';
+  $('#hilo-seccion').hidden = true;
+}
+
+function pintarHilo() {
+  const { comments, attachments: archivos, history } = estado.hilo;
+
+  $('#hilo').innerHTML =
+    comments.length === 0
+      ? '<p class="evento">Sin comentarios todavía.</p>'
+      : comments
+          .map(
+            (c) => `<div class="comentario">
+            <span class="autor">${escapar(c.authorName)}</span>
+            <span class="fecha"> · ${fecha(c.createdAt)}</span>
+            <p>${escapar(c.content)}</p>
+          </div>`,
+          )
+          .join('');
+
+  $('#adjuntos').innerHTML =
+    archivos.length === 0
+      ? '<p class="evento">Sin adjuntos.</p>'
+      : archivos
+          .map(
+            (a) => `<div class="adjunto">
+            <a href="${a.url}" download="${escapar(a.filename)}">${escapar(a.filename)}</a>
+            <span class="tamano">${(a.sizeBytes / 1024).toFixed(1)} KB</span>
+            <button type="button" data-quitar-adjunto="${a.id}">Quitar</button>
+          </div>`,
+          )
+          .join('');
+
+  $('#historial').innerHTML =
+    history.length === 0
+      ? '<p class="evento">Sin cambios de estado.</p>'
+      : history
+          .map(
+            (h) => `<div class="evento">
+            <span class="autor">${h.oldStatus ? `${etiquetaEstado(h.oldStatus)} → ${etiquetaEstado(h.newStatus)}` : `Creada en estado ${etiquetaEstado(h.newStatus)}`}</span>
+            <span class="fecha"> · ${escapar(h.changedBy)} · ${fecha(h.createdAt)}</span>
+          </div>`,
+          )
+          .join('');
+
+  for (const b of document.querySelectorAll('[data-quitar-adjunto]')) {
+    b.addEventListener('click', async () => {
+      if (!confirm('¿Quitar este adjunto?')) return;
+      try {
+        await api(`/api/requests/${estado.editando}/attachments/${b.dataset.quitarAdjunto}`, {
+          method: 'DELETE',
+        });
+        await abrirSolicitud(estado.editando);
+      } catch (e) {
+        avisar(e.message, true);
+      }
+    });
+  }
+}
+
+async function abrirSolicitud(idSol) {
+  const { request, comments, attachments: archivos, history } = await api(`/api/requests/${idSol}`);
+  estado.editando = request.id;
+  estado.hilo = { comments, attachments: archivos, history };
+
+  $('#solicitud-form-titulo').textContent = `Solicitud #${request.number}`;
+  $('#sol-folio').value = request.number;
+  $('#sol-prioridad').value = request.priority;
+  $('#sol-estado').value = request.status;
+  $('#sol-titulo').value = request.title;
+  $('#sol-descripcion').value = request.description ?? '';
+  $('#sol-solicitante').value = request.requesterName;
+  $('#sol-correo').value = request.requesterEmail ?? '';
+  $('#sol-responsable').value = request.responsibleName ?? '';
+  $('#sol-vencimiento').value = request.dueAt ?? '';
+  $('#sol-resolucion').value = request.resolution ?? '';
+  $('#solicitud-guardar').textContent = 'Guardar cambios';
+  $('#hilo-seccion').hidden = false;
+  pintarHilo();
+  $('#solicitud-dialog').showModal();
 }
 
 // ─────────────────────────────────────────────────────────────────────── eventos
 
-$('#orden-trabajo-agregar').addEventListener('click', () => {
-  const id = $('#orden-trabajo-nuevo').value;
-  if (!id) return avisar('Elegí un trabajo primero', true);
-  const trabajo = estado.trabajos.find((t) => t.id === id);
-  // El precio se congela al agregar la línea, con la tarifa de ahora. Si el
-  // catálogo sube mañana, esta orden sigue valiendo lo que valía hoy.
-  estado.borrador.services.push({ serviceId: id, priceCents: trabajo.priceCents });
-  pintarLineas();
-});
-
-$('#orden-parte-agregar').addEventListener('click', () => {
-  const itemId = $('#orden-parte-id').value.trim();
-  const itemName = $('#orden-parte-nombre').value.trim();
-  if (!itemId || !itemName) return avisar('El repuesto necesita id y nombre', true);
-  estado.borrador.parts.push({
-    itemId,
-    itemName,
-    qty: Number($('#orden-parte-cantidad').value) || 1,
-    unitPriceCents: Number($('#orden-parte-precio').value) || 0,
-  });
-  $('#orden-parte-id').value = '';
-  $('#orden-parte-nombre').value = '';
-  $('#orden-parte-cantidad').value = '1';
-  $('#orden-parte-precio').value = '0';
-  pintarLineas();
-});
-
-$('#orden-form').addEventListener('submit', async (ev) => {
-  ev.preventDefault();
-  const cuerpo = {
-    number: Number($('#orden-folio').value) || null,
-    customerId: $('#orden-cliente').value || null,
-    technicianId: $('#orden-tecnico').value || null,
-    asset: $('#orden-bien').value.trim() || null,
-    status: $('#orden-estado').value,
-    estimatedDelivery: $('#orden-entrega').value || null,
-    notes: $('#orden-notas').value.trim() || null,
-    services: estado.borrador.services,
-    parts: estado.borrador.parts,
+function cuerpoDelFormulario() {
+  return {
+    number: Number($('#sol-folio').value) || null,
+    title: $('#sol-titulo').value.trim(),
+    description: $('#sol-descripcion').value.trim() || null,
+    requesterName: $('#sol-solicitante').value.trim(),
+    requesterEmail: $('#sol-correo').value.trim() || null,
+    responsibleName: $('#sol-responsable').value.trim() || null,
+    priority: $('#sol-prioridad').value,
+    status: $('#sol-estado').value,
+    dueAt: $('#sol-vencimiento').value || null,
+    resolution: $('#sol-resolucion').value.trim() || null,
   };
+}
+
+$('#solicitud-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
   try {
     if (estado.editando) {
-      await api(`/api/orders/${estado.editando}`, { method: 'PATCH', body: cuerpo });
-      avisar('Orden actualizada');
+      await api(`/api/requests/${estado.editando}`, { method: 'PATCH', body: cuerpoDelFormulario() });
+      avisar('Solicitud actualizada');
     } else {
-      await api('/api/orders', { method: 'POST', body: cuerpo });
-      avisar('Orden creada');
+      await api('/api/requests', { method: 'POST', body: cuerpoDelFormulario() });
+      avisar('Solicitud creada');
     }
-    $('#orden-dialog').close();
-    await recargar();
+    $('#solicitud-dialog').close();
+    await pintarLista();
+    await pintarResumen();
   } catch (e) {
     avisar(e.message, true);
   }
 });
 
-$('#orden-cancelar').addEventListener('click', () => $('#orden-dialog').close());
-$('#orden-nueva').addEventListener('click', abrirNueva);
+$('#solicitud-cancelar').addEventListener('click', () => $('#solicitud-dialog').close());
+$('#solicitud-nueva').addEventListener('click', () => {
+  limpiaFormulario();
+  $('#solicitud-dialog').showModal();
+});
 
-$('#trabajo-form').addEventListener('submit', async (ev) => {
-  ev.preventDefault();
-  const cuerpo = {
-    name: $('#trabajo-nombre').value.trim(),
-    durationMin: Number($('#trabajo-duracion').value) || 0,
-    priceCents: Number($('#trabajo-precio').value) || 0,
-    description: $('#trabajo-descripcion').value.trim() || null,
-  };
-  const id = $('#trabajo-id').value;
+$('#comentario-agregar').addEventListener('click', async () => {
+  const contenido = $('#comentario-texto').value.trim();
+  if (!contenido) return avisar('Escribí un comentario primero', true);
+  if (!estado.editando) return;
   try {
-    await api(id ? `/api/services/${id}` : '/api/services', {
-      method: id ? 'PATCH' : 'POST',
-      body: cuerpo,
-    });
-    avisar(id ? 'Trabajo actualizado' : 'Trabajo creado');
-    $('#trabajo-form').reset();
-    $('#trabajo-id').value = '';
-    $('#trabajo-cancelar').hidden = true;
-    await recargar();
-  } catch (e) {
-    avisar(e.message, true);
-  }
-});
-
-$('#trabajo-cancelar').addEventListener('click', () => {
-  $('#trabajo-form').reset();
-  $('#trabajo-id').value = '';
-  $('#trabajo-cancelar').hidden = true;
-});
-
-$('#tecnico-form').addEventListener('submit', async (ev) => {
-  ev.preventDefault();
-  const cuerpo = {
-    name: $('#tecnico-nombre').value.trim(),
-    phone: $('#tecnico-telefono').value.trim() || null,
-    email: $('#tecnico-correo').value.trim() || null,
-    color: $('#tecnico-color').value.trim() || null,
-  };
-  const id = $('#tecnico-id').value;
-  try {
-    await api(id ? `/api/technicians/${id}` : '/api/technicians', {
-      method: id ? 'PATCH' : 'POST',
-      body: cuerpo,
-    });
-    avisar(id ? 'Técnico actualizado' : 'Técnico creado');
-    $('#tecnico-form').reset();
-    $('#tecnico-id').value = '';
-    $('#tecnico-cancelar').hidden = true;
-    await recargar();
-  } catch (e) {
-    avisar(e.message, true);
-  }
-});
-
-$('#tecnico-cancelar').addEventListener('click', () => {
-  $('#tecnico-form').reset();
-  $('#tecnico-id').value = '';
-  $('#tecnico-cancelar').hidden = true;
-});
-
-$('#cliente-form').addEventListener('submit', async (ev) => {
-  ev.preventDefault();
-  try {
-    await api('/api/customers', {
+    await api(`/api/requests/${estado.editando}/comments`, {
       method: 'POST',
-      body: {
-        name: $('#cliente-nombre').value.trim(),
-        phone: $('#cliente-telefono').value.trim() || null,
-        email: $('#cliente-correo').value.trim() || null,
-      },
+      body: { content: contenido },
     });
-    avisar('Cliente creado');
-    $('#cliente-form').reset();
-    await recargar();
+    $('#comentario-texto').value = '';
+    await abrirSolicitud(estado.editando);
   } catch (e) {
     avisar(e.message, true);
   }
 });
+
+$('#adjunto-agregar').addEventListener('click', async () => {
+  const archivo = $('#adjunto-archivo').files[0];
+  if (!archivo) return avisar('Elegí un archivo primero', true);
+  if (!estado.editando) return;
+  if (archivo.size > 750_000) return avisar('El archivo no puede superar 750 KB', true);
+  try {
+    // El navegador lee el archivo y lo manda en base64 dentro del JSON; el
+    // servidor lo decodifica y lo guarda en disco.
+    const data = await new Promise((resolve, reject) => {
+      const lector = new FileReader();
+      lector.onload = () => resolve(lector.result);
+      lector.onerror = () => reject(new Error('No se pudo leer el archivo'));
+      lector.readAsDataURL(archivo);
+    });
+    await api(`/api/requests/${estado.editando}/attachments`, {
+      method: 'POST',
+      body: { filename: archivo.name, mimeType: archivo.type || null, data },
+    });
+    $('#adjunto-archivo').value = '';
+    avisar('Archivo adjuntado');
+    await abrirSolicitud(estado.editando);
+  } catch (e) {
+    avisar(e.message, true);
+  }
+});
+
+$('#filtro-q').addEventListener('input', () => pintarLista());
+$('#filtro-estado').addEventListener('change', () => pintarLista());
+$('#filtro-prioridad').addEventListener('change', () => pintarLista());
 
 $('#config-form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
@@ -533,11 +351,10 @@ $('#config-form').addEventListener('submit', async (ev) => {
       body: {
         currency: $('#cfg-moneda').value.trim() || '$',
         timezone: $('#cfg-zona').value.trim(),
-        nextNumber: Number($('#cfg-folio').value) || 1,
       },
     });
     avisar('Ajustes guardados');
-    await recargar();
+    await cargar();
   } catch (e) {
     avisar(e.message, true);
   }
@@ -545,48 +362,15 @@ $('#config-form').addEventListener('submit', async (ev) => {
 
 // ───────────────────────────────────────────────────────────────── navegación
 
-const PANELES = {
-  tablero: pintarTablero,
-  ordenes: pintarOrdenes,
-  trabajos: () => pintarTrabajos(),
-  tecnicos: () => pintarTecnicos(),
-  clientes: () => pintarClientes(),
-};
-
 for (const boton of document.querySelectorAll('#tabs button')) {
   boton.addEventListener('click', async () => {
     document.querySelectorAll('#tabs button').forEach((b) => b.classList.remove('activo'));
     boton.classList.add('activo');
-    for (const [nombre, seccion] of Object.entries({
-      tablero: '#panel-tablero',
-      ordenes: '#panel-ordenes',
-      trabajos: '#panel-trabajos',
-      tecnicos: '#panel-tecnicos',
-      clientes: '#panel-clientes',
-      ajustes: '#panel-ajustes',
-    })) {
-      $(seccion).hidden = nombre !== boton.dataset.tab;
-    }
-    if (PANELES[boton.dataset.tab]) await PANELES[boton.dataset.tab]();
+    $('#panel-solicitudes').hidden = boton.dataset.tab !== 'solicitudes';
+    $('#panel-ajustes').hidden = boton.dataset.tab !== 'ajustes';
+    if (boton.dataset.tab === 'ajustes') renderConfig();
   });
 }
-
-/** Vuelve a pedir todo y reagrupa. Se llama después de cada escritura. */
-async function recargar() {
-  await cargar();
-  const activo = document.querySelector('#tabs button.activo')?.dataset.tab ?? 'tablero';
-  if (PANELES[activo]) await PANELES[activo]();
-}
-
-cargar().then(async () => {
-  $('#orden-cliente').innerHTML = opciones(estado.clientes, 'Sin cliente');
-  $('#orden-tecnico').innerHTML = opciones(estado.tecnicos, 'Sin técnico');
-  $('#orden-trabajo-nuevo').innerHTML = opciones(estado.trabajos, 'Elegí un trabajo');
-  $('#tablero-cliente').innerHTML = opciones(estado.clientes, 'Todos');
-  $('#tablero-tecnico').innerHTML = opciones(estado.tecnicos, 'Todos');
-  renderConfig();
-  await pintarTablero();
-});
 
 /**
  * Llena el form de ajustes.
@@ -594,10 +378,6 @@ cargar().then(async () => {
  * Se recorre `form.elements` y se usa el `name` de cada input como clave del
  * ajuste, en vez de buscarlos por id uno por uno. Es lo que permite agregar un
  * ajuste nuevo poniendo un `<input name="...">` en el HTML, sin tocar este JS.
- *
- * OJO: el pane se llama `data-tab="ajustes"`, no `id="config"`. Por eso esto no
- * puede hacer `$$('#config input')`: ese selector no matchea nada y el pane
- * aparece vacio.
  */
 function renderConfig() {
   const form = $('#config-form');
@@ -607,3 +387,9 @@ function renderConfig() {
     el.value = c[el.name];
   }
 }
+
+cargar().then(async () => {
+  $('#sol-folio').value = estado.cfg.nextNumber;
+  await pintarResumen();
+  await pintarLista();
+});

@@ -84,6 +84,44 @@ export const staffServices = sqliteTable('staff_services', {
   serviceId: text('service_id').notNull().references(() => services.id, { onDelete: 'cascade' }),
 });
 
+/**
+ * Horarios de atención POR PROFESIONAL.
+ *
+ * Sin una fila acá, el profesional atiende en la jornada que pide la consulta de
+ * disponibilidad. Con una fila, ese día de la semana atiende según el rango que
+ * dice la fila. `weekday` es el día de la semana de JavaScript (0 = domingo) y
+ * las horas van en minutos desde medianoche, igual que `from`/`until` en la
+ * disponibilidad.
+ */
+export const availability = sqliteTable('availability', {
+  id: text('id').primaryKey(),
+  organizationId: text('organization_id').notNull(),
+  staffId: text('staff_id').notNull().references(() => staff.id, { onDelete: 'cascade' }),
+  weekday: integer('weekday').notNull(),
+  startTime: integer('start_time').notNull(),
+  endTime: integer('end_time').notNull(),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at'),
+});
+
+/**
+ * Bloqueos puntuales: vacaciones, reuniones, cierres.
+ *
+ * A diferencia de `availability`, que se repite a la semana, un bloqueo es UNA
+ * franja concreta con fecha y hora, y durante ese rato el profesional no se
+ * puede agendar aunque su semana diga lo contrario.
+ */
+export const blocks = sqliteTable('blocks', {
+  id: text('id').primaryKey(),
+  organizationId: text('organization_id').notNull(),
+  staffId: text('staff_id').notNull().references(() => staff.id, { onDelete: 'cascade' }),
+  startAt: text('start_at').notNull(),
+  endAt: text('end_at').notNull(),
+  reason: text('reason'),
+  createdAt: text('created_at').notNull(),
+});
+
 /** La cita. `startAt`/`endAt` en ISO UTC; el timezone es de la organización. */
 export const appointments = sqliteTable('appointments', {
   id: text('id').primaryKey(),
@@ -139,15 +177,6 @@ export const reminders = sqliteTable('reminders', {
   sentAt: text('sent_at'),
   error: text('error'),
   createdAt: text('created_at').notNull(),
-});
-
-/** De qué organización del Core vino cada `tenant_id` del legacy. */
-export const legacyTenantMap = sqliteTable('legacy_tenant_map', {
-  legacyTenantId: text('legacy_tenant_id').primaryKey(),
-  legacySlug: text('legacy_slug'),
-  legacyName: text('legacy_name'),
-  organizationId: text('organization_id').notNull(),
-  migratedAt: text('migrated_at').notNull(),
 });
 
 /**

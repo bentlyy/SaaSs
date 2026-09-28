@@ -22,22 +22,22 @@
 # desalineaciones desaparece.
 #
 #   puerto  dominio                            producto
-#   3100    citas.amgdeveloper.cl              citas        (era peluqueria)
-#   3101    espacios.amgdeveloper.cl           espacios     (absorbe deportes)
-#   3102    solicitudes.amgdeveloper.cl        solicitudes  (absorbe talleres)
+#   3100    citas.amgdeveloper.cl              citas
+#   3101    espacios.amgdeveloper.cl           espacios
+#   3102    solicitudes.amgdeveloper.cl        solicitudes
 #   3103    inventario.amgdeveloper.cl         inventario
-#   3104    cotizaciones.amgdeveloper.cl       cotizaciones (absorbe documentos)
-#   3107    clientes.amgdeveloper.cl           clientes     (absorbe crm)
+#   3104    cotizaciones.amgdeveloper.cl       cotizaciones
+#   3107    clientes.amgdeveloper.cl           clientes
 #   3108    desarrollo.amgdeveloper.cl         Core
-#   3109    activos.amgdeveloper.cl            activos      (nuevo)
-#   3110    checklists.amgdeveloper.cl         checklists   (nuevo)
-#   3111    pagos.amgdeveloper.cl              pagos        (nuevo)
-#
+#   3109    activos.amgdeveloper.cl            activos
+#   3110    checklists.amgdeveloper.cl         checklists
+#   3111    pagos.amgdeveloper.cl              pagos
+
 # Los puertos 3105 (documentos) y 3106 (recordatorios) quedan LIBRES a proposito:
 # sus productos se retiraron. No se reciclan porque un dominio viejo que todavia
 # se teclea (docs.*, recordatorios.*) debe seguir levando a la redireccion nueva,
 # no a un producto que hoy este asignado a otro.
-#
+
 # Tres dominios (activos, checklists, pagos) son NUEVOS: necesitan registro DNS y
 # certificado antes de publicar. `ops/nginx.conf` los trae ya, pero sin DNS el
 # certbot no puede emitirlos.
@@ -67,16 +67,12 @@ x-app: &app
 
 services:
   # peluqueria, recordatorios, deportes, talleres, crm y documentos ya NO tienen
-  # servicio: sus datos se migraron a los productos que los absorben (citas,
-  # espacios, solicitudes, clientes y cotizaciones). Arrancar cualquiera de los
-  # seis seria otra puerta para el mismo producto. Sus volumenes quedan
-  # declarados ABAJO, sin servicio, porque son la fuente de las migraciones:
-  # borrarlos seria tirar los datos que todavia no estan respaldados fuera de
-  # Docker.
+  # servicio ni volumen: sus datos se migraron a los productos que los absorben
+  # (citas, espacios, solicitudes, clientes y cotizaciones). El portafolio nuevo
+  # solo usa los nueve volumenes de abajo.
 
-  # Reemplaza al legacy `deportes`, que vivia en el puerto 3101 con su propio
-  # JWT_SECRET y su clients.json. Sus datos ya estan migrados a ESPACIOS, que
-  # usa la misma organizacion del Core y nada de auth propio.
+  # Espacios: reservas de salas/canchas con disponibilidad y bloques. Producto
+  # sobre el runtime de AMG: la identidad sale del Core por SSO, sin auth propio.
   espacios:
     <<: *app
     container_name: saasmini-espacios
@@ -89,7 +85,7 @@ services:
       PRODUCT: '@amg/espacios'
       PORT: "3000"
       DB_PATH: /app/data/espacios.sqlite
-      DB_SCHEMA_VERSION: "1"
+      DB_SCHEMA_VERSION: "2"
       APP_NAME: Espacios
       APP_URL: https://espacios.amgdeveloper.cl
       CORE_URL: https://desarrollo.amgdeveloper.cl
@@ -97,15 +93,9 @@ services:
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_ESPACIOS_SECRET:?falta AMG_SSO_ESPACIOS_SECRET en .env}
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
 
-  # Reemplaza al legacy `talleres`, que vivia en el puerto 3102 con su propio
-  # JWT_SECRET y su clients.json. Sus datos ya estan migrados a SOLICITUDES, que
-  # usa la misma organizacion del Core y nada de auth propio.
-  #
-  # Lo unico que se conserva del producto viejo es el VOLUMEN, declarado ABAJO y
-  # sin servicio: es la fuente de la migracion, y borrarlo seria tirar los datos
-  # que todavia no estan respaldados fuera de Docker. Los datos de vehiculo NO
-  # estan en el destino: `solicitudes` es para cualquier rubro y no tiene el
-  # concepto. Quedan solo en ese volumen.
+  # Solicitudes y ordenes: mesa de ayuda al estilo helpdesk (peticiones, planes,
+  # comentarios, archivos adjuntos e historial de estados). Sin auth propio: la
+  # identidad y las suscripciones salen del Core por SSO.
   solicitudes:
     <<: *app
     container_name: saasmini-solicitudes
@@ -126,15 +116,11 @@ services:
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_SOLICITUDES_SECRET:?falta AMG_SSO_SOLICITUDES_SECRET en .env}
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
 
-  # Inventario: sobre el runtime de AMG. No usa clientsGuard ni JWT propio: la
-  # identidad y las suscripciones salen del Core por SSO.
+  # Inventario: items, movimientos y preferencias por organizacion. Sin auth
+  # propio: la identidad y las suscripciones salen del Core por SSO.
   #
   # OJO: PRODUCT no es el slug del producto, es el WORKSPACE que arranca el CMD
   # (`npm run start -w "$PRODUCT"`). El slug real lo declara src/app.ts.
-  #
-  # Este producto NO monta clients.json ni consulta clientsGuard: su puerta es
-  # `subscriptions` en el Core, que se mira en cada request. Por eso el
-  # CLIENTS_GATE de los legacy ya no existe en ningun servicio.
   inventario:
     <<: *app
     container_name: saasmini-inventario
@@ -157,8 +143,7 @@ services:
       # llamada al Core por request. En produccion conviene 1.
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
 
-  # Citas: mismo runtime que inventario. Absorbe peluqueria, crm y recordatorios,
-  # que quedan como fuentes de solo lectura de la migracion.
+  # Citas: agenda con clientes, servicios, profesionales y avisos.
   citas:
     <<: *app
     container_name: saasmini-citas
@@ -171,7 +156,7 @@ services:
       PRODUCT: '@amg/citas'
       PORT: "3000"
       DB_PATH: /app/data/citas.sqlite
-      DB_SCHEMA_VERSION: "1"
+      DB_SCHEMA_VERSION: "2"
       APP_NAME: Citas
       APP_URL: https://citas.amgdeveloper.cl
       CORE_URL: https://desarrollo.amgdeveloper.cl
@@ -179,10 +164,8 @@ services:
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_CITAS_SECRET:?falta AMG_SSO_CITAS_SECRET en .env}
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
 
-  # Reemplaza al legacy `cotizaciones` (puerto 3104, su propio JWT_SECRET) y al
-  # legacy `documentos`, que se le suma. Los dos eran el mismo producto con dos
-  # puertas: por eso sus dominios se funden en cotizaciones.* y la base destino
-  # guarda el folio por empresa y no global.
+  # Cotizaciones: presupuestos con lineas, folio por empresa y tablero de
+  # totales sin mezclar dinero entre organizaciones.
   cotizaciones:
     <<: *app
     container_name: saasmini-cotizaciones
@@ -203,10 +186,7 @@ services:
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_COTIZACIONES_SECRET:?falta AMG_SSO_COTIZACIONES_SECRET en .env}
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
 
-  # Reemplaza al legacy `crm`, que vivia en el puerto 3107 con su propio
-  # JWT_SECRET y su clients.json. Las 10 citas que tenia NO se migran aqui:
-  # las absorbe CITAS, que ya las leyo de esta misma base. Aca van los clientes
-  # y sus seguimientos.
+  # Clientes: la ficha del cliente y sus seguimientos.
   clientes:
     <<: *app
     container_name: saasmini-clientes
@@ -265,7 +245,7 @@ services:
       PRODUCT: '@amg/checklists'
       PORT: "3000"
       DB_PATH: /app/data/checklists.sqlite
-      DB_SCHEMA_VERSION: "1"
+      DB_SCHEMA_VERSION: "2"
       APP_NAME: Checklists e Inspecciones
       APP_URL: https://checklists.amgdeveloper.cl
       CORE_URL: https://desarrollo.amgdeveloper.cl
@@ -341,39 +321,3 @@ volumes:
   saasmini_data_checklists:
   saasmini_data_pagos:
   saasmini_data_core:
-
-  # ── Los legacy: SIN servicio, y a proposito ────────────────────────────────
-  # peluqueria, recordatorios, deportes, talleres, documentos y crm ya no los
-  # usa nadie. Se conservan porque son la FUENTE de las migraciones a citas,
-  # espacios, solicitudes, cotizaciones y clientes, y `ops/backup.sh` final ya
-  # no los respalda: borrarlos con `docker volume rm` tira datos reales que solo
-  # estan aqui.
-  #
-  # OJO, sobre lo que realmente los protege: ESTE archivo no los protege mucho.
-  # Ningun servicio los monta, y compose descarta del config renderizado los
-  # volumenes declarados que nadie usa, asi que aqui son documentacion. Quien los
-  # monta de verdad es `ops/migrate.compose.yml`, y ahi si van `external: true` y
-  # con el nombre real completo. Ese es el punto donde un `down -v` o un
-  # `docker volume rm` se cruzaria con los datos, y los dos archivos tienen que
-  # coincidir.
-  #
-  # Lo que si evita este archivo: que alguien los borre creyendo que "compose ya
-  # no los usa, estan de mas". No se borran hasta que exista un respaldo externo
-  # verificado de cada uno, y ese respaldo no este en el MISMO servidor (un fallo
-  # de disco se los lleva juntos).
-  #
-  # `inventario` y `cotizaciones` NO aparecen aqui porque su volumen ya se usa
-  # como destino de la migracion: la app.db legacy y la <producto>.sqlite nueva
-  # conviven en el mismo volumen.
-  saasmini_data_peluqueria:
-    external: true
-  saasmini_data_deportes:
-    external: true
-  saasmini_data_talleres:
-    external: true
-  saasmini_data_documentos:
-    external: true
-  saasmini_data_recordatorios:
-    external: true
-  saasmini_data_crm:
-    external: true

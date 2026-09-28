@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import type { ProductDefinition } from '@amg/product-runtime';
 import { DDL } from './ddl.js';
 import { buildRoutes } from './routes.js';
-import { items, legacyTenantMap, movements, settings } from './schema.js';
+import { items, movements, settings } from './schema.js';
 
 const aqui = fileURLToPath(new URL('.', import.meta.url));
 
@@ -21,7 +21,7 @@ const aqui = fileURLToPath(new URL('.', import.meta.url));
 export const definicion: ProductDefinition = {
   slug: 'inventario',
   name: 'Inventario',
-  schema: { items, movements, settings, legacyTenantMap },
+  schema: { items, movements, settings },
   ddl: DDL,
   routes: buildRoutes,
   // El HTML tambien pide sesión: sin identidad no se sirve ni el shell.

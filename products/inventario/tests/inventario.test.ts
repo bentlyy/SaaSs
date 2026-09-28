@@ -414,6 +414,6 @@ describe('sin rastro de autenticación propia', () => {
     // Allowlist estricta a propósito: si aparece una tabla nueva hay que
     // pensarlo. El producto no tiene usuarios, organizaciones, sesiones ni
     // clientes: eso vive en el Core.
-    expect(tablas.sort()).toEqual(['amg_migrations', 'items', 'legacy_tenant_map', 'movements', 'settings']);
+    expect(tablas.sort()).toEqual(['amg_migrations', 'items', 'movements', 'settings']);
   });
 });

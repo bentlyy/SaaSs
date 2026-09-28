@@ -17,6 +17,7 @@
         <button data-vista="clientes" type="button">Clientes</button>
         <button data-vista="servicios" type="button">Servicios</button>
         <button data-vista="profesionales" type="button">Profesionales</button>
+        <button data-vista="horarios" type="button">Horarios</button>
         <button data-vista="avisos" type="button">Avisos</button>
         <button data-vista="config" type="button">Configuración</button>
       </nav>
@@ -61,6 +62,58 @@
       <section class="vista oculto" id="vista-profesionales">
         <div class="fila"><button id="nuevo-per" type="button">Nuevo profesional</button></div>
         <div id="profesionales" class="panel"></div>
+      </section>
+
+      <!-- HORARIOS -->
+      <section class="vista oculto" id="vista-horarios">
+        <div class="panel">
+          <div class="panel-cab">
+            <h2>Horarios y bloqueos</h2>
+            <select id="horario-profesional"></select>
+          </div>
+          <p class="ayuda">
+            Cada profesional define sus días y franjas de atención. Si un día no tiene
+            horario, atiende en la jornada que pida la consulta de disponibilidad. Los
+            bloqueos valen sobre cualquier horario.
+          </p>
+
+          <h3>Horario semanal</h3>
+          <form id="horario-form">
+            <div class="dos">
+              <label>Día <select id="horario-dia"></select></label>
+              <label>Estado
+                <select id="horario-activo">
+                  <option value="true">Activo</option>
+                  <option value="false">Inactivo</option>
+                </select>
+              </label>
+            </div>
+            <div class="dos">
+              <label>Desde <input id="horario-desde" type="time" required /></label>
+              <label>Hasta <input id="horario-hasta" type="time" required /></label>
+            </div>
+            <p class="error oculto" id="horario-err"></p>
+            <div class="acciones">
+              <button type="button" id="horario-cancelar" class="link oculto">Cancelar edición</button>
+              <button type="submit">Guardar horario</button>
+            </div>
+          </form>
+          <div id="horarios"></div>
+
+          <h3>Bloqueo puntual</h3>
+          <form id="bloqueo-form">
+            <div class="dos">
+              <label>Empieza <input id="bloqueo-inicio" type="datetime-local" required /></label>
+              <label>Termina <input id="bloqueo-fin" type="datetime-local" required /></label>
+            </div>
+            <label>Motivo <input id="bloqueo-motivo" maxlength="300" /></label>
+            <p class="error oculto" id="bloqueo-err"></p>
+            <div class="acciones">
+              <button type="submit">Bloquear</button>
+            </div>
+          </form>
+          <div id="bloqueos"></div>
+        </div>
       </section>
 
       <!-- AVISOS -->

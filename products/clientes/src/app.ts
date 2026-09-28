@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import type { ProductDefinition } from '@amg/product-runtime';
 import { DDL } from './ddl.js';
 import { buildRoutes } from './routes.js';
-import { customers, followups, interactions, legacyTenantMap, settings } from './schema.js';
+import { customers, followups, interactions, settings } from './schema.js';
 
 const aqui = fileURLToPath(new URL('.', import.meta.url));
 
@@ -26,7 +26,6 @@ export const definicion: ProductDefinition = {
     followups,
     interactions,
     settings,
-    legacyTenantMap,
   },
   ddl: DDL,
   routes: buildRoutes,

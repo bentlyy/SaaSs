@@ -19,8 +19,13 @@ const estado = {
   espacios: [],
   clientes: [],
   extras: [],
+  horarios: [],
+  bloqueos: [],
   cfg: { currency: '$', openingMinutes: 480, closingMinutes: 1320, slotMinutes: 60, minAdvanceMinutes: 0 },
 };
+
+/** `Date.getUTCDay` y el servidor usan 0 = domingo. */
+const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 async function api(ruta, opciones = {}) {
   const res = await fetch(ruta, {
@@ -112,6 +117,27 @@ function pintar() {
   }
   selectorEspacios.value = elegido;
 
+  const selHorario = $('#horario-espacio');
+  const horarioElegido = selHorario.value;
+  selHorario.innerHTML = '<option value="">Elige un espacio</option>';
+  for (const e of estado.espacios) {
+    const op = document.createElement('option');
+    op.value = e.id;
+    op.textContent = e.name;
+    selHorario.append(op);
+  }
+  selHorario.value = horarioElegido;
+
+  const selDia = $('#horario-dia');
+  if (selDia.options.length === 0) {
+    for (let d = 0; d < 7; d += 1) {
+      const op = document.createElement('option');
+      op.value = String(d);
+      op.textContent = DIAS[d];
+      selDia.append(op);
+    }
+  }
+
   for (const [sel, lista, vacio] of [
     ['#reserva-espacio', estado.espacios, 'Elige un espacio'],
     ['#reserva-cliente', estado.clientes, 'Sin cliente'],
@@ -132,6 +158,7 @@ function pintar() {
   pintarEspacios();
   pintarClientes();
   pintarExtras();
+  pintarHorarios();
 }
 
 function fila(columnas) {
@@ -197,6 +224,159 @@ function pintarExtras() {
   tabla.append(cuerpo);
   $('#extras-lista').replaceChildren(tabla);
 }
+
+// ───────────────────────────────────────────────────────── horarios y bloqueos
+
+function espacioHorario() {
+  return $('#horario-espacio').value;
+}
+
+async function cargarHorarios() {
+  const espacio = espacioHorario();
+  if (!espacio) {
+    estado.horarios = [];
+    estado.bloqueos = [];
+    pintarHorarios();
+    return;
+  }
+  const [horarios, bloqueos] = await Promise.all([
+    api(`/api/schedules?spaceId=${espacio}`),
+    api(`/api/blocks?spaceId=${espacio}`),
+  ]);
+  estado.horarios = horarios.items;
+  estado.bloqueos = bloqueos.items;
+  pintarHorarios();
+}
+
+function pintarHorarios() {
+  const espacio = espacioHorario();
+  const contenedor = $('#horarios-lista');
+  if (!espacio) {
+    contenedor.textContent = 'Elige un espacio para ver sus horarios.';
+    $('#bloqueos-lista').textContent = '';
+    return;
+  }
+
+  const tabla = document.createElement('table');
+  tabla.innerHTML = '<thead><tr><th>Día</th><th>Desde</th><th>Hasta</th><th>Estado</th><th></th></tr></thead>';
+  const cuerpo = document.createElement('tbody');
+  for (const h of estado.horarios) {
+    const acciones = document.createElement('td');
+    acciones.append(
+      boton('Editar', () => editarHorario(h)),
+      boton('Borrar', async () => {
+        try {
+          await api(`/api/schedules/${h.id}`, { method: 'DELETE' });
+          avisar('Horario borrado');
+          await cargarHorarios();
+        } catch (err) { avisar(err.message, true); }
+      }),
+    );
+    const toggle = boton(h.active ? 'Desactivar' : 'Activar', async () => {
+      try {
+        await api(`/api/schedules/${h.id}`, { method: 'PATCH', body: { active: !h.active } });
+        avisar(`Horario ${h.active ? 'desactivado' : 'activado'}`);
+        await cargarHorarios();
+      } catch (err) { avisar(err.message, true); }
+    });
+    acciones.prepend(toggle);
+    cuerpo.append(fila([
+      DIAS[h.weekday],
+      minutosAHora(h.startTime),
+      minutosAHora(h.endTime),
+      h.active ? 'activo' : 'inactivo',
+      acciones,
+    ]));
+  }
+  if (estado.horarios.length === 0) {
+    cuerpo.append(fila(['Sin horario propio', '', '', 'cae a la jornada general', '']));
+  }
+  tabla.append(cuerpo);
+  contenedor.replaceChildren(tabla);
+
+  const bloques = document.createElement('table');
+  bloques.innerHTML = '<thead><tr><th>Empieza</th><th>Termina</th><th>Motivo</th><th></th></tr></thead>';
+  const cuerpoBloques = document.createElement('tbody');
+  for (const b of estado.bloqueos) {
+    const acciones = document.createElement('td');
+    acciones.append(boton('Quitar', async () => {
+      try {
+        await api(`/api/blocks/${b.id}`, { method: 'DELETE' });
+        avisar('Bloqueo quitado');
+        await cargarHorarios();
+      } catch (err) { avisar(err.message, true); }
+    }));
+    cuerpoBloques.append(fila([b.startAt, b.endAt, b.reason ?? '', acciones]));
+  }
+  if (estado.bloqueos.length === 0) {
+    cuerpoBloques.append(fila(['Sin bloqueos', '', '', '']));
+  }
+  bloques.append(cuerpoBloques);
+  $('#bloqueos-lista').replaceChildren(bloques);
+}
+
+/** El form de horario sirve para crear y para editar; el input oculto lo dice. */
+function editarHorario(h) {
+  $('#horario-form-titulo').textContent = 'Editar horario';
+  $('#horario-id').value = h.id;
+  $('#horario-dia').value = String(h.weekday);
+  $('#horario-desde').value = minutosAHora(h.startTime);
+  $('#horario-hasta').value = minutosAHora(h.endTime);
+  $('#horario-activo').checked = h.active;
+  $('#horario-cancelar').hidden = false;
+}
+
+function limpiarFormHorario() {
+  $('#horario-form').reset();
+  $('#horario-form-titulo').textContent = 'Nuevo horario';
+  $('#horario-id').value = '';
+  $('#horario-cancelar').hidden = true;
+}
+
+$('#horario-espacio').addEventListener('change', () => {
+  limpiarFormHorario();
+  cargarHorarios().catch((e) => avisar(e.message, true));
+});
+
+$('#horario-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const espacio = espacioHorario();
+  if (!espacio) { avisar('Elige un espacio', true); return; }
+  const id = $('#horario-id').value;
+  const cuerpo = {
+    spaceId: espacio,
+    weekday: Number($('#horario-dia').value),
+    startTime: aMinutos($('#horario-desde').value),
+    endTime: aMinutos($('#horario-hasta').value),
+    active: $('#horario-activo').checked,
+  };
+  try {
+    await api(id ? `/api/schedules/${id}` : '/api/schedules', { method: id ? 'PATCH' : 'POST', body: cuerpo });
+    avisar(id ? 'Horario actualizado' : 'Horario agregado');
+    limpiarFormHorario();
+    await cargarHorarios();
+  } catch (err) { avisar(err.message, true); }
+});
+
+$('#horario-cancelar').addEventListener('click', limpiarFormHorario);
+
+$('#bloqueo-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const espacio = espacioHorario();
+  if (!espacio) { avisar('Elige un espacio', true); return; }
+  const cuerpo = {
+    spaceId: espacio,
+    startAt: new Date($('#bloqueo-inicio').value).toISOString(),
+    endAt: new Date($('#bloqueo-fin').value).toISOString(),
+    reason: $('#bloqueo-motivo').value || null,
+  };
+  try {
+    await api('/api/blocks', { method: 'POST', body: cuerpo });
+    $('#bloqueo-form').reset();
+    avisar('Espacio bloqueado');
+    await cargarHorarios();
+  } catch (err) { avisar(err.message, true); }
+});
 
 // ──────────────────────────────────────────────────────────────────── agenda
 
@@ -415,6 +595,7 @@ $('#tabs').addEventListener('click', (ev) => {
   for (const s of document.querySelectorAll('main section')) s.hidden = true;
   $(`#panel-${botonPulsado.dataset.tab}`).hidden = false;
   if (botonPulsado.dataset.tab === 'agenda') pintarAgenda().catch((e) => avisar(e.message, true));
+  if (botonPulsado.dataset.tab === 'horarios') cargarHorarios().catch((e) => avisar(e.message, true));
 });
 
 for (const sel of ['#agenda-espacio', '#agenda-fecha']) {

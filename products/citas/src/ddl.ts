@@ -63,6 +63,35 @@ CREATE TABLE IF NOT EXISTS staff_services (
 CREATE INDEX IF NOT EXISTS idx_citas_staff_services_org ON staff_services(organization_id, staff_id);
 CREATE INDEX IF NOT EXISTS idx_citas_staff_services_serv ON staff_services(service_id);
 
+-- Horarios de atencion por profesional. El dia es el de JavaScript (0 = domingo)
+-- y las horas van en minutos desde medianoche, como from/until.
+CREATE TABLE IF NOT EXISTS availability (
+  id TEXT PRIMARY KEY,
+  organization_id TEXT NOT NULL,
+  staff_id TEXT NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+  weekday INTEGER NOT NULL,
+  start_time INTEGER NOT NULL,
+  end_time INTEGER NOT NULL,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT
+);
+-- La consulta que importa es "en que atiende ESTE profesional el dia X": el
+-- indice (profesional, dia) la resuelve y agrupa los rangos del dia.
+CREATE INDEX IF NOT EXISTS idx_citas_availability_org ON availability(organization_id, staff_id, weekday);
+
+-- Bloqueos puntuales: vacaciones, reuniones, cierres.
+CREATE TABLE IF NOT EXISTS blocks (
+  id TEXT PRIMARY KEY,
+  organization_id TEXT NOT NULL,
+  staff_id TEXT NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+  start_at TEXT NOT NULL,
+  end_at TEXT NOT NULL,
+  reason TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_citas_blocks_org ON blocks(organization_id, staff_id, start_at);
+
 CREATE TABLE IF NOT EXISTS appointments (
   id TEXT PRIMARY KEY,
   organization_id TEXT NOT NULL,
@@ -127,12 +156,4 @@ CREATE TABLE IF NOT EXISTS settings (
 -- Una fila por organización: el índice único es lo que evita que dos personas
 -- guardando la configuración a la vez leave dos filas compitiendo.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_citas_settings_org ON settings(organization_id);
-
-CREATE TABLE IF NOT EXISTS legacy_tenant_map (
-  legacy_tenant_id TEXT PRIMARY KEY,
-  legacy_slug TEXT,
-  legacy_name TEXT,
-  organization_id TEXT NOT NULL,
-  migrated_at TEXT NOT NULL
-);
 `;

@@ -30,7 +30,7 @@ EXPOSE 3000
 # node como dueño, o better-sqlite3 no puede crear el archivo y el arranque falla.
 RUN mkdir -p /app/data/core && chown -R node:node /app/data
 
-# El workspace a ejecutar viene del environment (ej: PRODUCT=peluqueria).
+# El workspace a ejecutar viene del environment (ej: PRODUCT=@amg/espacios).
 # npm run start -w <product> corre `node dist/index.js` con CWD en el producto.
 USER node
 CMD ["sh", "-c", "npm run start -w \"$PRODUCT\""]

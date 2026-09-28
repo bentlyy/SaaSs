@@ -56,6 +56,37 @@ CREATE TABLE IF NOT EXISTS addons (
 );
 CREATE INDEX IF NOT EXISTS idx_espacios_addons_org ON addons(organization_id, active, name);
 
+-- Horarios de disponibilidad por espacio. El día de la semana es el de
+-- JavaScript (0 = domingo) y las horas van en minutos desde medianoche.
+CREATE TABLE IF NOT EXISTS availability (
+  id TEXT PRIMARY KEY,
+  organization_id TEXT NOT NULL,
+  space_id TEXT NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
+  weekday INTEGER NOT NULL,
+  start_time INTEGER NOT NULL,
+  end_time INTEGER NOT NULL,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT
+);
+-- La consulta que importa es "los horarios de ESTE espacio, en orden": el
+-- índice (espacio, día, desde) la resuelve sola y agrupa los rangos del día.
+CREATE INDEX IF NOT EXISTS idx_espacios_availability_org ON availability(organization_id, space_id, weekday);
+
+-- Bloqueos puntuales: una mantencion, un evento, un cierre.
+CREATE TABLE IF NOT EXISTS blocks (
+  id TEXT PRIMARY KEY,
+  organization_id TEXT NOT NULL,
+  space_id TEXT NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
+  start_at TEXT NOT NULL,
+  end_at TEXT NOT NULL,
+  reason TEXT,
+  created_at TEXT NOT NULL
+);
+-- La consulta que importa es "¿hay un bloqueo de este espacio que toque este
+-- rato?", y el índice (espacio, inicio) la resuelve sin barrer la tabla.
+CREATE INDEX IF NOT EXISTS idx_espacios_blocks_org ON blocks(organization_id, space_id, start_at);
+
 CREATE TABLE IF NOT EXISTS bookings (
   id TEXT PRIMARY KEY,
   organization_id TEXT NOT NULL,
@@ -101,12 +132,4 @@ CREATE TABLE IF NOT EXISTS settings (
 -- Una fila por organización: el índice único es lo que evita que dos personas
 -- guardando la configuración a la vez dejen dos filas compitiendo.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_espacios_settings_org ON settings(organization_id);
-
-CREATE TABLE IF NOT EXISTS legacy_tenant_map (
-  legacy_tenant_id TEXT PRIMARY KEY,
-  legacy_slug TEXT NOT NULL,
-  legacy_name TEXT NOT NULL,
-  organization_id TEXT NOT NULL,
-  migrated_at TEXT NOT NULL
-);
 `;

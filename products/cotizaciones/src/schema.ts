@@ -1,4 +1,3 @@
-import { sql } from 'drizzle-orm';
 import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 /**
@@ -185,26 +184,8 @@ export const settings = sqliteTable(
  * misma organizacion: las dos son la misma empresa, partida en dos productos
  * viejos. Por eso los folios de las dos pueden chocar entre si.
  */
-export const legacyTenantMap = sqliteTable(
-  'legacy_tenant_map',
-  {
-    legacyTenantId: text('legacy_tenant_id').primaryKey(),
-    legacySlug: text('legacy_slug').notNull(),
-    legacyName: text('legacy_name').notNull(),
-    organizationId: text('organization_id').notNull(),
-    migratedAt: text('migrated_at')
-      .notNull()
-      .default(sql`(datetime('now'))`),
-  },
-  // NO unico: una organizacion puede absorber mas de un `tenants.id` legacy (dos
-  // productos viejos que eran la misma empresa). Un indice unico aca tumbaria la
-  // migracion entera en el caso que el mapa existe para justamente resolver.
-  (t) => [index('idx_cotizaciones_map_org').on(t.organizationId)],
-);
-
 export const cotizacionesSchema = {
   quotes,
   quoteLines,
   settings,
-  legacyTenantMap,
 };

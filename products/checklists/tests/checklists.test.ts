@@ -67,6 +67,18 @@ async function plantillaConItems(orgId: string, name: string, labels: string[], 
   });
 }
 
+/** Crea una plantilla con secciones y devuelve la plantilla, las secciones y los puntos. */
+async function plantillaConSecciones(
+  orgId: string,
+  name: string,
+  secciones: Array<{ name: string; items: string[] }>,
+) {
+  return nuevaPlantilla(orgId, {
+    name,
+    sections: secciones.map((s) => ({ name: s.name, items: s.items.map((label) => ({ label })) })),
+  });
+}
+
 async function corridaDe(plantillaId: string, extra: Record<string, unknown> = {}) {
   return nuevaCorrida(TEST_ORG_A, { templateId: plantillaId, ...extra });
 }
@@ -448,12 +460,16 @@ describe('las corridas', () => {
     expect(run.startedAt).toBeTruthy();
 
     // El snapshot lleva los puntos en el mismo orden y con el mismo `required`, y
-    // las filas propias arrancan sin respuesta.
+    // las filas propias arrancan sin respuesta. Tambien lleva el tipo y la seccion
+    // con la que se hacia la revision: son la foto del punto de ese dia.
     expect(JSON.parse(run.templateItemsJson)).toEqual([
-      { position: 1, label: 'Extintor con carga vigente', required: 1 },
-      { position: 2, label: 'Piso sin cables sueltos', required: 1 },
-      { position: 3, label: 'EPP completo', required: 0 },
+      { position: 1, label: 'Extintor con carga vigente', required: 1, type: 'yes_no', options: null, section: 'General' },
+      { position: 2, label: 'Piso sin cables sueltos', required: 1, type: 'yes_no', options: null, section: 'General' },
+      { position: 3, label: 'EPP completo', required: 0, type: 'yes_no', options: null, section: 'General' },
     ]);
+    // Las filas propias copian el tipo del momento, para validar y pintar sin
+    // mirar la plantilla.
+    expect(items.map((p: any) => p.type)).toEqual(['yes_no', 'yes_no', 'yes_no']);
     expect(items.map((p: any) => p.position)).toEqual([1, 2, 3]);
     expect(items.every((p: any) => p.result === null && p.answeredAt === null)).toBe(true);
   });
@@ -770,7 +786,14 @@ describe('la ficha', () => {
     });
     // El snapshot vuelve parseado, para que la pantalla no desarme el JSON a mano.
     expect(ficha.body.snapshot.templateName).toBe('Ficha resumida');
-    expect(ficha.body.snapshot.items[0]).toEqual({ position: 1, label: 'Uno', required: 1 });
+    expect(ficha.body.snapshot.items[0]).toEqual({
+      position: 1,
+      label: 'Uno',
+      required: 1,
+      type: 'yes_no',
+      options: null,
+      section: 'General',
+    });
   });
 
   it('una corrida sin responder nada no tiene cumplimiento, no cero', async () => {
@@ -908,6 +931,493 @@ describe('el tablero, sobre una base limpia', () => {
     // sumarian mas que las filas que hay.
     const filas = limpio.sqlite.prepare('SELECT count(*) c FROM runs').get() as { c: number };
     expect(tableroA.body.total + tableroB.body.total).toBe(filas.c);
+  });
+
+  it('porResultado cuenta cada veredicto, y "sin" las corridas sin cerrar', async () => {
+    const ventas = startTestProduct(definicion);
+    const adminDe = (orgId: string) => ventas.as({ orgId, role: 'admin' });
+    const miembroDe = (orgId: string) => ventas.as({ orgId, role: 'member' });
+
+    try {
+      async function cerrar(resultado: string[], veredicto?: string) {
+        const creada = await miembroDe(TEST_ORG_A)
+          .post('/api/runs')
+          .send({ items: resultado.map((label) => ({ label })) });
+        expect(creada.status, JSON.stringify(creada.body)).toBe(201);
+        for (const [i, r] of resultado.entries()) {
+          await miembroDe(TEST_ORG_A).post(`/api/runs/${creada.body.run.id}/items/${i + 1}`).send({ result: r });
+        }
+        const cuerpo: Record<string, unknown> = {};
+        if (veredicto) cuerpo.result = veredicto;
+        await miembroDe(TEST_ORG_A).post(`/api/runs/${creada.body.run.id}/completar`).send(cuerpo);
+      }
+
+      await cerrar(['ok', 'ok']); // approved (derivado)
+      await cerrar(['ok', 'fail']); // observed (derivado)
+      await cerrar(['ok', 'ok'], 'rejected'); // rejected (explícito)
+      await miembroDe(TEST_ORG_A).post('/api/runs').send({ items: [{ label: 'Abierta' }] }); // sin cerrar
+
+      const tablero = await adminDe(TEST_ORG_A).get('/api/dashboard');
+      expect(tablero.status).toBe(200);
+      expect(tablero.body.porResultado).toEqual({ approved: 1, observed: 1, rejected: 1, sin: 1 });
+    } finally {
+      ventas.close();
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────── el enlace vivo
+
+describe('el enlace con la plantilla', () => {
+  it('los puntos de una corrida de plantilla guardan el item_id de su origen', async () => {
+    const { plantilla, items } = await plantillaConItems(TEST_ORG_A, 'Con origen', ['Uno', 'Dos']);
+    const { run, items: puntos } = await corridaDe(plantilla.id);
+    expect(puntos.map((p: any) => p.itemId)).toEqual([items[0].id, items[1].id]);
+
+    // Una corrida libre no tiene original: su enlace queda NULL.
+    const libre = await nuevaCorrida(TEST_ORG_A, { items: [{ label: 'Punto' }] });
+    expect(libre.items.map((p: any) => p.itemId)).toEqual([null]);
+  });
+
+  it('borrar el item de la plantilla deja el enlace en NULL sin tocar la corrida', async () => {
+    const { plantilla, items } = await plantillaConItems(TEST_ORG_A, 'Enlace que se corta', ['Uno']);
+    const { run } = await corridaDe(plantilla.id);
+
+    const borrado = await comoMiembro(TEST_ORG_A).delete(`/api/templates/${plantilla.id}/items/${items[0].id}`);
+    expect(borrado.status).toBe(200);
+
+    // El enlace paso a NULL (ON DELETE SET NULL), pero la corrida sigue teniendo
+    // su punto tal como estaba: el snapshot no depende del original.
+    const fila = tp.sqlite.prepare('SELECT item_id FROM run_items WHERE run_id = ?').get(run.id) as {
+      item_id: string | null;
+    };
+    expect(fila.item_id).toBeNull();
+    const ficha = await comoMiembro(TEST_ORG_A).get(`/api/runs/${run.id}/ficha`);
+    expect(ficha.body.items.map((p: any) => p.label)).toEqual(['Uno']);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────── las secciones
+
+describe('las secciones', () => {
+  it('crea la plantilla con sus secciones y numera de 1 a N dentro de cada una', async () => {
+    const creada = await plantillaConSecciones(TEST_ORG_A, 'Obra con grupos', [
+      { name: 'Seguridad', items: ['Arneses', 'Casco'] },
+      { name: 'Equipos', items: ['Extintor'] },
+    ]);
+
+    expect(creada.sections.map((s: any) => s.sortOrder)).toEqual([1, 2]);
+    // La posicion es DENTRO de la seccion: la segunda seccion empieza en 1.
+    expect(creada.items.map((i: any) => i.position)).toEqual([1, 2, 1]);
+    expect(creada.items.map((i: any) => i.sectionId)).toEqual([
+      creada.sections[0].id,
+      creada.sections[0].id,
+      creada.sections[1].id,
+    ]);
+  });
+
+  it('manda secciones o puntos sueltos, no los dos', async () => {
+    const res = await comoMiembro(TEST_ORG_A)
+      .post('/api/templates')
+      .send({
+        name: 'Conflicto',
+        sections: [{ name: 'A', items: [{ label: 'Uno' }] }],
+        items: [{ label: 'Otro' }],
+      });
+    expect(res.status).toBe(400);
+    expect(String(res.body.error)).toMatch(/no los dos/);
+  });
+
+  it('estructura devuelve las secciones con sus puntos dentro', async () => {
+    const creada = await plantillaConSecciones(TEST_ORG_A, 'Con estructura', [
+      { name: 'Seguridad', items: ['Casco', 'Arnes'] },
+      { name: 'Equipos', items: ['Extintor'] },
+    ]);
+
+    const res = await comoMiembro(TEST_ORG_A).get(`/api/templates/${creada.template.id}/estructura`);
+    expect(res.status).toBe(200);
+    expect(res.body.sections.map((s: any) => s.name)).toEqual(['Seguridad', 'Equipos']);
+    expect(res.body.sections.map((s: any) => s.items.map((i: any) => i.label))).toEqual([
+      ['Casco', 'Arnes'],
+      ['Extintor'],
+    ]);
+    expect(res.body.sections[0].items.map((i: any) => i.position)).toEqual([1, 2]);
+  });
+
+  it('agregar una seccion la pone al final, y renombrarla no la mueve', async () => {
+    const creada = await plantillaConSecciones(TEST_ORG_A, 'Con grupos', [
+      { name: 'Seguridad', items: ['Uno'] },
+    ]);
+
+    const agregada = await comoMiembro(TEST_ORG_A)
+      .post(`/api/templates/${creada.template.id}/sections`)
+      .send({ name: 'Extintores' });
+    expect(agregada.status).toBe(201);
+    expect(agregada.body.sortOrder).toBe(2);
+
+    const renombrada = await comoMiembro(TEST_ORG_A)
+      .patch(`/api/templates/${creada.template.id}/sections/${creada.sections[0].id}`)
+      .send({ name: 'Proteccion personal' });
+    expect(renombrada.status).toBe(200);
+    expect(renombrada.body.name).toBe('Proteccion personal');
+    expect(renombrada.body.sortOrder).toBe(1);
+  });
+
+  it('reordenar secciones renumera a 1..N, y exige listarlas todas', async () => {
+    const creada = await plantillaConSecciones(TEST_ORG_A, 'Orden', [
+      { name: 'A', items: ['uno'] },
+      { name: 'B', items: ['dos'] },
+      { name: 'C', items: ['tres'] },
+    ]);
+    const [a, b, c] = creada.sections.map((s: any) => s.id);
+
+    const reordenada = await comoMiembro(TEST_ORG_A)
+      .post(`/api/templates/${creada.template.id}/sections/ordenar`)
+      .send({ order: [c, a, b] });
+    expect(reordenada.status).toBe(200);
+    expect(reordenada.body.sections.map((s: any) => s.sortOrder)).toEqual([1, 2, 3]);
+    expect(reordenada.body.sections.map((s: any) => s.id)).toEqual([c, a, b]);
+
+    // Listar de menos, repetir o inventar una seccion se rechaza: no se puede
+    // "reordenar" sin decir donde queda cada bloque.
+    expect(
+      (await comoMiembro(TEST_ORG_A).post(`/api/templates/${creada.template.id}/sections/ordenar`).send({ order: [a, b] }))
+        .status,
+    ).toBe(400);
+    expect(
+      (
+        await comoMiembro(TEST_ORG_A)
+          .post(`/api/templates/${creada.template.id}/sections/ordenar`)
+          .send({ order: [a, c, 'sec_inventada'] })
+      ).status,
+    ).toBe(400);
+  });
+
+  it('borrar una seccion se lleva sus puntos y renumera lo que queda', async () => {
+    const creada = await plantillaConSecciones(TEST_ORG_A, 'Borrar bloque', [
+      { name: 'A', items: ['a1', 'a2'] },
+      { name: 'B', items: ['b1'] },
+      { name: 'C', items: ['c1'] },
+    ]);
+    const seccionB = creada.sections[1].id;
+
+    const borrado = await comoMiembro(TEST_ORG_A).delete(
+      `/api/templates/${creada.template.id}/sections/${seccionB}`,
+    );
+    expect(borrado.status).toBe(200);
+    expect(borrado.body.sections.map((s: any) => s.sortOrder)).toEqual([1, 2]);
+    expect(borrado.body.sections.map((s: any) => s.name)).toEqual(['A', 'C']);
+
+    const puntosDeB = tp.sqlite.prepare('SELECT count(*) c FROM template_items WHERE section_id = ?').get(seccionB) as {
+      c: number;
+    };
+    expect(puntosDeB.c).toBe(0);
+    const orden = tp.sqlite
+      .prepare('SELECT sort_order FROM sections WHERE template_id = ? ORDER BY sort_order')
+      .all(creada.template.id) as Array<{ sort_order: number }>;
+    expect(orden.map((s) => s.sort_order)).toEqual([1, 2]);
+  });
+
+  it('agregar un punto con sectionId lo pone en esa seccion; sin el, en la primera', async () => {
+    const creada = await plantillaConSecciones(TEST_ORG_A, 'Suma a una seccion', [
+      { name: 'A', items: ['uno'] },
+      { name: 'B', items: [] },
+    ]);
+
+    const aB = await comoMiembro(TEST_ORG_A)
+      .post(`/api/templates/${creada.template.id}/items`)
+      .send({ label: 'punto de B', sectionId: creada.sections[1].id });
+    expect(aB.status).toBe(201);
+    expect(aB.body.position).toBe(1);
+    expect(aB.body.sectionId).toBe(creada.sections[1].id);
+
+    const aA = await comoMiembro(TEST_ORG_A)
+      .post(`/api/templates/${creada.template.id}/items`)
+      .send({ label: 'cualquiera' });
+    expect(aA.status).toBe(201);
+    expect(aA.body.sectionId).toBe(creada.sections[0].id);
+  });
+
+  it('las secciones de otra empresa no se ven ni se tocan desde aca', async () => {
+    const a = await plantillaConSecciones(TEST_ORG_A, 'De A con grupos', [{ name: 'Seguridad', items: ['Casco'] }]);
+    const plantillaA = a.template.id;
+    const seccionA = a.sections[0].id;
+
+    expect((await comoMiembro(TEST_ORG_B).get(`/api/templates/${plantillaA}/estructura`)).status).toBe(404);
+    expect(
+      (
+        await comoMiembro(TEST_ORG_B).post(`/api/templates/${plantillaA}/items`).send({ label: 'Intruso', sectionId: seccionA })
+      ).status,
+    ).toBe(404);
+    expect(
+      (
+        await comoMiembro(TEST_ORG_B).post(`/api/templates/${plantillaA}/sections/ordenar`).send({ order: [seccionA] })
+      ).status,
+    ).toBe(404);
+    expect((await comoMiembro(TEST_ORG_B).delete(`/api/templates/${plantillaA}/sections/${seccionA}`)).status).toBe(404);
+    expect(
+      (await comoMiembro(TEST_ORG_B).post(`/api/templates/${plantillaA}/sections`).send({ name: 'Intrusa' })).status,
+    ).toBe(404);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────── los tipos
+
+describe('los tipos de punto', () => {
+  it('un select sin opciones se rechaza, y un PATCH a select sin opciones tambien', async () => {
+    const mal = await comoMiembro(TEST_ORG_A)
+      .post('/api/templates')
+      .send({ name: 'Select roto', items: [{ label: 'Elige', type: 'select' }] });
+    expect(mal.status).toBe(400);
+    expect(String(mal.body.error)).toMatch(/opcion/);
+
+    const { plantilla, items } = await plantillaConItems(TEST_ORG_A, 'Select a corregir', ['Uno']);
+    const parche = await comoMiembro(TEST_ORG_A)
+      .patch(`/api/templates/${plantilla.id}/items/${items[0].id}`)
+      .send({ type: 'select' });
+    expect(parche.status).toBe(400);
+
+    // Y vaciarlas a proposito en un select existente tambien es 400.
+    const conOpciones = await comoMiembro(TEST_ORG_A)
+      .post('/api/templates')
+      .send({ name: 'Select con opciones', items: [{ label: 'Zona', type: 'select', options: ['A', 'B'] }] });
+    const id = conOpciones.body.items[0].id;
+    expect(
+      (
+        await comoMiembro(TEST_ORG_A)
+          .patch(`/api/templates/${conOpciones.body.template.id}/items/${id}`)
+          .send({ options: [] })
+      ).status,
+    ).toBe(400);
+  });
+
+  it('cada tipo se responde segun su forma, y el select valida contra el snapshot', async () => {
+    const creada = await comoMiembro(TEST_ORG_A)
+      .post('/api/templates')
+      .send({
+        name: 'Tipada',
+        sections: [
+          {
+            name: 'General',
+            items: [
+              { label: 'Seguro (si/no)', type: 'yes_no' },
+              { label: 'Observacion', type: 'text' },
+              { label: 'Temperatura', type: 'number' },
+              { label: 'Zona', type: 'select', options: ['A', 'B', 'C'] },
+            ],
+          },
+        ],
+      });
+    expect(creada.status).toBe(201);
+    const { run } = await corridaDe(creada.body.template.id);
+    const puntos = (id: number) => `/api/runs/${run.id}/items/${id}`;
+
+    expect((await comoMiembro(TEST_ORG_A).post(puntos(1)).send({ result: 'ok' })).status).toBe(200);
+    // El texto es una respuesta: en los no-sí/no se responde con `value_text`.
+    expect((await comoMiembro(TEST_ORG_A).post(puntos(2)).send({ valueText: 'El cable pelado' })).status).toBe(200);
+    expect((await comoMiembro(TEST_ORG_A).post(puntos(3)).send({ valueText: '22.5' })).status).toBe(200);
+    expect((await comoMiembro(TEST_ORG_A).post(puntos(4)).send({ valueText: 'A' })).status).toBe(200);
+    // Una opcion que no estaba en el snapshot es 400, aunque la plantilla hoy
+    // tuviera otras: la corrida elige de la lista de ese dia.
+    expect((await comoMiembro(TEST_ORG_A).post(puntos(4)).send({ valueText: 'Z' })).status).toBe(400);
+
+    const ficha = await comoMiembro(TEST_ORG_A).get(`/api/runs/${run.id}/ficha`);
+    expect(ficha.body.items.map((p: any) => p.valueText)).toEqual([null, 'El cable pelado', '22.5', 'A']);
+    expect(ficha.body.items.map((p: any) => p.result)).toEqual(['ok', null, null, null]);
+  });
+
+  it('responder mal el tipo es 400', async () => {
+    const creada = await comoMiembro(TEST_ORG_A)
+      .post('/api/templates')
+      .send({ name: 'Mal respondida', items: [{ label: 'Texto', type: 'text' }] });
+    const { run } = await corridaDe(creada.body.template.id);
+
+    // Un `text` no se responde con `result`: necesita su `value_text`.
+    expect((await comoMiembro(TEST_ORG_A).post(`/api/runs/${run.id}/items/1`).send({ result: 'ok' })).status).toBe(400);
+
+    const numerica = await comoMiembro(TEST_ORG_A)
+      .post('/api/templates')
+      .send({ name: 'Numerica', items: [{ label: 'Cantidad', type: 'number' }] });
+    const { run: runN } = await corridaDe(numerica.body.template.id);
+    expect(
+      (await comoMiembro(TEST_ORG_A).post(`/api/runs/${runN.id}/items/1`).send({ valueText: 'veintidos' })).status,
+    ).toBe(400);
+  });
+
+  it('un texto obligatorio sin responder no deja completar', async () => {
+    const creada = await comoMiembro(TEST_ORG_A)
+      .post('/api/templates')
+      .send({ name: 'Texto obligatorio', items: [{ label: 'Escribe la falla', type: 'text' }] });
+    const { run } = await corridaDe(creada.body.template.id);
+
+    const intento = await comoMiembro(TEST_ORG_A).post(`/api/runs/${run.id}/completar`);
+    expect(intento.status).toBe(400);
+    expect(String(intento.body.error)).toMatch(/Escribe la falla/);
+
+    // Respondido, cierra normal.
+    await comoMiembro(TEST_ORG_A).post(`/api/runs/${run.id}/items/1`).send({ valueText: 'ok, quedaba bien' });
+    expect((await comoMiembro(TEST_ORG_A).post(`/api/runs/${run.id}/completar`)).status).toBe(200);
+  });
+});
+
+// ─────────────────────────────────────────────────────────── el veredicto global
+
+describe('el veredicto global', () => {
+  it('al completar se deriva lo minimo si no se manda: observado si fallo algo', async () => {
+    const { plantilla } = await plantillaConItems(TEST_ORG_A, 'Deriva', ['Uno', 'Dos']);
+
+    const conFalla = await corridaDe(plantilla.id);
+    await responder(conFalla.run.id, 1, 'ok');
+    await responder(conFalla.run.id, 2, 'fail');
+    expect((await comoMiembro(TEST_ORG_A).post(`/api/runs/${conFalla.run.id}/completar`)).body.run.result).toBe('observed');
+
+    const sinFalla = await corridaDe(plantilla.id);
+    await responder(sinFalla.run.id, 1, 'ok');
+    await responder(sinFalla.run.id, 2, 'ok');
+    expect((await comoMiembro(TEST_ORG_A).post(`/api/runs/${sinFalla.run.id}/completar`)).body.run.result).toBe('approved');
+  });
+
+  it('un veredicto explicito manda, incluido el rechazo', async () => {
+    const { plantilla } = await plantillaConItems(TEST_ORG_A, 'Explicito', ['Uno', 'Dos']);
+    const { run } = await corridaDe(plantilla.id);
+    await responder(run.id, 1, 'ok');
+    await responder(run.id, 2, 'ok');
+
+    // rechazar no es algo que la API adivine: es un juicio y se escribe.
+    const cerrada = await comoMiembro(TEST_ORG_A).post(`/api/runs/${run.id}/completar`).send({ result: 'rejected' });
+    expect(cerrada.status).toBe(200);
+    expect(cerrada.body.run.result).toBe('rejected');
+  });
+
+  it('el PATCH puede fijar o limpiar el veredicto, y completar por PATCH lo deriva', async () => {
+    const { plantilla } = await plantillaConItems(TEST_ORG_A, 'Veredicto movible', ['Uno', 'Dos']);
+
+    const fijada = await corridaDe(plantilla.id);
+    await responder(fijada.run.id, 1, 'ok');
+    await responder(fijada.run.id, 2, 'ok');
+    await comoMiembro(TEST_ORG_A).patch(`/api/runs/${fijada.run.id}`).send({ result: 'approved' });
+    const cerradaFija = await comoMiembro(TEST_ORG_A).post(`/api/runs/${fijada.run.id}/completar`);
+    expect(cerradaFija.body.run.result).toBe('approved');
+
+    const derivada = await corridaDe(plantilla.id);
+    await responder(derivada.run.id, 1, 'fail');
+    await responder(derivada.run.id, 2, 'ok');
+    const porPatch = await comoMiembro(TEST_ORG_A).patch(`/api/runs/${derivada.run.id}`).send({ status: 'done' });
+    expect(porPatch.body.result).toBe('observed');
+    expect(porPatch.body.status).toBe('done');
+  });
+
+  it('reabrir quita el veredicto y desella completed_at', async () => {
+    const { plantilla } = await plantillaConItems(TEST_ORG_A, 'Reabre', ['Uno']);
+    const { run } = await corridaDe(plantilla.id);
+    await responder(run.id, 1, 'ok');
+    await comoMiembro(TEST_ORG_A).post(`/api/runs/${run.id}/completar`);
+
+    const reabierta = await comoMiembro(TEST_ORG_A).patch(`/api/runs/${run.id}`).send({ status: 'in_progress' });
+    expect(reabierta.body.status).toBe('in_progress');
+    expect(reabierta.body.result).toBeNull();
+    expect(reabierta.body.completedAt).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────── el responsable
+
+describe('el responsable', () => {
+  it('performed_by es la foto del nombre de la sesion que empieza la corrida', async () => {
+    const { run } = await nuevaCorrida(TEST_ORG_A, { items: [{ label: 'Punto' }] });
+    expect(run.performedBy).toBe('Persona de Prueba');
+
+    const porMaria = await tp.as({ orgId: TEST_ORG_A, name: 'Maria Perez' }).post('/api/runs').send({
+      items: [{ label: 'Otro punto' }],
+    });
+    expect(porMaria.body.run.performedBy).toBe('Maria Perez');
+
+    // Y una corrida desde plantilla tambien lleva el nombre de quien la empezo.
+    const { plantilla } = await plantillaConItems(TEST_ORG_A, 'Con responsable', ['Uno']);
+    const conPlantilla = await (tp.as({ orgId: TEST_ORG_A, name: 'Otro' }) as any).post('/api/runs').send({
+      templateId: plantilla.id,
+    });
+    expect(conPlantilla.body.run.performedBy).toBe('Otro');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────── los adjuntos
+
+describe('los adjuntos', () => {
+  it('sube, sirve y borra un archivo de la corrida', async () => {
+    const { plantilla } = await plantillaConItems(TEST_ORG_A, 'Con adjuntos', ['Uno']);
+    const { run } = await corridaDe(plantilla.id);
+
+    const contenido = 'acta de la inspeccion';
+    const subida = await comoMiembro(TEST_ORG_A)
+      .post(`/api/runs/${run.id}/attachments`)
+      .send({ filename: 'acta.txt', mimeType: 'text/plain', data: Buffer.from(contenido).toString('base64') });
+    expect(subida.status, JSON.stringify(subida.body)).toBe(201);
+    expect(subida.body.attachment.id).toBeTruthy();
+    expect(subida.body.attachment.sizeBytes).toBe(contenido.length);
+    expect(subida.body.url).toContain(subida.body.attachment.id);
+
+    // La ficha la lista con su enlace, para no buscarla a mano.
+    const ficha = await comoMiembro(TEST_ORG_A).get(`/api/runs/${run.id}/ficha`);
+    expect(ficha.body.attachments).toHaveLength(1);
+    expect(ficha.body.attachments[0].filename).toBe('acta.txt');
+
+    const descarga = await comoMiembro(TEST_ORG_A).get(subida.body.url);
+    expect(descarga.status).toBe(200);
+    expect(descarga.headers['content-type']).toContain('text/plain');
+    expect(descarga.text).toBe(contenido);
+
+    const borrado = await comoMiembro(TEST_ORG_A).delete(
+      `/api/runs/${run.id}/attachments/${subida.body.attachment.id}`,
+    );
+    expect(borrado.status).toBe(200);
+    expect((await comoMiembro(TEST_ORG_A).get(subida.body.url)).status).toBe(404);
+    expect((await comoMiembro(TEST_ORG_A).get(`/api/runs/${run.id}/ficha`)).body.attachments).toHaveLength(0);
+  });
+
+  it('un archivo de mas de 750 KB es 413', async () => {
+    const { plantilla } = await plantillaConItems(TEST_ORG_A, 'Adjunto pesado', ['Uno']);
+    const { run } = await corridaDe(plantilla.id);
+
+    const data = Buffer.alloc(750_100).toString('base64');
+    const res = await comoMiembro(TEST_ORG_A)
+      .post(`/api/runs/${run.id}/attachments`)
+      .send({ filename: 'pesado.bin', mimeType: 'application/octet-stream', data });
+    expect(res.status).toBe(413);
+    expect(String(res.body.error)).toMatch(/750/);
+
+    // Y el intento no dejo nada en la base.
+    const filas = tp.sqlite
+      .prepare('SELECT count(*) c FROM attachments WHERE run_id = ?')
+      .get(run.id) as { c: number };
+    expect(filas.c).toBe(0);
+  });
+
+  it('los adjuntos de una empresa no se sirven desde otra', async () => {
+    const { plantilla } = await plantillaConItems(TEST_ORG_A, 'Adjunto de A', ['Uno']);
+    const { run } = await corridaDe(plantilla.id);
+    const subida = await comoMiembro(TEST_ORG_A)
+      .post(`/api/runs/${run.id}/attachments`)
+      .send({ filename: 'solo-de-a.txt', data: Buffer.from('secreto de A').toString('base64') });
+
+    expect((await comoMiembro(TEST_ORG_B).get(subida.body.url)).status).toBe(404);
+    expect(
+      (await comoMiembro(TEST_ORG_B).delete(`/api/runs/${run.id}/attachments/${subida.body.attachment.id}`)).status,
+    ).toBe(404);
+  });
+
+  it('borrar la corrida se lleva sus filas de adjuntos', async () => {
+    const { plantilla } = await plantillaConItems(TEST_ORG_A, 'Adjuntos que se van', ['Uno']);
+    const { run } = await corridaDe(plantilla.id);
+    await comoMiembro(TEST_ORG_A)
+      .post(`/api/runs/${run.id}/attachments`)
+      .send({ filename: 'paper.png', data: Buffer.from('img').toString('base64') });
+
+    expect((await comoAdmin(TEST_ORG_A).delete(`/api/runs/${run.id}`)).status).toBe(200);
+    const filas = tp.sqlite
+      .prepare('SELECT count(*) c FROM attachments WHERE run_id = ?')
+      .get(run.id) as { c: number };
+    expect(filas.c).toBe(0);
   });
 });
 

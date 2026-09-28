@@ -3,21 +3,12 @@ import { fileURLToPath } from 'node:url';
 import type { ProductDefinition } from '@amg/product-runtime';
 import { DDL } from './ddl.js';
 import { buildRoutes } from './routes.js';
-import {
-  customers,
-  legacyTenantMap,
-  orderParts,
-  orderServices,
-  orders,
-  services,
-  settings,
-  technicians,
-} from './schema.js';
+import { attachments, comments, requests, settings, statusHistory } from './schema.js';
 
 const aqui = fileURLToPath(new URL('.', import.meta.url));
 
 /**
- * Solicitudes y ordenes sobre el runtime.
+ * Solicitudes (helpdesk) sobre el runtime.
  *
  * Lo unico que declara este producto son sus tablas. La identidad, las
  * organizaciones y las suscripciones no se declaran aca: vienen del Core.
@@ -29,16 +20,13 @@ const aqui = fileURLToPath(new URL('.', import.meta.url));
  */
 export const definicion: ProductDefinition = {
   slug: 'solicitudes',
-  name: 'Solicitudes y Ordenes',
+  name: 'Solicitudes',
   schema: {
-    customers,
-    services,
-    technicians,
-    orders,
-    orderServices,
-    orderParts,
+    requests,
+    comments,
+    attachments,
+    statusHistory,
     settings,
-    legacyTenantMap,
   },
   ddl: DDL,
   routes: buildRoutes,

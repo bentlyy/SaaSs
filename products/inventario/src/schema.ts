@@ -58,35 +58,6 @@ export const movements = sqliteTable('movements', {
   createdAt: text('created_at').notNull(),
 });
 
-/**
- * De qué organización del Core vino cada `tenant_id` del legacy.
- *
- * Sin esta tabla, volver a correr la migración crearía organizaciones nuevas
- * duplicadas y las dos copias de los datos quedarían en organizaciones
- * distintas. Con ella, la migración es re-ejecutable y auditable: se puede
- * responder "de dónde salió esta organización" sin mirar los logs.
- */
-export const legacyTenantMap = sqliteTable('legacy_tenant_map', {
-  legacyTenantId: text('legacy_tenant_id').primaryKey(),
-  legacySlug: text('legacy_slug'),
-  legacyName: text('legacy_name'),
-  organizationId: text('organization_id').notNull(),
-  migratedAt: text('migrated_at').notNull(),
-});
-
-/**
- * Preferencias del inventario de UNA organización.
- *
- * Son de este producto, no del Core: la razón social, el RUT y los contactos
- * viven en la organización del Core y se editan allá. Acá va lo que solo tiene
- * sentido para inventario —la unidad con la que se carga por defecto, el stock
- * mínimo propuesto, el símbolo de moneda— y por eso es una tabla y no un
- * `settings` compartido: si mañana cotizaciones quiere una moneda distinta, la
- * guarda en su propia base sin discutir con esta.
- *
- * Una fila por organización, garantizado por el índice único. Si no hay fila, se
- * usan los defaults de `defaultSettings()`: leer la configuración no escribe.
- */
 export const settings = sqliteTable('settings', {
   id: text('id').primaryKey(),
   organizationId: text('organization_id').notNull(),

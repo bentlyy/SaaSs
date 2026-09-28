@@ -86,18 +86,4 @@ CREATE TABLE IF NOT EXISTS settings (
 -- Una fila por organizacion: el indice unico es lo que evita que dos personas
 -- guardando la configuracion a la vez dejen dos filas compitiendo.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_cotizaciones_settings_org ON settings(organization_id);
-
-CREATE TABLE IF NOT EXISTS legacy_tenant_map (
-  legacy_tenant_id TEXT PRIMARY KEY,
-  legacy_slug TEXT NOT NULL,
-  legacy_name TEXT NOT NULL,
-  organization_id TEXT NOT NULL,
-  migrated_at TEXT NOT NULL
-);
-
--- El mapa tambien se consulta por organizacion: es como se responde "de que
--- organizacion es esta base" y "a que slug de organization_mappings va". NO es
--- unico: una organizacion puede absorber mas de un tenants.id legacy, que es
--- justo el caso que este mapa existe para resolver.
-CREATE INDEX IF NOT EXISTS idx_cotizaciones_map_org ON legacy_tenant_map(organization_id);
 `;

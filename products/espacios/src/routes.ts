@@ -8,10 +8,11 @@ import {
   crudRouter,
   nowIso,
   orgId,
+  requireRole,
   type ProductContext,
   type ProductDb,
 } from '@amg/product-runtime';
-import { addons, bookingAddons, bookings, customers, settings, spaces } from './schema.js';
+import { addons, availability, bookingAddons, bookings, blocks, customers, settings, spaces } from './schema.js';
 
 /**
  * API de espacios.
@@ -209,56 +210,318 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       const fila = espacioDe(org, espacio);
 
       const base = new Date(dia);
-      const desde = new Date(base);
-      desde.setUTCHours(Math.floor(pref.openingMinutes / 60), pref.openingMinutes % 60, 0, 0);
-      const hasta = new Date(base);
-      hasta.setUTCHours(Math.floor(pref.closingMinutes / 60), pref.closingMinutes % 60, 0, 0);
-      if (pref.closingMinutes <= pref.openingMinutes) {
+      // El horario del espacio se define por DÍA DE LA SEMANA (0 = domingo, como
+      // `Date.getUTCDay`). Si el espacio no tiene filas para ese día, cae a la
+      // jornada general de la organización: un espacio sin agenda propia no puede
+      // desaparecer de la disponibilidad.
+      const weekday = base.getUTCDay();
+      const delDia = db
+        .select()
+        .from(availability)
+        .where(
+          and(
+            eq(availability.organizationId, org),
+            eq(availability.spaceId, espacio),
+            eq(availability.weekday, weekday),
+            eq(availability.active, true),
+          ),
+        )
+        .orderBy(asc(availability.startTime))
+        .all();
+      const jornadas =
+        delDia.length > 0
+          ? delDia.map((a) => ({ desde: a.startTime, hasta: a.endTime }))
+          : [{ desde: pref.openingMinutes, hasta: pref.closingMinutes }];
+      if (pref.closingMinutes <= pref.openingMinutes && delDia.length === 0) {
         throw new AppError(400, 'La jornada de la organización termina antes de empezar');
       }
 
-      const ocupadas = db
-        .select({ startAt: bookings.startAt, endAt: bookings.endAt })
-        .from(bookings)
-        .where(
-          and(
-            eq(bookings.organizationId, org),
-            eq(bookings.spaceId, espacio),
-            OCUPAN,
-            sql`${bookings.startAt} < ${hasta.toISOString()}`,
-            sql`${bookings.endAt} > ${desde.toISOString()}`,
-          ),
-        )
-        .all();
+      const desde = new Date(base);
+      desde.setUTCHours(Math.floor(jornadas[0]!.desde / 60), jornadas[0]!.desde % 60, 0, 0);
+      const hasta = new Date(base);
+      hasta.setUTCHours(Math.floor(jornadas[jornadas.length - 1]!.hasta / 60), jornadas[jornadas.length - 1]!.hasta % 60, 0, 0);
 
-      // Una franja está libre si no hay NINGUNA reserva que la toque. Se comparan
-      // los instantes y no las cadenas: los horarios se guardan en ISO UTC y
-      // compararlos como texto ordena "9:00" después de "10:00", que es justo el
-      // tipo de error que aparece un sábado por la mañana.
+      const [ocupadas, bloqueos] = await Promise.all([
+        db
+          .select({ startAt: bookings.startAt, endAt: bookings.endAt })
+          .from(bookings)
+          .where(
+            and(
+              eq(bookings.organizationId, org),
+              eq(bookings.spaceId, espacio),
+              OCUPAN,
+              sql`${bookings.startAt} < ${hasta.toISOString()}`,
+              sql`${bookings.endAt} > ${desde.toISOString()}`,
+            ),
+          )
+          .all(),
+        db
+          .select({ startAt: blocks.startAt, endAt: blocks.endAt })
+          .from(blocks)
+          .where(
+            and(
+              eq(blocks.organizationId, org),
+              eq(blocks.spaceId, espacio),
+              sql`${blocks.startAt} < ${hasta.toISOString()}`,
+              sql`${blocks.endAt} > ${desde.toISOString()}`,
+            ),
+          )
+          .all(),
+      ]);
+
+      // Una franja está libre si no la toca NINGUNA reserva NI ningún bloqueo.
+      // Se comparan los instantes y no las cadenas: los horarios se guardan en
+      // ISO UTC y compararlos como texto ordena "9:00" después de "10:00".
       const libre = (inicioMs: number, finMs: number) =>
-        ocupadas.every((o) => Date.parse(o.startAt) >= finMs || Date.parse(o.endAt) <= inicioMs);
+        ocupadas.every((o) => Date.parse(o.startAt) >= finMs || Date.parse(o.endAt) <= inicioMs) &&
+        bloqueos.every((b) => Date.parse(b.startAt) >= finMs || Date.parse(b.endAt) <= inicioMs);
 
       // La anticipación mínima se aplica acá y no en el insert: mostrar una
       // franja que después va a rechazar es peor que no mostrarla.
       const minimo = Date.now() + pref.minAdvanceMinutes * 60_000;
 
       const libres: Array<{ startAt: string; endAt: string; totalCents: number }> = [];
-      for (
-        let t = desde.getTime();
-        t + salto * 60_000 <= hasta.getTime();
-        t += salto * 60_000
-      ) {
-        const f = t + salto * 60_000;
-        if (t < minimo) continue;
-        if (!libre(t, f)) continue;
-        libres.push({
-          startAt: new Date(t).toISOString(),
-          endAt: new Date(f).toISOString(),
-          totalCents: Math.round(fila.pricePerHourCents * (salto / 60)),
-        });
+      for (const jornada of jornadas) {
+        const desdeJ = new Date(base);
+        desdeJ.setUTCHours(Math.floor(jornada.desde / 60), jornada.desde % 60, 0, 0);
+        const hastaJ = new Date(base);
+        hastaJ.setUTCHours(Math.floor(jornada.hasta / 60), jornada.hasta % 60, 0, 0);
+
+        for (let t = desdeJ.getTime(); t + salto * 60_000 <= hastaJ.getTime(); t += salto * 60_000) {
+          const f = t + salto * 60_000;
+          if (t < minimo) continue;
+          if (!libre(t, f)) continue;
+          libres.push({
+            startAt: new Date(t).toISOString(),
+            endAt: new Date(f).toISOString(),
+            totalCents: Math.round(fila.pricePerHourCents * (salto / 60)),
+          });
+        }
       }
 
       res.json({ space: fila, date: base.toISOString(), slotMinutes: salto, slots: libres });
+    }),
+  );
+
+  // ───────────────────────────────────────────── horarios y bloqueos
+
+  /**
+   * Horario semanal de un espacio.
+   *
+   * La jornada por espacio va en minutos desde medianoche, como la general de la
+   * organización, y el `weekday` es el de `Date.getUTCDay` (0 = domingo). Un
+   * horario no se pisa con otro del MISMO espacio y día: dos rangos que se
+   * solapan son dos reglas que se contradicen y una de las dos no se cumple.
+   */
+  const horarioSchema = z
+    .object({
+      spaceId: id,
+      weekday: z.coerce.number().int().min(0).max(6),
+      startTime: z.coerce.number().int().min(0).max(1439),
+      endTime: z.coerce.number().int().min(1).max(1440),
+      active: booleano.default(true),
+    })
+    .refine((v) => v.endTime > v.startTime, {
+      message: 'El horario tiene que terminar después de empezar',
+      path: ['endTime'],
+    });
+
+  function horariosQueSePisan(
+    org: string,
+    spaceId: string,
+    weekday: number,
+    startTime: number,
+    endTime: number,
+    excluirId?: string,
+  ) {
+    const cond = [
+      eq(availability.organizationId, org),
+      eq(availability.spaceId, spaceId),
+      eq(availability.weekday, weekday),
+      sql`${availability.startTime} < ${endTime}`,
+      sql`${availability.endTime} > ${startTime}`,
+    ];
+    if (excluirId) cond.push(ne(availability.id, excluirId));
+    return db.select({ id: availability.id }).from(availability).where(and(...cond)).all();
+  }
+
+  router.get(
+    '/api/schedules',
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const cond = [eq(availability.organizationId, org)];
+      if (typeof req.query.spaceId === 'string' && req.query.spaceId) {
+        cond.push(eq(availability.spaceId, req.query.spaceId));
+      }
+      const items = db
+        .select()
+        .from(availability)
+        .where(and(...cond))
+        .orderBy(asc(availability.weekday), asc(availability.startTime))
+        .all();
+      res.json({ items });
+    }),
+  );
+
+  router.post(
+    '/api/schedules',
+    requireRole('member'),
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const cuerpo = horarioSchema.parse(req.body);
+      espacioDe(org, cuerpo.spaceId);
+      if (horariosQueSePisan(org, cuerpo.spaceId, cuerpo.weekday, cuerpo.startTime, cuerpo.endTime).length > 0) {
+        throw new AppError(409, `Ese espacio ya tiene un horario que se pisa ese día`);
+      }
+
+      const ahora = nowIso();
+      const creado = db
+        .insert(availability)
+        .values({
+          id: createId('esphor'),
+          organizationId: org,
+          spaceId: cuerpo.spaceId,
+          weekday: cuerpo.weekday,
+          startTime: cuerpo.startTime,
+          endTime: cuerpo.endTime,
+          active: cuerpo.active,
+          createdAt: ahora,
+        })
+        .returning()
+        .get();
+      res.status(201).json(creado);
+    }),
+  );
+
+  router.patch(
+    '/api/schedules/:id',
+    requireRole('member'),
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const idHorario = id.parse(req.params.id);
+      const existente = db
+        .select()
+        .from(availability)
+        .where(and(eq(availability.id, idHorario), eq(availability.organizationId, org)))
+        .get();
+      if (!existente) throw new AppError(404, 'Ese horario no existe');
+      // El PATCH parte del horario que ya existe: el cliente puede cambiar solo
+      // lo que quiere sin tener que repetir el resto. Y si cambia el día o las
+      // horas, el choque se vuelve a validar contra los demás.
+      const cuerpo = horarioSchema.parse({
+        spaceId: existente.spaceId,
+        weekday: existente.weekday,
+        startTime: existente.startTime,
+        endTime: existente.endTime,
+        active: existente.active,
+        ...req.body,
+      });
+      espacioDe(org, cuerpo.spaceId);
+      if (
+        horariosQueSePisan(org, cuerpo.spaceId, cuerpo.weekday, cuerpo.startTime, cuerpo.endTime, idHorario).length > 0
+      ) {
+        throw new AppError(409, `Ese espacio ya tiene un horario que se pisa ese día`);
+      }
+
+      const actualizado = db
+        .update(availability)
+        .set({ ...cuerpo, updatedAt: nowIso() })
+        .where(eq(availability.id, idHorario))
+        .returning()
+        .get();
+      res.json(actualizado);
+    }),
+  );
+
+  router.delete(
+    '/api/schedules/:id',
+    requireRole('member'),
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const idHorario = id.parse(req.params.id);
+      const borrado = db
+        .delete(availability)
+        .where(and(eq(availability.id, idHorario), eq(availability.organizationId, org)))
+        .returning()
+        .get();
+      if (!borrado) throw new AppError(404, 'Ese horario no existe');
+      res.json({ ok: true, deleted: true });
+    }),
+  );
+
+  /**
+   * Bloqueo puntual de un espacio: un rato concreto (fecha y hora) en el que no
+   * se puede reservar. A diferencia de `availability`, que se repite a la
+   * semana, un bloqueo es UNA franja: "el 20 a las 16 no".
+   */
+  const bloqueoSchema = z
+    .object({
+      spaceId: id,
+      startAt: isoFecha,
+      endAt: isoFecha,
+      reason: z.string().trim().max(300).nullable().optional(),
+    })
+    .refine((v) => Date.parse(v.endAt) > Date.parse(v.startAt), {
+      message: 'El bloqueo tiene que terminar después de empezar',
+      path: ['endAt'],
+    });
+
+  router.get(
+    '/api/blocks',
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const cond = [eq(blocks.organizationId, org)];
+      if (typeof req.query.spaceId === 'string' && req.query.spaceId) {
+        cond.push(eq(blocks.spaceId, req.query.spaceId));
+      }
+      const items = db
+        .select()
+        .from(blocks)
+        .where(and(...cond))
+        .orderBy(asc(blocks.startAt))
+        .all();
+      res.json({ items });
+    }),
+  );
+
+  router.post(
+    '/api/blocks',
+    requireRole('member'),
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const cuerpo = bloqueoSchema.parse(req.body);
+      espacioDe(org, cuerpo.spaceId);
+
+      const creado = db
+        .insert(blocks)
+        .values({
+          id: createId('espblq'),
+          organizationId: org,
+          spaceId: cuerpo.spaceId,
+          startAt: cuerpo.startAt,
+          endAt: cuerpo.endAt,
+          reason: cuerpo.reason ?? null,
+          createdAt: nowIso(),
+        })
+        .returning()
+        .get();
+      res.status(201).json(creado);
+    }),
+  );
+
+  router.delete(
+    '/api/blocks/:id',
+    requireRole('member'),
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const idBloqueo = id.parse(req.params.id);
+      const borrado = db
+        .delete(blocks)
+        .where(and(eq(blocks.id, idBloqueo), eq(blocks.organizationId, org)))
+        .returning()
+        .get();
+      if (!borrado) throw new AppError(404, 'Ese bloqueo no existe');
+      res.json({ ok: true, deleted: true });
     }),
   );
 
@@ -467,6 +730,29 @@ export function buildRoutes(ctx: ProductContext): Router[] {
             .toISOString()
             .slice(11, 16)} a ${new Date(choque.endAt).toISOString().slice(11, 16)} ` +
             'UTC. Las reservas no se pueden pisar.',
+        );
+      }
+
+      // Un bloqueo deja la franja inutilizable aunque el calendario semanal diga
+      // lo contrario. Se comprueba en la misma transacción que el insert: si no,
+      // entre el chequeo y el insert entraría una reserva en el rato bloqueado.
+      const bloqueado = tx
+        .select({ id: blocks.id, startAt: blocks.startAt, endAt: blocks.endAt, reason: blocks.reason })
+        .from(blocks)
+        .where(
+          and(
+            eq(blocks.organizationId, org),
+            eq(blocks.spaceId, body.spaceId),
+            sql`${blocks.startAt} < ${body.endAt}`,
+            sql`${blocks.endAt} > ${body.startAt}`,
+          ),
+        )
+        .get();
+      if (bloqueado) {
+        throw new AppError(
+          409,
+          `${espacio.name} está bloqueado de ${bloqueado.startAt.slice(11, 16)} a ${bloqueado.endAt.slice(11, 16)} ` +
+            `UTC${bloqueado.reason ? ` (${bloqueado.reason})` : ''}. No se puede reservar ese rato.`,
         );
       }
 

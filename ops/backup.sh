@@ -22,7 +22,7 @@ RETENCION="${SAASMINI_RETENCION:-14}"
 # La imagen se deduce del contenedor que ya esta corriendo en vez de escribirla a
 # mano: si compose le cambia el tag, el backup sigue funcionando en vez de
 # fallar con un "no such image" a las 3 de la mañana.
-IMAGEN="${SAASMINI_IMAGEN:-$(docker inspect -f '{{.Config.Image}}' saasmini-crm 2>/dev/null || true)}"
+IMAGEN="${SAASMINI_IMAGEN:-$(docker inspect -f '{{.Config.Image}}' saasmini-landing 2>/dev/null || true)}"
 IMAGEN="${IMAGEN:-saas-mini:latest}"
 
 log()  { printf '%s  %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*"; }

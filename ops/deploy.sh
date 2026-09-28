@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
-# Despliegue de SaaS Mini: Core + nueve productos, con migracion de los legacy.
+# Despliegue de SaaS Mini: Core + nueve productos.
 #
 #   bash ~/projects/saas-mini/ops/deploy.sh
 #
 # Es idempotente: se puede volver a correr las veces que haga falta. Los pasos que
-# tocan datos (respaldar, crear organizacion, migrar) estan todos pensados para
-# que repetirlos no rompa nada ni duplique filas.
+# tocan datos (respaldar, crear organizacion) estan todos pensados para que
+# repetirlos no rompa nada ni duplique filas.
 #
 # Variables de entorno que lo controlan:
 #   AMG_SKIP_BUILD=1        no reconstruir la imagen (iteraciones rapidas)
-#   AMG_SKIP_MIGRATIONS=1   no correr los migradores
-#   AMG_SKIP_LEGACY_BACKUP=1  NO hacerlo: solo si ya respaldaste a mano
 #   AMG_ORG_SLUG            slug de la organizacion (por defecto el de abajo)
 #
 # ── EL ORDEN DE ESTE SCRIPT NO SE PUEDE REORDENAR ────────────────────────────
@@ -28,10 +26,8 @@
 #      secretos esten en el `.env`, queda con un placeholder y despues el login
 #      falla con un error de firma que no dice nada de un placeholder.
 #
-#   3. La organizacion se crea ANTES de migrar. Los migradores resuelven la
-#      empresa destino con el Core, y si no existe crean datos huerfanos: filas
-#      en los productos que no aparecen en ninguna cuenta y que despues hay que
-#      ir a buscar a mano.
+#   3. La organizacion se crea ANTES de arrancar los productos: sin la empresa y
+#      su suscripcion, un producto nuevo no tiene a quien servirle datos.
 set -euo pipefail
 
 RAIZ="${SAASMINI_RAIZ:-$HOME/projects/saas-mini}"
@@ -53,35 +49,14 @@ AMG_SCRIPT_INICIAL="$(sha256sum ops/deploy.sh)"
 # cubre este porque el `-p` de la linea de comando manda sobre el.
 PROYECTO=saas-mini
 DC="docker compose -p $PROYECTO"
-MIG="$DC -f ops/migrate.compose.yml"
 
 # ── La organizacion unica ───────────────────────────────────────────────────
-# Los siete tenants legacy son SIETE empresas demo distintas con datos que en
-# realidad son del mismo ejercicio. Sin esto, cada migrador resolveria su propia
-# organizacion y quedarian nueve empresas vacias y los datos repartidos entre
-# ellas, sin ningun usuario que las pueda ver. Ver la nota de `migrate.compose.yml`.
 ORG_SLUG="${AMG_ORG_SLUG:-talleres-el-mecanico}"
 ORG_NAME="${AMG_ORG_NAME:-Talleres El Mecanico}"
 ORG_EMAIL="${AMG_ORG_EMAIL:-demo@talleres.com}"
 ORG_ROL=owner
 
 PRODUCTOS=(espacios citas inventario solicitudes cotizaciones clientes activos checklists pagos)
-
-# Los ocho servicios de migracion, en orden. `citas` aparece tres veces porque su
-# CLI acepta UNA fuente por corrida. Todos escriben en la misma core.sqlite, asi
-# que nunca en paralelo.
-MIGRACIONES=(
-  migrar-espacios
-  migrar-solicitudes
-  migrar-inventario
-  migrar-citas-peluqueria
-  migrar-citas-crm
-  migrar-citas-recordatorios
-  migrar-clientes
-  migrar-cotizaciones
-)
-
-LEGACY=(peluqueria deportes talleres documentos crm recordatorios inventario)
 
 paso()  { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 info()  { printf '    %s\n' "$*"; }
@@ -94,21 +69,6 @@ paso "0. Preflight"
 command -v docker >/dev/null 2>&1 || fallar "no esta docker en el PATH"
 docker info >/dev/null 2>&1 || fallar "docker no responde. Esta corriendo el daemon?"
 [ -f "$RAIZ/docker-compose.yml" ] || fallar "no estoy en el repositorio ($RAIZ)"
-
-# Los volumenes legacy tienen que existir TODOS antes de tocar nada. Si alguno
-# no esta, es que se esta desplegando en el servidor equivocado, y seguir
-# significaria que los migradores no encuentran la fuente: o fallan, o peor,
-# crean el destino vacio y el deploy "termina bien" sin datos.
-faltan=()
-for p in "${LEGACY[@]}"; do
-  docker volume inspect "$PROYECTO"_saasmini_data_"$p" >/dev/null 2>&1 || faltan+=("$p")
-done
-if [ ${#faltan[@]} -gt 0 ]; then
-  fallar "faltan volumenes legacy: ${faltan[*]}
-    Esto NO es un servidor con los datos. No se sigue: se desplegaria el stack
-    nuevo y las migraciones no tendrian nada que leer."
-fi
-info "los ${#LEGACY[@]} volumenes legacy estan"
 
 # Espacio en disco: la imagen son varios GB y se reconstruye en cada deploy.
 libre_kb=$(df -Pk "$RAIZ" | awk 'NR==2{print $4}')
@@ -198,23 +158,12 @@ else
   $DC build
 fi
 
-# ── 4. Respaldo de los legacy, ANTES de nada ────────────────────────────────
-# Este es el paso que hace que todo lo demas sea reversible. Va antes de parar
-# un solo contenedor, y si falla, el script se para: es preferible no desplegar
-# a desplegar sin red.
-if [ "${AMG_SKIP_LEGACY_BACKUP:-0}" = "1" ]; then
-  aviso "AMG_SKIP_LEGACY_BACKUP=1: se desplega SIN respaldo de los legacy"
-else
-  paso "4. Respaldo de los volumenes legacy"
-  bash ops/backup-legacy.sh
-fi
-
-# ── 5. El Core, solo ────────────────────────────────────────────────────────
-paso "5. Arrancar el Core"
+# ── 4. El Core, solo ────────────────────────────────────────────────────────
+paso "4. Arrancar el Core"
 
 # `landing` se levanta aqui y no con el `up` general porque es el unico que
 # genera los secretos SSO de los demas. Los productos se paran todavia: arrancan
-# en el paso 8, cuando su `.env` ya tiene los secretos de verdad.
+# en el paso 7, cuando su `.env` ya tiene los secretos de verdad.
 $DC up -d landing
 
 # Espera activa en vez de un `sleep`: si el Core tarda 3 s no se pierden 60, y si
@@ -239,8 +188,8 @@ esperar_salud http://127.0.0.1:3108/health "el Core"
 $DC exec -T landing npm run seed -w @amg/platform
 info "catalogo listo"
 
-# ── 6. Los nueve secretos SSO de verdad ─────────────────────────────────────
-paso "6. Secretos SSO reales (desde el Core)"
+# ── 5. Los nueve secretos SSO de verdad ─────────────────────────────────────
+paso "5. Secretos SSO reales (desde el Core)"
 
 # El Core genera y PERSISTE el secreto de cada cliente en core.sqlite. Se leen de
 # ahi y se escriben en el `.env`, siempre sobrescribiendo lo anterior.
@@ -275,8 +224,8 @@ for p in "${PRODUCTOS[@]}"; do
 done
 info "los ${#PRODUCTOS[@]} secretos copiados del Core al .env"
 
-# ── 7. Empresa y usuario ────────────────────────────────────────────────────
-paso "7. Empresa, usuario y suscripciones"
+# ── 6. Empresa y usuario ────────────────────────────────────────────────────
+paso "6. Empresa, usuario y suscripciones"
 # Idempotente: si la empresa ya existe, la deja como esta y solo agrega lo que
 # falte. Nunca cambia la contrasena de un usuario que ya existe, porque el hash
 # esta en la base y reescribirlo dejaria al usuario con la clave anterior.
@@ -291,53 +240,11 @@ $DC exec -T \
   landing npm run bootstrap -- \
     --slug "$ORG_SLUG" --name "$ORG_NAME" --email "$ORG_EMAIL" --role "$ORG_ROL"
 
-# ── 8. Migraciones ──────────────────────────────────────────────────────────
-if [ "${AMG_SKIP_MIGRATIONS:-0}" = "1" ]; then
-  aviso "AMG_SKIP_MIGRATIONS=1: NO se migra nada"
-else
-  paso "8. Migrar los datos legacy (una por vez)"
-  # La organizacion destino. El `:?` de `migrate.compose.yml` aborta si no viene.
-  # Ojo con exportar el VALOR derivado y no la variable de control: exportar
-  # `AMG_ORG_SLUG` a secas pondria un valor vacio y el compose no lo distingue
-  # de un no definido ("missing a value").
-  export AMG_ORG_SLUG="$ORG_SLUG"
-  # Los migradores importan `config.ts` del Core, que en produccion exige estos
-  # dos secretos al cargar el modulo. El CLI no firma sesiones, pero el import
-  # no lo sabe: sin ellos muere con "Falta la variable de entorno ...". Estan en
-  # el .env, no en el shell, asi que se leen y se exportan aqui.
-  for v in AMG_SESSION_SECRET AMG_SSO_ROOT_SECRET; do
-    valor="$(grep -m1 "^${v}=" .env | cut -d= -f2- 2>/dev/null || true)"
-    [ -n "$valor" ] || fallar "falta ${v} en el .env"
-    export "$v=$valor"
-  done
-  fallos=0
-  for m in "${MIGRACIONES[@]}"; do
-    printf '    %-28s ' "$m"
-    if salida="$($MIG run --rm "$m" 2>&1)"; then
-      # El migrador imprime su informe; se deja la ultima linea no vacia, que
-      # es el resumen, y el detalle va al log si alguien lo pide con --verbose.
-      resumen="$(printf '%s\n' "$salida" | grep -E 'migrad|resumen|filas' | tail -1)"
-      info "${resumen:-ok}"
-      [ "${AMG_VERBOSE:-0}" = "1" ] && printf '%s\n' "$salida"
-    else
-      fallos=$((fallos + 1))
-      printf '\n'
-      aviso "FALLO $m"
-      printf '%s\n' "$salida" | tail -20
-    fi
-  done
-  if [ "$fallos" -gt 0 ]; then
-    fallar "$fallos migracion(es) fallaron. NO se levanta el stack nuevo.
-    Lo legacy sigue intacto y en su sitio. Revisa el log de arriba y repite
-    este script: son idempotentes."
-  fi
-fi
-
-# ── 9. El stack completo ────────────────────────────────────────────────────
-paso "9. Levantar los nueve productos"
+# ── 7. El stack completo ────────────────────────────────────────────────────
+paso "7. Levantar los nueve productos"
 $DC up -d
 
-paso "10. Salud de los nueve + el Core"
+paso "8. Salud de los nueve + el Core"
 # El puerto sale de `docker compose port`, no de leer el `docker-compose.yml` ni de
 # un array escrito a mano. Dos razones: hardcodear el mapa aqui es exactamente el
 # bug que el comentario del compose describe (el puerto del archivo y el del proxy
@@ -357,7 +264,7 @@ for p in "${PRODUCTOS[@]}"; do
 done
 esperar_salud http://127.0.0.1:3108/health "el Core" 40
 
-# ── 11. Resumen ─────────────────────────────────────────────────────────────
+# ── 8. Resumen ──────────────────────────────────────────────────────────────
 paso "Listo"
 $DC ps --format 'table {{.Name}}\t{{.Status}}\t{{.Ports}}'
 cat <<FIN
@@ -368,10 +275,4 @@ cat <<FIN
 
   El usuario ya tiene suscripcion a los ${#PRODUCTOS[@]} productos. La contrasena
   es la de AMG_BOOTSTRAP_PASSWORD y no se ha cambiado ni se muestra aqui.
-
-  Pendiente de hacer a mano:
-    - Copiar el respaldo legacy FUERA de este servidor. Un respaldo en el mismo
-      disco que los datos no es un respaldo.
-    - Los volumenes legacy NO se borran. Sigue siendo lo unico que no se puede
-      regenerar si un migrador resulto tener un bug.
 FIN

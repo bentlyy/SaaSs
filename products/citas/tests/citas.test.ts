@@ -327,6 +327,191 @@ describe('la disponibilidad', () => {
   });
 });
 
+describe('horarios y bloqueos por profesional', () => {
+  /** La asignación de servicios no tiene endpoint: es dato del catálogo. */
+  function asignarServicio(orgId: string, profesional: string, servicio: string) {
+    tp.sqlite
+      .prepare(
+        `INSERT INTO staff_services (id, organization_id, staff_id, service_id) VALUES (?, ?, ?, ?)`,
+      )
+      .run(`tab-${profesional}-${servicio}`, orgId, profesional, servicio);
+  }
+
+  async function nuevoHorario(
+    orgId: string,
+    staffId: string,
+    datos: Record<string, unknown> = {},
+  ): Promise<any> {
+    const res = await comoMiembro(orgId)
+      .post('/api/schedules')
+      .send({ staffId, weekday: 1, startTime: 10 * 60, endTime: 13 * 60, ...datos });
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    return res.body;
+  }
+
+  it('el horario del profesional manda sobre la jornada que pide la consulta', async () => {
+    const cat = await catalogo(TEST_ORG_A, { minutos: 30 });
+    asignarServicio(TEST_ORG_A, cat.profesional, cat.servicio);
+    await nuevoHorario(TEST_ORG_A, cat.profesional, { weekday: 1, startTime: 10 * 60, endTime: 13 * 60 });
+
+    // Lunes 2026-10-05 (weekday 1). La consulta pide de 8 a 12, pero el
+    // profesional atiende de 10 a 13: el horario propio gana.
+    const res = await comoMiembro(TEST_ORG_A)
+      .get('/api/availability')
+      .query({ staffId: cat.profesional, date: '2026-10-05', from: 8 * 60, until: 12 * 60, step: 30 });
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    const horas = res.body.slots.map((s: any) => ({
+      inicio: s.startAt.slice(11, 16),
+      fin: s.endAt.slice(11, 16),
+    }));
+    expect(horas[0]).toEqual({ inicio: '10:00', fin: '10:30' });
+    expect(horas).toContainEqual({ inicio: '12:30', fin: '13:00' });
+    expect(horas).not.toContainEqual({ inicio: '09:00', fin: '09:30' });
+  });
+
+  it('sin horario propio el profesional cae a la jornada que pide la consulta', async () => {
+    const cat = await catalogo(TEST_ORG_A, { minutos: 30 });
+    asignarServicio(TEST_ORG_A, cat.profesional, cat.servicio);
+
+    const res = await comoMiembro(TEST_ORG_A)
+      .get('/api/availability')
+      .query({ staffId: cat.profesional, date: '2026-10-06', from: 9 * 60, until: 12 * 60, step: 30 });
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    const horas = res.body.slots.map((s: any) => s.startAt.slice(11, 16));
+    expect(horas[0]).toBe('09:00');
+    expect(horas).toContain('11:30');
+    expect(horas).not.toContain('12:00');
+  });
+
+  it('dos horarios que se pisan del mismo profesional y día se rechazan', async () => {
+    const cat = await catalogo(TEST_ORG_A);
+    const a = await nuevoHorario(TEST_ORG_A, cat.profesional, { startTime: 10 * 60, endTime: 13 * 60 });
+
+    const pisa = await comoMiembro(TEST_ORG_A)
+      .post('/api/schedules')
+      .send({ staffId: cat.profesional, weekday: 1, startTime: 12 * 60, endTime: 14 * 60 });
+    expect(pisa.status).toBe(409);
+
+    // Otro día no choca, y mover el primero a ese día sí.
+    const otroDia = await comoMiembro(TEST_ORG_A)
+      .post('/api/schedules')
+      .send({ staffId: cat.profesional, weekday: 2, startTime: 9 * 60, endTime: 12 * 60 });
+    expect(otroDia.status, JSON.stringify(otroDia.body)).toBe(201);
+
+    const movido = await comoMiembro(TEST_ORG_A).patch(`/api/schedules/${a.id}`).send({ weekday: 2 });
+    expect(movido.status).toBe(409);
+
+    // Un horario aledaño (termina cuando empieza el otro) no se pisa.
+    const aledano = await comoMiembro(TEST_ORG_A)
+      .post('/api/schedules')
+      .send({ staffId: cat.profesional, weekday: 1, startTime: 13 * 60, endTime: 15 * 60 });
+    expect(aledano.status, JSON.stringify(aledano.body)).toBe(201);
+  });
+
+  it('un bloqueo quita esa franja de la agenda', async () => {
+    const cat = await catalogo(TEST_ORG_A, { minutos: 30 });
+    asignarServicio(TEST_ORG_A, cat.profesional, cat.servicio);
+
+    const bloqueo = await comoMiembro(TEST_ORG_A)
+      .post('/api/blocks')
+      .send({ staffId: cat.profesional, startAt: '2026-10-05T10:00:00.000Z', endAt: '2026-10-05T10:30:00.000Z', reason: 'Reunión' });
+    expect(bloqueo.status, JSON.stringify(bloqueo.body)).toBe(201);
+    expect(bloqueo.body.reason).toBe('Reunión');
+
+    const res = await comoMiembro(TEST_ORG_A)
+      .get('/api/availability')
+      .query({ staffId: cat.profesional, date: '2026-10-05', from: 9 * 60, until: 12 * 60, step: 30 });
+    const horas = res.body.slots.map((s: any) => s.startAt.slice(11, 16));
+    expect(horas).not.toContain('10:00');
+    expect(horas).toContain('09:30');
+    expect(horas).toContain('10:30');
+  });
+
+  it('no deja agendar sobre un rato bloqueado, pero sí justo alrededor', async () => {
+    const cat = await catalogo(TEST_ORG_A);
+    await comoMiembro(TEST_ORG_A)
+      .post('/api/blocks')
+      .send({ staffId: cat.profesional, startAt: '2026-10-07T10:00:00.000Z', endAt: '2026-10-07T10:30:00.000Z', reason: 'Fuera de oficina' });
+
+    const encima = await nuevaCita(TEST_ORG_A, {
+      staffId: cat.profesional,
+      startAt: '2026-10-07T10:00:00.000Z',
+      endAt: '2026-10-07T10:30:00.000Z',
+    });
+    expect(encima.status).toBe(409);
+
+    const atravesando = await nuevaCita(TEST_ORG_A, {
+      staffId: cat.profesional,
+      startAt: '2026-10-07T09:45:00.000Z',
+      endAt: '2026-10-07T10:15:00.000Z',
+    });
+    expect(atravesando.status).toBe(409);
+
+    const antes = await nuevaCita(TEST_ORG_A, {
+      staffId: cat.profesional,
+      startAt: '2026-10-07T09:30:00.000Z',
+      endAt: '2026-10-07T10:00:00.000Z',
+    });
+    expect(antes.status, JSON.stringify(antes.body)).toBe(201);
+
+    const despues = await nuevaCita(TEST_ORG_A, {
+      staffId: cat.profesional,
+      startAt: '2026-10-07T10:30:00.000Z',
+      endAt: '2026-10-07T11:00:00.000Z',
+    });
+    expect(despues.status, JSON.stringify(despues.body)).toBe(201);
+  });
+
+  it('rechaza un bloqueo al revés y un horario al revés', async () => {
+    const cat = await catalogo(TEST_ORG_A);
+
+    const bloqueo = await comoMiembro(TEST_ORG_A)
+      .post('/api/blocks')
+      .send({ staffId: cat.profesional, startAt: '2026-10-08T11:00:00.000Z', endAt: '2026-10-08T10:00:00.000Z' });
+    expect(bloqueo.status).toBe(400);
+
+    const horario = await comoMiembro(TEST_ORG_A)
+      .post('/api/schedules')
+      .send({ staffId: cat.profesional, weekday: 1, startTime: 14 * 60, endTime: 10 * 60 });
+    expect(horario.status).toBe(400);
+  });
+
+  it('los horarios y bloqueos de otra organización no se ven ni se tocan', async () => {
+    const catA = await catalogo(TEST_ORG_A);
+    const catB = await catalogo(TEST_ORG_B);
+
+    const horarioA = await nuevoHorario(TEST_ORG_A, catA.profesional, { startTime: 10 * 60, endTime: 13 * 60 });
+    const bloqueoA = await comoMiembro(TEST_ORG_A)
+      .post('/api/blocks')
+      .send({ staffId: catA.profesional, startAt: '2026-10-07T10:00:00.000Z', endAt: '2026-10-07T10:30:00.000Z' });
+
+    const horariosB = await comoAdmin(TEST_ORG_B).get('/api/schedules').query({ staffId: catA.profesional });
+    expect(horariosB.body.items).toHaveLength(0);
+    const bloqueosB = await comoAdmin(TEST_ORG_B).get('/api/blocks').query({ staffId: catA.profesional });
+    expect(bloqueosB.body.items).toHaveLength(0);
+
+    const inventarHorario = await comoMiembro(TEST_ORG_B)
+      .post('/api/schedules')
+      .send({ staffId: catA.profesional, weekday: 1, startTime: 10 * 60, endTime: 13 * 60 });
+    expect([403, 400, 404]).toContain(inventarHorario.status);
+
+    const inventarBloqueo = await comoMiembro(TEST_ORG_B)
+      .post('/api/blocks')
+      .send({ staffId: catA.profesional, startAt: '2026-10-07T10:00:00.000Z', endAt: '2026-10-07T10:30:00.000Z' });
+    expect([403, 400, 404]).toContain(inventarBloqueo.status);
+
+    const borrarHorario = await comoAdmin(TEST_ORG_B).delete(`/api/schedules/${horarioA.id}`);
+    expect([403, 404]).toContain(borrarHorario.status);
+    const borrarBloqueo = await comoAdmin(TEST_ORG_B).delete(`/api/blocks/${bloqueoA.body.id}`);
+    expect([403, 404]).toContain(borrarBloqueo.status);
+
+    // El horario de A sigue intacto, y sigue importando para la disponibilidad.
+    const horariosA = await comoAdmin(TEST_ORG_A).get('/api/schedules').query({ staffId: catA.profesional });
+    expect(horariosA.body.items).toHaveLength(1);
+    expect(catB.profesional).toBeTruthy();
+  });
+});
+
 describe('las preferencias', () => {
   it('se guardan una sola vez por organización', async () => {
     const org = TEST_ORG_B;

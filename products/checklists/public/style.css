@@ -222,3 +222,83 @@ dd { margin: 0; }
 }
 
 #aviso.malo { background: var(--fail); }
+
+/* ── el editor de plantillas por secciones ─────────────────────────────── */
+
+.secciones { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; }
+
+.seccion {
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 0.6rem 0.7rem;
+}
+
+.seccion-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--borde);
+  margin-bottom: 0.5rem;
+}
+
+.seccion-cabecera .estado { margin-left: auto; }
+
+.seccion-cabecera button { padding: 0.2rem 0.45rem; font-size: 0.75rem; }
+
+.seccion-nombre { font-weight: 600; }
+
+.seccion-puntos { display: flex; flex-direction: column; gap: 0.35rem; }
+
+.seccion-puntos .fila { margin: 0.3rem 0 0; }
+
+hr { border: none; border-top: 1px solid var(--borde); margin: 1.25rem 0; }
+
+/* Las etiquetas con checkbox (obligatorio) alinean texto y casilla. */
+#punto-form label, #punto-editar-form label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+#punto-editar-form, #punto-editar-opciones-caja, #punto-opciones-caja, #seccion-renombrar-form {
+  background: var(--fondo);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 0.6rem 0.7rem;
+  margin: 0.5rem 0;
+}
+
+/* ── la ficha: respuesta por tipo, veredicto y adjuntos ────────────────── */
+
+.punto .acciones { display: flex; gap: 0.25rem; align-items: center; }
+
+.punto .acciones input, .punto .acciones select { width: auto; max-width: 12rem; padding: 0.3rem 0.5rem; }
+
+.punto .acciones button.activo {
+  background: var(--acento);
+  border-color: var(--acento);
+  color: #fff;
+}
+
+.punto .respuesta { font-size: 0.85rem; color: var(--tinta); font-weight: 600; }
+
+.adjuntos { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.6rem; }
+
+.adjunto {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--fondo);
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.adjunto small { margin-left: auto; }
+
+#adjunto-form .fila { margin-bottom: 0.4rem; }

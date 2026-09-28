@@ -67,13 +67,4 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at TEXT
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_clientes_settings_org ON settings(organization_id);
-
-CREATE TABLE IF NOT EXISTS legacy_tenant_map (
-  legacy_tenant_id TEXT PRIMARY KEY,
-  legacy_slug TEXT NOT NULL,
-  legacy_name TEXT NOT NULL,
-  organization_id TEXT NOT NULL,
-  migrated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_clientes_map_org ON legacy_tenant_map(organization_id);
 `;

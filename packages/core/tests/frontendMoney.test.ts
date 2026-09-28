@@ -30,14 +30,15 @@ import { describe, expect, it } from 'vitest';
 const RAIZ = join(import.meta.dirname, '..', '..', '..');
 
 const PRODUCTOS = [
+  'activos',
+  'checklists',
+  'citas',
+  'clientes',
   'cotizaciones',
-  'crm',
-  'deportes',
-  'documentos',
+  'espacios',
   'inventario',
-  'peluqueria',
-  'recordatorios',
-  'talleres',
+  'pagos',
+  'solicitudes',
 ];
 
 /**

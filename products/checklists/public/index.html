@@ -43,12 +43,12 @@
           <input id="plantilla-descripcion" name="description" maxlength="1000">
         </div>
       </div>
-      <label for="plantilla-items">Puntos iniciales (uno por linea)</label>
+      <label for="plantilla-items">Puntos iniciales (uno por linea, tipo Si/No)</label>
       <!--
-        El alta acepta `items: [{label, required}]` en la misma llamada, y por eso
-        el textarea va en el formulario y no en una pantalla aparte. La convencion
-        de la linea terminada en `*` esta escrita arriba del campo, porque un
-        asterisco sin explicacion se lee como un error de tipeo.
+        El alta acepta `items: [{label, required}]` en la misma llamada: los puntos
+        van a la seccion "General" de la plantilla. Los puntos con otro tipo de
+        respuesta se agregan despues, en el editor de la plantilla, donde tambien
+        se arman las secciones.
       -->
       <textarea id="plantilla-items" rows="5" placeholder="Extintor con carga vigente&#10;Piso sin cables sueltos*"></textarea>
       <small>Un punto por linea. Si la linea termina en <code>*</code>, el punto es opcional: no hace falta responderlo para cerrar una corrida.</small>
@@ -76,24 +76,96 @@
     <div id="plantillas-lista"></div>
 
     <!--
-      Editor de puntos de la plantilla seleccionada. Los puntos llegan en orden
-      (el servidor los renumera a 1..N sin huecos) y cada uno se borra por su
-      endpoint, que ademas renumera lo que queda.
+      Editor de la plantilla seleccionada. La plantilla se arma por SECCIONES: cada
+      seccion agrupa sus puntos, y los puntos llevan un TIPO de respuesta (Si/No,
+      texto, numero o seleccion). El servidor renumera las secciones a 1..N y los
+      puntos de cada seccion a 1..N sin huecos; la pantalla no recalcula ningun
+      numero. El orden de las secciones se cambia con Subir/Bajar, que manda la
+      lista completa del orden a la API.
     -->
     <div id="plantilla-editor" hidden>
       <h3>Puntos de <span id="plantilla-seleccionada"></span></h3>
-      <div id="plantilla-puntos-lista" class="lineas"></div>
+      <div id="plantilla-secciones-lista" class="secciones"></div>
+
+      <form id="seccion-form">
+        <div class="fila">
+          <div>
+            <label for="seccion-nombre">Nueva seccion</label>
+            <input id="seccion-nombre" maxlength="150" required placeholder="Condiciones de seguridad">
+          </div>
+          <button type="submit">Agregar seccion</button>
+        </div>
+      </form>
+
+      <form id="seccion-renombrar-form" hidden>
+        <div class="fila">
+          <input type="hidden" id="seccion-renombrar-id">
+          <div>
+            <label for="seccion-renombrar-nombre">Nombre de la seccion</label>
+            <input id="seccion-renombrar-nombre" maxlength="150" required>
+          </div>
+          <button type="submit">Renombrar</button>
+          <button type="button" id="seccion-renombrar-cancelar">Cancelar</button>
+        </div>
+      </form>
+
+      <hr>
+
       <form id="punto-form">
         <div class="fila">
+          <div>
+            <label for="punto-seccion">En la seccion</label>
+            <select id="punto-seccion"></select>
+          </div>
           <div>
             <label for="punto-label">Nuevo punto</label>
             <input id="punto-label" maxlength="200" required>
           </div>
           <div>
-            <label for="punto-requerido">Obligatorio</label>
-            <input id="punto-requerido" type="checkbox" checked>
+            <label for="punto-tipo">Tipo de respuesta</label>
+            <select id="punto-tipo">
+              <option value="yes_no">Si / No</option>
+              <option value="text">Texto</option>
+              <option value="number">Numero</option>
+              <option value="select">Seleccion</option>
+            </select>
+          </div>
+          <div>
+            <label><input id="punto-requerido" type="checkbox" checked> Obligatorio</label>
           </div>
           <button type="submit">Agregar punto</button>
+        </div>
+        <div id="punto-opciones-caja" hidden>
+          <label for="punto-opciones">Opciones del punto (una por linea)</label>
+          <textarea id="punto-opciones" rows="3" placeholder="Bueno&#10;Regular&#10;Malo"></textarea>
+        </div>
+      </form>
+
+      <form id="punto-editar-form" hidden>
+        <div class="fila">
+          <input type="hidden" id="punto-editar-id">
+          <div>
+            <label for="punto-editar-label">Texto del punto</label>
+            <input id="punto-editar-label" maxlength="200" required>
+          </div>
+          <div>
+            <label for="punto-editar-tipo">Tipo de respuesta</label>
+            <select id="punto-editar-tipo">
+              <option value="yes_no">Si / No</option>
+              <option value="text">Texto</option>
+              <option value="number">Numero</option>
+              <option value="select">Seleccion</option>
+            </select>
+          </div>
+          <div>
+            <label><input id="punto-editar-required" type="checkbox" checked> Obligatorio</label>
+          </div>
+          <button type="submit">Guardar cambios</button>
+          <button type="button" id="punto-editar-cancelar">Cancelar</button>
+        </div>
+        <div id="punto-editar-opciones-caja" hidden>
+          <label for="punto-editar-opciones">Opciones del punto (una por linea)</label>
+          <textarea id="punto-editar-opciones" rows="3"></textarea>
         </div>
       </form>
     </div>
@@ -118,7 +190,8 @@
       <!--
         Al empezar, el servidor COPIA los puntos de la plantilla a la corrida. Por
         eso la corrida muestra siempre la misma lista aunque la plantilla cambie
-        despues, y por eso los puntos de una corrida libre se escriben aqui.
+        despues, y por eso los puntos de una corrida libre se escriben aqui (tipo
+        Si/No: el resto de los tipos se arma en las plantillas).
       -->
       <textarea id="corrida-items" rows="4" placeholder="Solo para corrida libre: un punto por linea, * marca los opcionales"></textarea>
       <button type="submit">Empezar corrida</button>
@@ -162,6 +235,7 @@
 <!--
   La ficha de una corrida. Es un dialogo y no otra seccion porque se abre encima
   del listado: se revisa, se responde y se vuelve a la lista, sin perder la pagina.
+  Dentro se arma cada punto segun su tipo, el veredicto global y los adjuntos.
 -->
 <dialog id="ficha-dialog">
   <div id="ficha"></div>
@@ -180,6 +254,15 @@
           <option value="canceled">Cancelada</option>
         </select>
       </div>
+      <div>
+        <label for="corrida-editar-resultado">Veredicto global</label>
+        <select id="corrida-editar-resultado">
+          <option value="">(al completar, se deriva)</option>
+          <option value="approved">Aprobado</option>
+          <option value="observed">Observado</option>
+          <option value="rejected">Rechazado</option>
+        </select>
+      </div>
     </div>
     <label for="corrida-editar-notas">Notas</label>
     <input id="corrida-editar-notas" maxlength="2000">
@@ -189,10 +272,9 @@
   <!--
     Los botones de estado van aparte del select del formulario, y no por gusto:
     "Completar" es la accion que casi siempre se quiere, y el select del formulario
-    existe para cambiar el lugar y las notas. Los dos caminos pasan por la misma
-    regla del servidor (no se puede pasar a "completada" con obligatorios sin
-    responder), y por eso los dos muestran el mismo 400 con la lista de puntos que
-    faltan.
+    existe para cambiar el lugar, las notas y el veredicto. Los dos caminos pasan
+    por la misma regla del servidor (no se puede pasar a "completada" con
+    obligatorios sin responder), y por eso los dos muestran el mismo 400.
   -->
   <div class="fila">
     <button type="button" id="ficha-completar">Completar corrida</button>

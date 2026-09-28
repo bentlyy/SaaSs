@@ -3,15 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Solicitudes y ordenes sobre el runtime de AMG: recepcion, diagnostico, materiales, mano de obra y estado hasta la entrega. Generico, sin vehiculos. Sin usuarios ni contrasenas propias.",
+  "description": "Solicitudes (helpdesk) sobre el runtime de AMG: pedidos con folio, solicitante, responsable, prioridad, comentarios, adjuntos e historial de estados. Sin usuarios ni contrasenas propias.",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
-    "migrate:legacy": "tsx src/migrate-legacy.ts"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@amg/auth-client": "*",

@@ -27,9 +27,14 @@ const estado = {
   servicios: [],
   profesionales: [],
   avisos: [],
+  horarios: [],
+  bloqueos: [],
   fecha: new Date().toISOString().slice(0, 10),
   vista: 'agenda',
 };
+
+/** `Date.getUTCDay` y el servidor usan 0 = domingo. */
+const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 /** Formatea centavos. El símbolo sale de la organización, no de una constante. */
 const pesos = (centavos) => `${estado.settings?.currency ?? '$'} ${fmt.format(Math.round(centavos / 100))}`;
@@ -305,6 +310,196 @@ function llenarSelectores() {  const opciones = (lista, valor, texto) =>
   });
 }
 
+// --- horarios ---------------------------------------------------------------
+
+/** Minutos al día -> "HH:MM" para `<input type="time">`. */
+function minutosAHora(m) {
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+
+function aMinutos(hora) {
+  const [h, m] = hora.split(':').map(Number);
+  return h * 60 + m;
+}
+
+async function cargarHorarios() {
+  // Los profesionales se cargan en su propia vista; si no se ha abierto, se
+  // traen acá para poder elegir "el horario de quién".
+  if (estado.profesionales.length === 0) {
+    const { staff } = await api('/api/staff?limit=200');
+    estado.profesionales = staff;
+  }
+  const sel = $('#horario-profesional');
+  sel.innerHTML = estado.profesionales.map((p) => `<option value="${escapar(p.id)}">${escapar(p.name)}</option>`).join('');
+
+  const dia = $('#horario-dia');
+  if (dia.options.length === 0) {
+    dia.innerHTML = DIAS.map((d, i) => `<option value="${i}">${d}</option>`).join('');
+  }
+
+  await refrescarHorarios();
+}
+
+async function refrescarHorarios() {
+  const profesional = $('#horario-profesional').value;
+  if (!profesional) {
+    estado.horarios = [];
+    estado.bloqueos = [];
+    $('#horarios').innerHTML = '<p class="vacio">Elige un profesional para ver sus horarios.</p>';
+    $('#bloqueos').innerHTML = '';
+    return;
+  }
+
+  const [h, b] = await Promise.all([
+    api(`/api/schedules?staffId=${profesional}`),
+    api(`/api/blocks?staffId=${profesional}`),
+  ]);
+  estado.horarios = h.items;
+  estado.bloqueos = b.items;
+  renderHorarios();
+}
+
+function renderHorarios() {
+  const profesional = $('#horario-profesional').value;
+  const prof = estado.profesionales.find((p) => p.id === profesional);
+
+  $('#horarios').innerHTML = estado.horarios.length
+    ? `<table>
+        <thead><tr><th>Día</th><th>Desde</th><th>Hasta</th><th>Estado</th><th></th></tr></thead>
+        <tbody>${estado.horarios
+          .map(
+            (h) => `<tr>
+              <td>${DIAS[h.weekday]}</td>
+              <td>${minutosAHora(h.startTime)}</td>
+              <td>${minutosAHora(h.endTime)}</td>
+              <td>${h.active ? 'Activo' : 'Inactivo'}</td>
+              <td>
+                <button type="button" class="link" data-ed-h="${h.id}">Editar</button>
+                <button type="button" class="link" data-bor-h="${h.id}">Borrar</button>
+              </td>
+            </tr>`,
+          )
+          .join('')}</tbody>
+      </table>`
+    : `<p class="vacio">${prof ? `${escapar(prof.name)}` : 'Este profesional'} atiende en la jornada general que pida la consulta.` +
+      ' Agrega un horario para cambiarle el día a la semana.</p>';
+
+  for (const b of document.querySelectorAll('[data-ed-h]')) {
+    b.addEventListener('click', () => editarHorario(estado.horarios.find((x) => x.id === b.dataset.edH)));
+  }
+  for (const b of document.querySelectorAll('[data-bor-h]')) {
+    b.addEventListener('click', async () => {
+      await conAviso(async () => {
+        await api(`/api/schedules/${b.dataset.borH}`, { method: 'DELETE' });
+        await refrescarHorarios();
+      });
+    });
+  }
+
+  $('#bloqueos').innerHTML = estado.bloqueos.length
+    ? `<table>
+        <thead><tr><th>Empieza</th><th>Termina</th><th>Motivo</th><th></th></tr></thead>
+        <tbody>${estado.bloqueos
+          .map(
+            (b) => `<tr>
+              <td>${new Date(b.startAt).toLocaleString('es-CL')}</td>
+              <td>${new Date(b.endAt).toLocaleString('es-CL')}</td>
+              <td>${escapar(b.reason ?? '—')}</td>
+              <td><button type="button" class="link" data-bor-b="${b.id}">Quitar</button></td>
+            </tr>`,
+          )
+          .join('')}</tbody>
+      </table>`
+    : '<p class="vacio">Sin bloqueos: el profesional atiende según su horario.</p>';
+
+  for (const b of document.querySelectorAll('[data-bor-b]')) {
+    b.addEventListener('click', async () => {
+      await conAviso(async () => {
+        await api(`/api/blocks/${b.dataset.borB}`, { method: 'DELETE' });
+        await refrescarHorarios();
+      });
+    });
+  }
+}
+
+function editarHorario(h) {
+  $('#horario-dia').value = String(h.weekday);
+  $('#horario-desde').value = minutosAHora(h.startTime);
+  $('#horario-hasta').value = minutosAHora(h.endTime);
+  $('#horario-activo').value = String(h.active);
+  $('#horario-cancelar').classList.remove('oculto');
+  $('#horario-cancelar').dataset.id = h.id;
+  $('#horario-err').classList.add('oculto');
+}
+
+function limpiarFormHorario() {
+  $('#horario-form').reset();
+  $('#horario-activo').value = 'true';
+  $('#horario-cancelar').classList.add('oculto');
+  delete $('#horario-cancelar').dataset.id;
+  $('#horario-err').classList.add('oculto');
+}
+
+$('#horario-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const caja = $('#horario-err');
+  const profesional = $('#horario-profesional').value;
+  if (!profesional) {
+    caja.textContent = 'Elige un profesional.';
+    caja.classList.remove('oculto');
+    return;
+  }
+  const id = $('#horario-cancelar').dataset.id;
+  try {
+    await api(id ? `/api/schedules/${id}` : '/api/schedules', {
+      method: id ? 'PATCH' : 'POST',
+      body: JSON.stringify({
+        staffId: profesional,
+        weekday: Number($('#horario-dia').value),
+        startTime: aMinutos($('#horario-desde').value),
+        endTime: aMinutos($('#horario-hasta').value),
+        active: $('#horario-activo').value === 'true',
+      }),
+    });
+    limpiarFormHorario();
+    await conAviso(refrescarHorarios);
+  } catch (e) {
+    caja.textContent = e.message;
+    caja.classList.remove('oculto');
+  }
+});
+
+$('#horario-cancelar').addEventListener('click', limpiarFormHorario);
+
+$('#bloqueo-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const caja = $('#bloqueo-err');
+  const profesional = $('#horario-profesional').value;
+  if (!profesional) {
+    caja.textContent = 'Elige un profesional.';
+    caja.classList.remove('oculto');
+    return;
+  }
+  try {
+    await api('/api/blocks', {
+      method: 'POST',
+      body: JSON.stringify({
+        staffId: profesional,
+        startAt: new Date($('#bloqueo-inicio').value).toISOString(),
+        endAt: new Date($('#bloqueo-fin').value).toISOString(),
+        reason: $('#bloqueo-motivo').value || null,
+      }),
+    });
+    ev.target.reset();
+    await conAviso(refrescarHorarios);
+  } catch (e) {
+    caja.textContent = e.message;
+    caja.classList.remove('oculto');
+  }
+});
+
+$('#horario-profesional').addEventListener('change', () => conAviso(refrescarHorarios));
+
 // --- acciones ---------------------------------------------------------------
 
 async function guardarCita(evento) {
@@ -410,6 +605,7 @@ function cambiarVista(vista) {
     clientes: cargarClientes,
     servicios: cargarServicios,
     profesionales: cargarProfesionales,
+    horarios: cargarHorarios,
     avisos: cargarAvisos,
     config: renderConfig,
   }[vista];

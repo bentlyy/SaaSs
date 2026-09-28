@@ -3,27 +3,29 @@ import { startTestProduct, TEST_ORG_A, TEST_ORG_B, type TestProduct } from '@amg
 import { definicion } from '../src/app.js';
 
 /**
- * Solicitudes y ordenes sobre el runtime.
+ * Solicitudes (helpdesk) sobre el runtime.
  *
- * Estos tests son los que reemplazan a los del legacy. En el producto viejo el
- * aislamiento venía de que cada organización tenía su propio login; ahora las
- * organizaciones comparten login y se distinguen por el token, así que el
- * aislamiento hay que probarlo: que una empresa no pueda leer ni escribir lo de
- * otra, aunque adivine el id.
+ * Este producto se reescribio completo como mesa de ayuda: pedidos con folio,
+ * solicitante, responsable, prioridad, comentarios, adjuntos e historial de
+ * estados. Ya no es un taller mecanico, asi que no hay ordenes, trabajos,
+ * tecnicos ni clientes.
  *
- * Y hay tres reglas que son de ESTE producto y no se pueden dar por supuestas:
+ * Las reglas que son de ESTE producto y no se pueden dar por supuestas:
  *
- *   - El FOLIO es unico por organización, no global. Dos empresas pueden tener
- *     cada una su orden numero 1.
- *   - El total se guarda en la fila. Si mañana suben las tarifas, una orden vieja
- *     tiene que seguir valiendo lo que valió el día que se hizo.
- *   - Cada línea apunta a algo de ESTA organización. Sin eso, un cliente podría
- *     colar el id de un trabajo de otra empresa y ver su precio.
+ *   - El FOLIO es unico por organizacion, no global.
+ *   - El HISTORIAL de estados se escribe con cada cambio, dentro de la misma
+ *     transaccion que guarda el estado: un cambio sin rastro no se puede
+ *     auditar.
+ *   - `closed_at` se marca al cerrar/cancelar y se limpia si la solicitud se
+ *     reabre.
+ *   - Los ADJUNTOS viven en disco; la columna `path` es relativa, y al servir
+ *     se reconstruye desde el id del adjunto.
+ *   - Solicitante y responsable son textos libres: no se exige que existan en
+ *     ningun catalogo.
  *
- * OJO con los sobres de respuesta, que no son todos iguales y por eso confunden:
- * el catálogo (clientes, trabajos, técnicos) lo resuelve `crudRouter`, y devuelve
- * la fila pelada al crear y `{ items }` al listar. Las órdenes y los ajustes son
- * rutas propias y van envueltas en `{ order }` y `{ settings }`.
+ * OJO con los sobres de respuesta: el listado devuelve `{ requests }`, el hilo
+ * `{ request, comments, attachments, history }`, y los adjuntos `{ attachment,
+ * url }`. Nada de `{ items }`: este producto no usa el CRUD generico.
  */
 
 let tp: TestProduct;
@@ -37,40 +39,17 @@ beforeAll(() => {
 
 afterAll(() => tp.close());
 
-/** Alta de trabajo, que es lo que la orden necesita. */
-async function nuevoTrabajo(
+/** Alta de solicitud y devuelve su id. */
+async function nuevaSolicitud(
   orgId: string,
   datos: Record<string, unknown> = {},
 ): Promise<string> {
   const res = await comoAdmin(orgId)
-    .post('/api/services')
-    .send({ name: 'Cambio de aceite', priceCents: 25000, durationMin: 60, ...datos });
+    .post('/api/requests')
+    .send({ title: 'No abre la impresora', requesterName: 'Ana Torres', ...datos });
   expect(res.status, JSON.stringify(res.body)).toBe(201);
-  return res.body.id;
+  return res.body.request.id;
 }
-
-async function nuevoCliente(orgId: string, name = 'Ana Torres'): Promise<string> {
-  const res = await comoAdmin(orgId).post('/api/customers').send({ name });
-  expect(res.status, JSON.stringify(res.body)).toBe(201);
-  return res.body.id;
-}
-
-async function nuevoTecnico(orgId: string, name = 'Jorge'): Promise<string> {
-  const res = await comoAdmin(orgId).post('/api/technicians').send({ name });
-  expect(res.status, JSON.stringify(res.body)).toBe(201);
-  return res.body.id;
-}
-
-beforeAll(async () => {
-  // Datos en A y en B, para probar el aislamiento con ids que existen de verdad
-  // en la otra organización.
-  await nuevoCliente(TEST_ORG_A, 'Cliente de Alpha');
-  await nuevoCliente(TEST_ORG_B, 'Cliente de Beta');
-  await nuevoTrabajo(TEST_ORG_A, { name: 'Trabajo de Alpha' });
-  await nuevoTrabajo(TEST_ORG_B, { name: 'Trabajo de Beta' });
-  await nuevoTecnico(TEST_ORG_A, 'Tecnico de Alpha');
-  await nuevoTecnico(TEST_ORG_B, 'Tecnico de Beta');
-});
 
 describe('la interfaz', () => {
   it('con sesión sirve la app y sus estáticos', async () => {
@@ -97,323 +76,377 @@ describe('la interfaz', () => {
     // Ningún campo de contraseña: un login en el producto sería un segundo
     // sistema de identidad.
     expect(html.text).not.toMatch(/type=["']password["']/i);
-
-    // Y la salida se resuelve contra el Core, no contra un logout local. Es un
-    // enlace normal en el HTML, no una función de JavaScript.
     expect(html.text).toContain('/auth/logout');
   });
 
-  it('la UI no pide vehiculos: el producto es de cualquier rubro', async () => {
+  it('la UI no reabrió ordenes de taller: no hay técnicos ni clientes', async () => {
     const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
-    // Este producto no tiene el concepto de vehiculo. Si la UI pidiera patente o
-    // kilometraje, habria vuelto el producto de un taller mecanico.
-    expect(html.text).not.toMatch(/patente/i);
-    expect(html.text).not.toMatch(/kilometra/i);
-    // Lo que hay es un texto libre para decir sobre qué se trabaja.
-    expect(html.text).toMatch(/id="orden-bien"/);
+    // Esto es una mesa de ayuda: no se registran técnicos, clientes ni
+    // repuestos, y la pantalla no tiene una columna de "Sobre qué se trabaja".
+    expect(html.text).not.toMatch(/técnico/i);
+    expect(html.text).not.toMatch(/repuesto/i);
+    expect(html.text).toMatch(/id="sol-titulo"/);
   });
 
-  it('la UI no inventa datos ni resuelve el folio en el navegador', async () => {
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
-    expect(js.text).not.toContain(TEST_ORG_A);
-    expect(js.text).toContain('/api/orders');
-  });
-
-  it('el folio de una orden nueva sale de los ajustes ya cargados', async () => {
-    // Regresion: `cargar()` guarda el objeto de ajustes tal cual en
-    // `estado.cfg`, asi que leer `estado.cfg.settings` es leer `undefined` y el
-    // boton "Nueva orden" revienta con un TypeError. Los tests de UI son
-    // estaticos, asi que sin este chequeo el bug volveria sin que nadie lo note.
+  it('la UI no inventa datos ni decide el folio en el navegador', async () => {
     const js = (await tp.as({ orgId: TEST_ORG_A }).get('/app.js')).text;
-
-    // Lo que se guarda es el objeto de ajustes, sin envolver.
-    expect(js).toMatch(/estado\.cfg\s*=\s*cfg\.settings/);
-    // Y por lo tanto nadie busca un `settings` adentro de el.
-    expect(js, 'la UI lee un `settings` anidado que no existe').not.toMatch(/estado\.cfg\.settings/);
+    expect(js).not.toContain(TEST_ORG_A);
+    expect(js).toContain('/api/requests');
+    // El folio se lee de los ajustes que trae el servidor.
     expect(js).toMatch(/estado\.cfg\.nextNumber/);
   });
 
   it('el form de ajustes se llena por form.elements, no por ids sueltos', async () => {
-    // Mismo contrato que el resto de los productos: agregar un ajuste es
-    // agregar un <input name="..."> en el HTML, no tocar el JS.
     const js = (await tp.as({ orgId: TEST_ORG_A }).get('/app.js')).text;
     const fn = js.match(/function renderConfig\(\)\s*\{[\s\S]*?\n\}/);
     expect(fn, 'no se encontro renderConfig()').toBeTruthy();
     expect(fn![0]).toMatch(/form\.elements/);
   });
+
+  it('el esquema es el del helpdesk y no el del taller viejo', async () => {
+    const tablas = tp.tables();
+    expect(tablas).toEqual(expect.arrayContaining(['requests', 'comments', 'attachments', 'status_history', 'settings']));
+    expect(tablas).not.toContain('orders');
+    expect(tablas).not.toContain('legacy_tenant_map');
+  });
 });
 
 describe('sesión e identidad', () => {
   it('sin sesión no entra a la API', async () => {
-    expect((await tp.anon().get('/api/orders')).status).toBe(401);
+    expect((await tp.anon().get('/api/requests')).status).toBe(401);
   });
 
   it('la API no acepta una organización que no viene del token', async () => {
     const res = await comoAdmin(TEST_ORG_A)
-      .post('/api/orders')
-      .send({ organizationId: TEST_ORG_B, asset: 'Invasion' });
+      .post('/api/requests')
+      .send({ organizationId: TEST_ORG_B, title: 'Invasion', requesterName: 'X' });
     expect(res.status).toBe(201);
 
-    // Se creó, pero en la organización del token, no en la que pedía.
-    expect(res.body.order.organizationId).toBe(TEST_ORG_A);
+    expect(res.body.request.organizationId).toBe(TEST_ORG_A);
 
-    const enB = await comoAdmin(TEST_ORG_B).get('/api/orders');
-    expect(enB.body.orders.some((o: any) => o.asset === 'Invasion')).toBe(false);
+    const enB = await comoAdmin(TEST_ORG_B).get('/api/requests');
+    expect(enB.body.requests.some((r: any) => r.title === 'Invasion')).toBe(false);
   });
 });
 
-describe('órdenes', () => {
-  it('crea una orden con el folio siguiente y lo materializa', async () => {
-    const trabajo = (await comoAdmin(TEST_ORG_A).get('/api/services')).body.items[0].id;
-    const cliente = (await comoAdmin(TEST_ORG_A).get('/api/customers')).body.items[0].id;
-
+describe('solicitudes', () => {
+  it('crea con folio siguiente, prioridad por defecto y el estado inicial', async () => {
     const res = await comoMiembro(TEST_ORG_A)
-      .post('/api/orders')
+      .post('/api/requests')
       .send({
-        customerId: cliente,
-        technicianId: (await comoAdmin(TEST_ORG_A).get('/api/technicians')).body.items[0].id,
-        asset: 'Lavadora del local',
-        status: 'in_progress',
-        estimatedDelivery: '2026-10-05',
-        services: [{ serviceId: trabajo }],
-        parts: [{ itemId: 'itm_inventario_1', itemName: 'Pastilla', qty: 4, unitPriceCents: 18500 }],
+        title: 'No carga el portal',
+        description: 'Da error 500 en la vista de reportes',
+        requesterName: 'Pablo Ríos',
+        requesterEmail: 'pablo@alpha.test',
+        responsibleName: 'Equipo plataforma',
+        dueAt: '2026-10-15',
       });
 
     expect(res.status, JSON.stringify(res.body)).toBe(201);
-    const orden = res.body.order;
-    // El trabajo sin precio toma la tarifa vigente del catálogo.
-    expect(orden.totalCents).toBe(25000 + 4 * 18500);
-    expect(orden.asset).toBe('Lavadora del local');
-    expect(orden.estimatedDelivery).toBe('2026-10-05');
-    expect(orden.number).toBeGreaterThan(0);
+    const r = res.body.request;
+    expect(r.number).toBeGreaterThan(0);
+    expect(r.priority).toBe('medium');
+    expect(r.status).toBe('open');
+    expect(r.requesterEmail).toBe('pablo@alpha.test');
+    expect(r.closedAt).toBeNull();
   });
 
-  it('el total no se recalcula al leer: cambia con la tarifa del catálogo', async () => {
-    const trabajo = await nuevoTrabajo(TEST_ORG_A, { name: 'Ajuste fino', priceCents: 10000 });
-    const creada = await comoAdmin(TEST_ORG_A)
-      .post('/api/orders')
-      .send({ services: [{ serviceId: trabajo }], status: 'done' });
-    expect(creada.body.order.totalCents).toBe(10000);
-
-    // Se sube la tarifa del catálogo. La orden vieja tiene que seguir valiendo
-    // lo que valió, o el histórico del taller cambia de la noche a la mañana.
-    await comoAdmin(TEST_ORG_A).patch(`/api/services/${trabajo}`).send({ priceCents: 999999 });
-
-    const despues = await comoAdmin(TEST_ORG_A).get(`/api/orders/${creada.body.order.id}`);
-    expect(despues.body.order.totalCents).toBe(10000);
-  });
-
-  it('un precio pactado manda sobre la tarifa del catálogo', async () => {
-    const trabajo = await nuevoTrabajo(TEST_ORG_A, { name: 'Trabajo con descuento', priceCents: 10000 });
-    const res = await comoAdmin(TEST_ORG_A)
-      .post('/api/orders')
-      .send({ services: [{ serviceId: trabajo, priceCents: 7000 }] });
-    // Cuando el cliente negoció, manda lo que se pactó.
-    expect(res.body.order.totalCents).toBe(7000);
-  });
-
-  it('rechaza un folio repetido en la misma organización', async () => {
-    const res = await comoAdmin(TEST_ORG_A)
-      .post('/api/orders')
-      .send({ number: 1, asset: 'Choca el folio' });
-    expect(res.status).toBe(409);
-  });
-
-  it('el folio NO es global: dos organizaciones pueden empezar en 1', async () => {
-    const a = await comoAdmin(TEST_ORG_A).post('/api/orders').send({ number: 900, asset: 'A' });
-    const b = await comoAdmin(TEST_ORG_B).post('/api/orders').send({ number: 900, asset: 'B' });
-    expect(a.status, JSON.stringify(a.body)).toBe(201);
-    expect(b.status, JSON.stringify(b.body)).toBe(201);
+  it('no crea sin título ni sin solicitante', async () => {
+    expect((await comoAdmin(TEST_ORG_A).post('/api/requests').send({ requesterName: 'X' })).status).toBe(400);
+    expect((await comoAdmin(TEST_ORG_A).post('/api/requests').send({ title: 'X' })).status).toBe(400);
   });
 
   it('propone el folio siguiente como el máximo que existe más uno', async () => {
     const res = await comoAdmin(TEST_ORG_A).get('/api/settings');
-    // Si se calculara contando, cancelar una orden haría que el folio propuesto
-    // fuera uno que ya existe.
-    const ordenes = (await comoAdmin(TEST_ORG_A).get('/api/orders?limit=500')).body.orders;
-    const maximo = Math.max(...ordenes.map((o: any) => o.number));
+    const solicitudes = (await comoAdmin(TEST_ORG_A).get('/api/requests?limit=500')).body.requests;
+    const maximo = Math.max(...solicitudes.map((r: any) => r.number));
     expect(res.body.settings.nextNumber).toBe(maximo + 1);
   });
 
-  it('editar el estado no pierde las líneas', async () => {
-    const trabajo = await nuevoTrabajo(TEST_ORG_A, { name: 'Solo para editar' });
-    const creada = await comoAdmin(TEST_ORG_A)
-      .post('/api/orders')
-      .send({
-        services: [{ serviceId: trabajo }],
-        parts: [{ itemId: 'itm_x', itemName: 'Filtro', qty: 2, unitPriceCents: 1000 }],
-        notes: 'Nota original',
-      });
+  it('rechaza un folio repetido en la misma organización', async () => {
+    const res = await comoAdmin(TEST_ORG_A).post('/api/requests').send({
+      number: 1,
+      title: 'Choca el folio',
+      requesterName: 'X',
+    });
+    expect(res.status).toBe(409);
+  });
 
-    // Un PATCH con solo el estado: el resto tiene que sobrevivir, o cambiar el
-    // estado de una orden borraría su detalle.
+  it('el folio NO es global: dos organizaciones pueden empezar en 1', async () => {
+    const a = await comoAdmin(TEST_ORG_A).post('/api/requests').send({ number: 900, title: 'A', requesterName: 'X' });
+    const b = await comoAdmin(TEST_ORG_B).post('/api/requests').send({ number: 900, title: 'B', requesterName: 'Y' });
+    expect(a.status, JSON.stringify(a.body)).toBe(201);
+    expect(b.status, JSON.stringify(b.body)).toBe(201);
+  });
+
+  it('rechaza una fecha límite que no es una fecha', async () => {
+    const res = await comoAdmin(TEST_ORG_A).post('/api/requests').send({
+      title: 'Fecha inventada',
+      requesterName: 'X',
+      dueAt: 'después de la reunión',
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('editar solo el estado no pierde el resto y registra el cambio', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_A, { dueAt: '2026-10-05', resolution: null });
+
     const parcheado = await comoAdmin(TEST_ORG_A)
-      .patch(`/api/orders/${creada.body.order.id}`)
-      .send({ status: 'done' });
+      .patch(`/api/requests/${idSol}`)
+      .send({ status: 'in_progress' });
     expect(parcheado.status).toBe(200);
 
-    const detalle = await comoAdmin(TEST_ORG_A).get(`/api/orders/${creada.body.order.id}`);
-    expect(detalle.body.order.status).toBe('done');
-    expect(detalle.body.order.notes).toBe('Nota original');
-    expect(detalle.body.services).toHaveLength(1);
-    expect(detalle.body.parts).toHaveLength(1);
-    expect(detalle.body.order.totalCents).toBe(25000 + 2000);
+    const detalle = await comoAdmin(TEST_ORG_A).get(`/api/requests/${idSol}`);
+    expect(detalle.body.request.title).toBe('No abre la impresora');
+    expect(detalle.body.request.requesterName).toBe('Ana Torres');
+    expect(detalle.body.request.status).toBe('in_progress');
+
+    // El historial creció: la creación (open) más el cambio a en curso.
+    expect(detalle.body.history).toHaveLength(2);
+    const cambio = detalle.body.history[1];
+    expect(cambio.oldStatus).toBe('open');
+    expect(cambio.newStatus).toBe('in_progress');
+    expect(cambio.changedBy).toBe('Persona de Prueba');
   });
 
-  it('reemplaza las líneas al editar y recalcula el total', async () => {
-    const trabajo = await nuevoTrabajo(TEST_ORG_A, { name: 'Linea que se va', priceCents: 1000 });
-    const creada = await comoAdmin(TEST_ORG_A)
-      .post('/api/orders')
-      .send({ services: [{ serviceId: trabajo }] });
-    expect(creada.body.order.totalCents).toBe(1000);
+  it('un PATCH sin cambio de estado no agrega historial', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_A);
+    const detalle = await comoAdmin(TEST_ORG_A).get(`/api/requests/${idSol}`);
+    const antes = detalle.body.history.length;
 
-    const parcheada = await comoAdmin(TEST_ORG_A)
-      .patch(`/api/orders/${creada.body.order.id}`)
-      .send({ services: [] });
-    // Sacar la única línea deja la orden en cero, no con el total viejo.
-    expect(parcheada.body.order.totalCents).toBe(0);
+    await comoAdmin(TEST_ORG_A).patch(`/api/requests/${idSol}`).send({ priority: 'high' });
 
-    const detalle = await comoAdmin(TEST_ORG_A).get(`/api/orders/${creada.body.order.id}`);
-    expect(detalle.body.services).toHaveLength(0);
+    const despues = await comoAdmin(TEST_ORG_A).get(`/api/requests/${idSol}`);
+    expect(despues.body.request.priority).toBe('high');
+    expect(despues.body.history).toHaveLength(antes);
   });
 
-  it('borra la orden con sus líneas', async () => {
-    const trabajo = await nuevoTrabajo(TEST_ORG_A, { name: 'Para borrar' });
-    const creada = await comoAdmin(TEST_ORG_A)
-      .post('/api/orders')
-      .send({ services: [{ serviceId: trabajo }] });
+  it('cierra la solicitud marcando closed_at y la reabre limpiándolo', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_A, { resolution: 'Se reinició el equipo' });
 
-    const res = await comoAdmin(TEST_ORG_A).delete(`/api/orders/${creada.body.order.id}`);
+    const cerrada = await comoAdmin(TEST_ORG_A)
+      .patch(`/api/requests/${idSol}`)
+      .send({ status: 'closed' });
+    expect(cerrada.body.request.closedAt).toBeTruthy();
+
+    const reabierta = await comoAdmin(TEST_ORG_A)
+      .patch(`/api/requests/${idSol}`)
+      .send({ status: 'open' });
+    expect(reabierta.body.request.closedAt).toBeNull();
+    expect(reabierta.body.request.resolution).toBe('Se reinició el equipo');
+  });
+
+  it('el listado filtra por estado, prioridad y búsqueda', async () => {
+    await nuevaSolicitud(TEST_ORG_A, { priority: 'urgent', title: 'Sincroniza backups' });
+
+    const porEstado = await comoAdmin(TEST_ORG_A).get('/api/requests?status=resolved');
+    // Ninguna resolvió el estado resolved, asi que no aparece ninguna.
+    expect(porEstado.body.requests.some((r: any) => r.priority === 'urgent')).toBe(false);
+
+    const porPrioridad = await comoAdmin(TEST_ORG_A).get('/api/requests?priority=urgent');
+    expect(porPrioridad.body.requests.length).toBeGreaterThan(0);
+    expect(porPrioridad.body.requests.every((r: any) => r.priority === 'urgent')).toBe(true);
+
+    const porBusqueda = await comoAdmin(TEST_ORG_A).get('/api/requests?q=backups');
+    expect(porBusqueda.body.requests.length).toBeGreaterThan(0);
+  });
+
+  it('borra la solicitud con su hilo y su historial', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_A);
+    await comoAdmin(TEST_ORG_A).post(`/api/requests/${idSol}/comments`).send({ content: 'Un comentario' });
+
+    const res = await comoAdmin(TEST_ORG_A).delete(`/api/requests/${idSol}`);
     expect(res.status).toBe(200);
 
-    // Las líneas se van con la orden: el DDL las declara con ON DELETE CASCADE.
-    const detalle = await comoAdmin(TEST_ORG_A).get(`/api/orders/${creada.body.order.id}`);
-    expect(detalle.status).toBe(404);
+    expect((await comoAdmin(TEST_ORG_A).get(`/api/requests/${idSol}`)).status).toBe(404);
+    // El cascade se llevó los comentarios de la solicitud.
+    const sqlite = tp.sqlite;
+    const quedan = sqlite.prepare(`SELECT COUNT(*) AS n FROM comments WHERE request_id = ?`).get(idSol);
+    expect((quedan as { n: number }).n).toBe(0);
   });
 
-  it('rechaza una fecha de entrega que no es una fecha', async () => {
-    // "próximo martes" es una respuesta de un taller, no algo que se pueda
-    // comparar ni ordenar. Se acepta "2026-10-05" o nada.
-    const res = await comoAdmin(TEST_ORG_A)
-      .post('/api/orders')
-      .send({ estimatedDelivery: 'proximo martes' });
-    expect(res.status).toBe(400);
-  });
+  it('el resumen cuenta abiertas, vencidas, resueltas y de prioridad alta', async () => {
+    await nuevaSolicitud(TEST_ORG_A, { priority: 'urgent', dueAt: '2001-01-01' });
+    await nuevaSolicitud(TEST_ORG_A).then((id) =>
+      comoAdmin(TEST_ORG_A).patch(`/api/requests/${id}`).send({ status: 'closed' }),
+    );
 
-  it('rechaza una cantidad de repuesto cero o negativa', async () => {
-    const res = await comoAdmin(TEST_ORG_A)
-      .post('/api/orders')
-      .send({ parts: [{ itemId: 'itm_y', itemName: 'Nada', qty: 0, unitPriceCents: 100 }] });
-    expect(res.status).toBe(400);
-  });
-
-  it('exige nombre en el repuesto: la línea tiene que poder leerse', async () => {
-    const res = await comoAdmin(TEST_ORG_A)
-      .post('/api/orders')
-      .send({ parts: [{ itemId: 'itm_z', qty: 1, unitPriceCents: 100 }] });
-    // El repuesto vive en otra base. Sin el nombre, la línea quedaría con un id
-    // que no se puede leer ni acá ni desde la pantalla.
-    expect(res.status).toBe(400);
+    const res = await comoAdmin(TEST_ORG_A).get('/api/resumen');
+    expect(res.body.abiertas).toBeGreaterThanOrEqual(1);
+    expect(res.body.vencidas).toBeGreaterThanOrEqual(1);
+    expect(res.body.resueltas).toBeGreaterThanOrEqual(1);
+    expect(res.body.alta).toBeGreaterThanOrEqual(1);
   });
 });
 
-describe('tablero y resumen', () => {
-  it('agrupa las órdenes por estado y trae los nombres resueltos', async () => {
-    const cliente = await nuevoCliente(TEST_ORG_A, 'Cliente del tablero');
-    await comoAdmin(TEST_ORG_A)
-      .post('/api/orders')
-      .send({ customerId: cliente, status: 'estimated', asset: 'Compresor' });
-
-    const res = await comoAdmin(TEST_ORG_A).get('/api/tablero');
-    expect(res.status).toBe(200);
-    // Se arman los cinco estados aunque alguno esté vacío: una columna que
-    // aparece y desaparece hace que la pantalla "salte" mientras se trabaja.
-    expect(res.body.columnas).toHaveLength(5);
-    expect(res.body.columnas.map((c: any) => c.estado)).toEqual([
-      'received',
-      'estimated',
-      'in_progress',
-      'done',
-      'cancelled',
-    ]);
-
-    const estimada = res.body.columnas.find((c: any) => c.estado === 'estimated');
-    const delCompresor = estimada.ordenes.find((o: any) => o.asset === 'Compresor');
-    expect(delCompresor.customerName).toBe('Cliente del tablero');
+describe('historial de estados', () => {
+  it('registra el estado inicial al crear', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_A, { status: 'in_progress' });
+    const detalle = await comoAdmin(TEST_ORG_A).get(`/api/requests/${idSol}`);
+    const [inicial] = detalle.body.history;
+    expect(inicial.oldStatus).toBeNull();
+    expect(inicial.newStatus).toBe('in_progress');
+    expect(inicial.changedBy).toBe('Persona de Prueba');
   });
 
-  it('el resumen no cuenta una orden cancelada como trabajo por cobrar', async () => {
-    const trabajo = await nuevoTrabajo(TEST_ORG_A, { name: 'Cancelada', priceCents: 5000 });
-    const creada = await comoAdmin(TEST_ORG_A)
-      .post('/api/orders')
-      .send({ services: [{ serviceId: trabajo }], status: 'in_progress' });
+  it('una solicitud de otra organización no deja ver su historial', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_B);
+    const res = await comoAdmin(TEST_ORG_A).get(`/api/requests/${idSol}`);
+    expect([403, 404]).toContain(res.status);
+  });
+});
 
-    const antes = await comoAdmin(TEST_ORG_A).get('/api/resumen');
-    await comoAdmin(TEST_ORG_A)
-      .patch(`/api/orders/${creada.body.order.id}`)
-      .send({ status: 'cancelled' });
-    const despues = await comoAdmin(TEST_ORG_A).get('/api/resumen');
+describe('comentarios', () => {
+  it('guarda el comentario con el autor de la sesión', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_A);
+    const res = await comoMiembro(TEST_ORG_A)
+      .post(`/api/requests/${idSol}/comments`)
+      .send({ content: 'Ya lo estoy viendo' });
 
-    // Una orden cancelada no se va a entregar: sumarla como deuda daría un número
-    // que nadie debe.
-    expect(despues.body.abiertas).toBe(antes.body.abiertas - 1);
-    expect(despues.body.porCobrarCents).toBe(antes.body.porCobrarCents - 5000);
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(res.body.comment.content).toBe('Ya lo estoy viendo');
+    expect(res.body.comment.authorName).toBe('Persona de Prueba');
+    expect(res.body.comment.authorUserId).toBeTruthy();
+  });
+
+  it('rechaza un comentario vacío', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_A);
+    const res = await comoAdmin(TEST_ORG_A)
+      .post(`/api/requests/${idSol}/comments`)
+      .send({ content: '   ' });
+    expect(res.status).toBe(400);
+  });
+
+  it('no deja comentar una solicitud de otra organización', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_B);
+    const res = await comoAdmin(TEST_ORG_A)
+      .post(`/api/requests/${idSol}/comments`)
+      .send({ content: 'Intromisión' });
+    expect([403, 404]).toContain(res.status);
+  });
+});
+
+describe('adjuntos', () => {
+  it('guarda el archivo, lo lista y lo devuelve entero al descargarlo', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_A);
+    const contenido = Buffer.from('captura de pantalla del error');
+
+    const subida = await comoAdmin(TEST_ORG_A)
+      .post(`/api/requests/${idSol}/attachments`)
+      .send({
+        filename: 'captura.png',
+        mimeType: 'image/png',
+        data: contenido.toString('base64'),
+      });
+
+    expect(subida.status, JSON.stringify(subida.body)).toBe(201);
+    const a = subida.body.attachment;
+    expect(a.filename).toBe('captura.png');
+    expect(a.sizeBytes).toBe(contenido.length);
+    expect(a.path).toMatch(/^attachments\//);
+    expect(subida.body.url).toContain('/file');
+
+    const detalle = await comoAdmin(TEST_ORG_A).get(`/api/requests/${idSol}`);
+    expect(detalle.body.attachments).toHaveLength(1);
+
+    const descarga = await comoAdmin(TEST_ORG_A).get(
+      `/api/requests/${idSol}/attachments/${a.id}/file`,
+    );
+    expect(descarga.status).toBe(200);
+    expect(descarga.headers['content-type']).toBe('image/png');
+    expect(descarga.body).toEqual(contenido);
+  });
+
+  it('acepta un data URI con prefijo', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_A);
+    const contenido = Buffer.from('hola');
+    const res = await comoAdmin(TEST_ORG_A)
+      .post(`/api/requests/${idSol}/attachments`)
+      .send({
+        filename: 'nota.txt',
+        mimeType: 'text/plain',
+        data: `data:text/plain;base64,${contenido.toString('base64')}`,
+      });
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(res.body.attachment.sizeBytes).toBe(contenido.length);
+  });
+
+  it('rechaza un archivo que excede 750 KB', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_A);
+    // 760 KB decodificados caben en el body de 1 MB sin exceder el parser de
+    // JSON, asi que quien responde es la regla del producto, no express.
+    const res = await comoAdmin(TEST_ORG_A)
+      .post(`/api/requests/${idSol}/attachments`)
+      .send({ filename: 'grande.bin', data: Buffer.alloc(760_000).toString('base64') });
+    expect(res.status).toBe(413);
+  });
+
+  it('una petición que excede el body de 1 MB tampoco se acepta', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_A);
+    const res = await comoAdmin(TEST_ORG_A)
+      .post(`/api/requests/${idSol}/attachments`)
+      .send({ filename: 'enorme.bin', data: Buffer.alloc(1_100_000).toString('base64') });
+    expect(res.status).toBe(413);
+  });
+
+  it('no deja ver ni descargar el adjunto de otra organización', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_B);
+    const subida = await comoAdmin(TEST_ORG_B)
+      .post(`/api/requests/${idSol}/attachments`)
+      .send({ filename: 'secreto.txt', data: Buffer.from('datos de B').toString('base64') });
+
+    const detalleA = await comoAdmin(TEST_ORG_A).get(`/api/requests/${idSol}`);
+    expect([403, 404]).toContain(detalleA.status);
+
+    const descarga = await comoAdmin(TEST_ORG_A).get(
+      `/api/requests/${idSol}/attachments/${subida.body.attachment.id}/file`,
+    );
+    expect([403, 404]).toContain(descarga.status);
+  });
+
+  it('quitar un adjunto lo borra de la lista', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_A);
+    const subida = await comoAdmin(TEST_ORG_A)
+      .post(`/api/requests/${idSol}/attachments`)
+      .send({ filename: 'tmp.txt', data: Buffer.from('x').toString('base64') });
+
+    const res = await comoAdmin(TEST_ORG_A).delete(
+      `/api/requests/${idSol}/attachments/${subida.body.attachment.id}`,
+    );
+    expect(res.status).toBe(200);
+
+    const detalle = await comoAdmin(TEST_ORG_A).get(`/api/requests/${idSol}`);
+    expect(detalle.body.attachments).toHaveLength(0);
   });
 });
 
 describe('aislamiento entre organizaciones', () => {
-  it('no deja ver una orden de otra organización', async () => {
-    const ordenB = await comoAdmin(TEST_ORG_B).post('/api/orders').send({ asset: 'De Beta' });
-    const res = await comoAdmin(TEST_ORG_A).get(`/api/orders/${ordenB.body.order.id}`);
+  it('no deja ver una solicitud de otra organización', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_B);
+    const res = await comoAdmin(TEST_ORG_A).get(`/api/requests/${idSol}`);
     expect([403, 404]).toContain(res.status);
   });
 
-  it('no deja modificar una orden de otra organización', async () => {
-    const ordenB = await comoAdmin(TEST_ORG_B).post('/api/orders').send({ asset: 'De Beta' });
+  it('no deja modificar una solicitud de otra organización', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_B, { title: 'De Beta' });
     const res = await comoAdmin(TEST_ORG_A)
-      .patch(`/api/orders/${ordenB.body.order.id}`)
-      .send({ asset: 'Robada' });
+      .patch(`/api/requests/${idSol}`)
+      .send({ title: 'Robada' });
     expect([403, 404]).toContain(res.status);
 
-    const sigue = await comoAdmin(TEST_ORG_B).get(`/api/orders/${ordenB.body.order.id}`);
-    expect(sigue.body.order.asset).toBe('De Beta');
+    const sigue = await comoAdmin(TEST_ORG_B).get(`/api/requests/${idSol}`);
+    expect(sigue.body.request.title).toBe('De Beta');
   });
 
-  it('no deja borrar una orden de otra organización', async () => {
-    const ordenB = await comoAdmin(TEST_ORG_B).post('/api/orders').send({ asset: 'De Beta' });
-    const res = await comoAdmin(TEST_ORG_A).delete(`/api/orders/${ordenB.body.order.id}`);
+  it('no deja borrar una solicitud de otra organización', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_B);
+    const res = await comoAdmin(TEST_ORG_A).delete(`/api/requests/${idSol}`);
     expect([403, 404]).toContain(res.status);
   });
 
-  it('no deja usar un cliente de otra organización', async () => {
-    const clientesB = await comoAdmin(TEST_ORG_B).get('/api/customers');
-    const res = await comoAdmin(TEST_ORG_A)
-      .post('/api/orders')
-      .send({ customerId: clientesB.body.items[0].id });
-    expect([400, 403, 404]).toContain(res.status);
-  });
-
-  it('no deja usar un técnico de otra organización', async () => {
-    const tecnicosB = await comoAdmin(TEST_ORG_B).get('/api/technicians');
-    const res = await comoAdmin(TEST_ORG_A)
-      .post('/api/orders')
-      .send({ technicianId: tecnicosB.body.items[0].id });
-    expect([400, 403, 404]).toContain(res.status);
-  });
-
-  it('no deja usar un trabajo de otra organización en una línea', async () => {
-    const serviciosB = await comoAdmin(TEST_ORG_B).get('/api/services');
-    const res = await comoAdmin(TEST_ORG_A)
-      .post('/api/orders')
-      .send({ services: [{ serviceId: serviciosB.body.items[0].id }] });
-    // Sin esta validación, un cliente podría mandar el id de un trabajo de otra
-    // empresa y enterarse de cuánto cobra.
-    expect([400, 403, 404]).toContain(res.status);
-  });
-
-  it('el tablero de A no muestra órdenes de B', async () => {
-    const res = await comoAdmin(TEST_ORG_A).get('/api/tablero');
-    const todas = res.body.columnas.flatMap((c: any) => c.ordenes);
-    expect(todas.some((o: any) => o.asset === 'De Beta')).toBe(false);
+  it('la lista de A no muestra solicitudes de B', async () => {
+    await nuevaSolicitud(TEST_ORG_B, { title: 'Titulo de Beta' });
+    const res = await comoAdmin(TEST_ORG_A).get('/api/requests?limit=500');
+    expect(res.body.requests.some((r: any) => r.title === 'Titulo de Beta')).toBe(false);
   });
 });

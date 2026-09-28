@@ -17,6 +17,7 @@
   <nav id="tabs">
     <button data-tab="agenda" class="activo">Agenda</button>
     <button data-tab="espacios">Espacios</button>
+    <button data-tab="horarios">Horarios</button>
     <button data-tab="clientes">Clientes</button>
     <button data-tab="extras">Extras</button>
     <button data-tab="ajustes">Ajustes</button>
@@ -64,6 +65,50 @@
       </div>
     </form>
     <div id="espacios-lista"></div>
+  </section>
+
+  <section id="panel-horarios" hidden>
+    <div class="fila">
+      <div>
+        <label for="horario-espacio">Espacio</label>
+        <select id="horario-espacio"></select>
+      </div>
+    </div>
+
+    <h3>Horarios de la semana</h3>
+    <p class="ayuda">
+      Si un espacio no tiene horario para un día, atiende en la jornada general de
+      la organización. Los bloqueos valen sobre cualquier horario.
+    </p>
+    <form id="horario-form">
+      <h3><span id="horario-form-titulo">Nuevo horario</span></h3>
+      <input type="hidden" id="horario-id">
+      <label for="horario-dia">Día</label>
+      <select id="horario-dia"></select>
+      <label for="horario-desde">Desde</label>
+      <input id="horario-desde" type="time" required>
+      <label for="horario-hasta">Hasta</label>
+      <input id="horario-hasta" type="time" required>
+      <label for="horario-activo">Activo</label>
+      <input id="horario-activo" type="checkbox" checked>
+      <div class="fila">
+        <button type="submit">Guardar</button>
+        <button type="button" id="horario-cancelar" hidden>Cancelar</button>
+      </div>
+    </form>
+    <div id="horarios-lista"></div>
+
+    <h3>Bloqueos puntuales</h3>
+    <form id="bloqueo-form">
+      <label for="bloqueo-inicio">Empieza</label>
+      <input id="bloqueo-inicio" type="datetime-local" required>
+      <label for="bloqueo-fin">Termina</label>
+      <input id="bloqueo-fin" type="datetime-local" required>
+      <label for="bloqueo-motivo">Motivo</label>
+      <input id="bloqueo-motivo" maxlength="300">
+      <button type="submit">Bloquear</button>
+    </form>
+    <div id="bloqueos-lista"></div>
   </section>
 
   <section id="panel-clientes" hidden>
