@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Control de Pagos</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<!--
+  Esta página no pide usuario ni contraseña: la sesión vive en el Core y este
+  documento solo se sirve si ya la hay. Todo lo que se ve sale de la API, que
+  filtra por organización; por eso acá no hay ningún dato de ninguna empresa.
+
+  Y lo que se ve es la CARTERA POR COBRAR de la empresa: lo que sus clientes le
+  deben. Lo que la empresa le paga a AMG por la suscripción no aparece por
+  ninguna parte de esta pantalla: eso lo cobra el Core, en su propia base.
+-->
+<header>
+  <h1>Control de Pagos</h1>
+  <nav id="tabs">
+    <button data-tab="tablero" class="activo">Tablero</button>
+    <button data-tab="cobros">Cobros</button>
+    <button data-tab="reporte">Antiguedad</button>
+    <button data-tab="ajustes">Ajustes</button>
+  </nav>
+  <a id="salir" href="/auth/logout">Salir</a>
+</header>
+
+<main>
+  <section id="panel-tablero">
+    <div class="tarjetas" id="resumen"></div>
+    <h3>Ultimos cargos emitidos</h3>
+    <div id="recientes" class="lineas"></div>
+  </section>
+
+  <section id="panel-cobros" hidden>
+    <form id="cargo-form">
+      <h3><span id="cargo-form-titulo">Nuevo cargo</span></h3>
+      <div class="fila">
+        <div>
+          <label for="cargo-numero">Folio</label>
+          <!--
+            `name="number"` es lo que viaja a la API, y el boton de "proponer" pide
+            `/api/charges/next-number`: el folio lo propone el servidor, no el
+            formulario, para que dos personas de la misma empresa no propongan el
+            mismo numero a la vez.
+          -->
+          <div class="fila compacta">
+            <input id="cargo-numero" name="number" type="number" min="1" step="1">
+            <button type="button" id="cargo-proponer-numero">Proponer</button>
+          </div>
+        </div>
+        <div>
+          <label for="cargo-concepto">Concepto</label>
+          <input id="cargo-concepto" name="concept" required maxlength="150" placeholder="Contrato mensual, instalacion, repuestos">
+        </div>
+      </div>
+      <label for="cargo-cliente-nombre">Cliente</label>
+      <!--
+        El nombre es OBLIGATORIO y es una copia, no una busqueda: los clientes
+        viven en el producto `clientes`, que esta en otra base, y un cargo tiene
+        que poder leerse aunque el cliente se renombre o se de de baja. El id va
+        suelto y es opcional, por lo mismo.
+      -->
+      <input id="cargo-cliente-nombre" name="customerName" required maxlength="150">
+      <div class="fila">
+        <div>
+          <label for="cargo-cliente-id">Id del cliente (opcional)</label>
+          <input id="cargo-cliente-id" name="customerId" maxlength="64">
+        </div>
+        <div>
+          <label for="cargo-cliente-email">Correo (opcional)</label>
+          <input id="cargo-cliente-email" name="customerEmail" type="email" maxlength="200">
+        </div>
+      </div>
+      <div class="fila">
+        <div>
+          <label for="cargo-monto">Total (centavos)</label>
+          <!--
+            El campo va en CENTAVOS y no en pesos a proposito: es la misma unidad
+            en que se guarda y en que viaja por la API, y por eso esta pantalla
+            no multiplica ni divide el monto para mandarlo. El texto de ayuda de
+            abajo muestra como se va a ver.
+          -->
+          <input id="cargo-monto" name="amountCents" type="number" min="1" step="1" value="0" required>
+          <small id="cargo-monto-vista">$ 0</small>
+        </div>
+        <div>
+          <label for="cargo-emision">Emitido el</label>
+          <input id="cargo-emision" name="issuedDate" type="date">
+        </div>
+        <div>
+          <label for="cargo-vencimiento">Vence el</label>
+          <input id="cargo-vencimiento" name="dueDate" type="date">
+        </div>
+      </div>
+      <label for="cargo-notas">Notas</label>
+      <input id="cargo-notas" name="notes" maxlength="2000">
+      <input type="hidden" id="cargo-id">
+      <div class="fila">
+        <button type="submit">Guardar</button>
+        <button type="button" id="cargo-cancelar" hidden>Cancelar</button>
+      </div>
+    </form>
+
+    <div class="fila">
+      <div>
+        <label for="cargo-buscar">Buscar</label>
+        <input id="cargo-buscar" maxlength="100" placeholder="Folio, concepto, cliente, correo">
+      </div>
+      <div>
+        <label for="cargo-filtro">Estado</label>
+        <select id="cargo-filtro">
+          <option value="">Todos</option>
+          <option value="pending">Pendiente</option>
+          <option value="partial">Parcial</option>
+          <option value="paid">Pagado</option>
+          <option value="canceled">Cancelado</option>
+        </select>
+      </div>
+    </div>
+    <div id="cobros-lista"></div>
+  </section>
+
+  <section id="panel-reporte" hidden>
+    <h3>Antiguedad de la cartera</h3>
+    <p class="meta">
+      Cuanto se le debe a cada cliente y desde cuando. Los dias de atraso se miden
+      contra la fecha de corte; si no se pone una, se miden contra hoy.
+    </p>
+    <div class="fila">
+      <div>
+        <label for="reporte-desde">Emitidos desde</label>
+        <input id="reporte-desde" type="date">
+      </div>
+      <div>
+        <label for="reporte-hasta">Emitidos hasta</label>
+        <input id="reporte-hasta" type="date">
+      </div>
+      <div>
+        <button type="button" id="reporte-filtrar">Calcular</button>
+      </div>
+    </div>
+    <div id="reporte-tabla"></div>
+    <p class="meta" id="reporte-total"></p>
+  </section>
+
+  <section id="panel-ajustes" hidden>
+    <form id="config-form">
+      <h3>Ajustes</h3>
+      <label for="cfg-moneda">Moneda</label>
+      <input id="cfg-moneda" name="currency" maxlength="5">
+      <label for="cfg-zona">Zona horaria</label>
+      <!--
+        La zona horaria no es decorativa aca: decide que dia es hoy para el reporte
+        de antiguedad y cual es el mes en curso del "cobrado del mes". Por eso es
+        de la EMPRESA y no de la persona, y por eso solo un admin la cambia.
+      -->
+      <input id="cfg-zona" name="timezone" maxlength="64">
+      <button type="submit">Guardar ajustes</button>
+    </form>
+  </section>
+</main>
+
+<!--
+  La ficha de un cargo. Es un dialogo y no otra seccion porque se abre encima de la
+  lista: se mira el saldo y los abonos, y se vuelve al listado sin perder la pagina.
+-->
+<dialog id="ficha-dialog">
+  <div id="ficha"></div>
+
+  <form id="abono-form">
+    <h4>Registrar un abono</h4>
+    <div class="fila">
+      <div>
+        <label for="abono-monto">Monto (centavos)</label>
+        <input id="abono-monto" name="amountCents" type="number" min="1" step="1" value="0" required>
+        <small id="abono-monto-vista">$ 0</small>
+      </div>
+      <div>
+        <label for="abono-metodo">Como entro</label>
+        <select id="abono-metodo" name="method">
+          <option value="cash">Efectivo</option>
+          <option value="card">Tarjeta</option>
+          <option value="transfer">Transferencia</option>
+          <option value="other">Otro</option>
+        </select>
+      </div>
+    </div>
+    <div class="fila">
+      <div>
+        <label for="abono-referencia">Referencia</label>
+        <input id="abono-referencia" name="reference" maxlength="120">
+      </div>
+      <div>
+        <label for="abono-fecha">Recibido el (vacio = ahora)</label>
+        <!--
+          El abono se recibe un dia, no a una hora que nadie anotó. Si se escribe
+          una fecha se manda la medianoche de ese dia en UTC, que es el unico
+          instante que se puede afirmar sin inventar la hora. Y el campo parte
+          vacio a proposito: vacio es "ahora", y el servidor pone la hora real.
+        -->
+        <input id="abono-fecha" name="receivedAt" type="date">
+      </div>
+    </div>
+    <button type="submit">Registrar abono</button>
+  </form>
+
+  <div class="fila">
+    <button type="button" id="ficha-cancelar-cargo">Cancelar el cargo</button>
+    <button type="button" id="ficha-cerrar">Cerrar</button>
+  </div>
+</dialog>
+
+<div id="aviso" hidden></div>
+<script src="/app.js"></script>
+</body>
+</html>

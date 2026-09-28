@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Activos</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<!--
+  Esta página no pide usuario ni contraseña: la sesión vive en el Core y este
+  documento solo se sirve si ya la hay. Todo lo que se ve sale de la API, que
+  filtra por organización; por eso acá no hay ningún dato de ninguna empresa.
+-->
+<header>
+  <h1>Activos</h1>
+  <nav id="tabs">
+    <button data-tab="tablero" class="activo">Tablero</button>
+    <button data-tab="activos">Activos</button>
+    <button data-tab="ajustes">Ajustes</button>
+  </nav>
+  <a id="salir" href="/auth/logout">Salir</a>
+</header>
+
+<main>
+  <section id="panel-tablero">
+    <div class="tarjetas" id="resumen"></div>
+    <h3>Ultimos activos registrados</h3>
+    <div id="recientes" class="lineas"></div>
+  </section>
+
+  <section id="panel-activos" hidden>
+    <form id="activo-form">
+      <h3><span id="activo-form-titulo">Nuevo activo</span></h3>
+      <div class="fila">
+        <div>
+          <label for="activo-codigo">Codigo</label>
+          <!--
+            `name="code"` es lo que viaja a la API, y el boton de "proponer" pide
+            `/api/assets/next-code`: el codigo lo propone el servidor, no el
+            formulario, para que dos personas de la misma empresa no propongan
+            el mismo numero a la vez.
+          -->
+          <div class="fila compacta">
+            <input id="activo-codigo" name="code" required maxlength="40">
+            <button type="button" id="activo-proponer-codigo">Proponer</button>
+          </div>
+        </div>
+        <div>
+          <label for="activo-nombre">Nombre</label>
+          <input id="activo-nombre" name="name" required maxlength="150">
+        </div>
+      </div>
+      <label for="activo-categoria">Categoria</label>
+      <input id="activo-categoria" name="category" required maxlength="150" placeholder="herramienta, equipo de computo, vehiculo">
+      <div class="fila">
+        <div>
+          <label for="activo-marca">Marca</label>
+          <input id="activo-marca" name="brand" maxlength="80">
+        </div>
+        <div>
+          <label for="activo-modelo">Modelo</label>
+          <input id="activo-modelo" name="model" maxlength="80">
+        </div>
+        <div>
+          <label for="activo-serie">Numero de serie</label>
+          <input id="activo-serie" name="serial" maxlength="80">
+        </div>
+      </div>
+      <div class="fila">
+        <div>
+          <label for="activo-estado">Estado</label>
+          <select id="activo-estado" name="status">
+            <option value="active">En uso</option>
+            <option value="repair">En reparacion</option>
+            <option value="retired">Dado de baja</option>
+            <option value="lost">Perdido</option>
+          </select>
+        </div>
+        <div>
+          <label for="activo-ubicacion">Ubicacion</label>
+          <input id="activo-ubicacion" name="location" maxlength="150">
+        </div>
+      </div>
+      <div class="fila">
+        <div>
+          <label for="activo-responsable">Lo tiene</label>
+          <input id="activo-responsable" name="assignedTo" maxlength="120">
+        </div>
+        <div>
+          <label for="activo-compra">Comprado el</label>
+          <input id="activo-compra" name="purchaseDate" type="date">
+        </div>
+        <div>
+          <label for="activo-costo">Costo (centavos)</label>
+          <!--
+            El campo va en CENTAVOS y no en pesos a proposito: es la misma unidad
+            en que se guarda y en que viaja por la API, y por eso esta pantalla
+            no multiplica ni divide el monto para mandarlo. El texto de ayuda de
+            abajo muestra como se va a ver.
+          -->
+          <input id="activo-costo" name="costCents" type="number" min="0" step="1" value="0">
+          <small id="activo-costo-vista">$ 0</small>
+        </div>
+      </div>
+      <label for="activo-notas">Notas</label>
+      <input id="activo-notas" name="notes" maxlength="2000">
+      <input type="hidden" id="activo-id">
+      <div class="fila">
+        <button type="submit">Guardar</button>
+        <button type="button" id="activo-cancelar" hidden>Cancelar</button>
+      </div>
+    </form>
+
+    <div class="fila">
+      <div>
+        <label for="activo-buscar">Buscar</label>
+        <input id="activo-buscar" maxlength="100" placeholder="Codigo, nombre, serie, quien lo tiene">
+      </div>
+      <div>
+        <label for="activo-filtro">Estado</label>
+        <select id="activo-filtro">
+          <option value="">Todos</option>
+          <option value="active">En uso</option>
+          <option value="repair">En reparacion</option>
+          <option value="retired">Dado de baja</option>
+          <option value="lost">Perdido</option>
+        </select>
+      </div>
+    </div>
+    <div id="activos-lista"></div>
+  </section>
+
+  <section id="panel-ajustes" hidden>
+    <form id="config-form">
+      <h3>Ajustes</h3>
+      <label for="cfg-moneda">Moneda</label>
+      <input id="cfg-moneda" name="currency" maxlength="5">
+      <label for="cfg-zona">Zona horaria</label>
+      <input id="cfg-zona" name="timezone" maxlength="64">
+      <button type="submit">Guardar ajustes</button>
+    </form>
+  </section>
+</main>
+
+<!--
+  La ficha de un activo. Es un dialogo y no otra seccion porque se abre encima de
+  la lista: el historial se mira y se vuelve al listado, sin perder la pagina.
+-->
+<dialog id="ficha-dialog">
+  <div id="ficha"></div>
+
+  <form id="movimiento-form">
+    <h4>Registrar un movimiento</h4>
+    <label for="movimiento-tipo">Que paso</label>
+    <select id="movimiento-tipo" name="kind">
+      <option value="checkout">Salio (checkout)</option>
+      <option value="checkin">Volvio (checkin)</option>
+      <option value="maintenance">A reparacion (maintenance)</option>
+      <option value="loss">Se perdio (loss)</option>
+    </select>
+    <!--
+      El responsable solo se pide cuando el tipo es `checkout`, y el servidor lo
+      exige tambien: la pantalla esconde el campo, la API lo valida. Ninguna de
+      las dos se fía de la otra.
+    -->
+    <label for="movimiento-responsable">A quien se entrega (solo en checkout)</label>
+    <input id="movimiento-responsable" name="assignedTo" maxlength="120">
+    <label for="movimiento-nota">Nota</label>
+    <input id="movimiento-nota" name="note" maxlength="2000">
+    <button type="submit">Registrar movimiento</button>
+  </form>
+
+  <div class="fila">
+    <button type="button" id="ficha-cerrar">Cerrar</button>
+  </div>
+</dialog>
+
+<div id="aviso" hidden></div>
+<script src="/app.js"></script>
+</body>
+</html>

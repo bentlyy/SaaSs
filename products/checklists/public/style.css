@@ -1,0 +1,224 @@
+/* Estilos de checklists. Sin framework: es una pantalla y una hoja de estilos. */
+
+:root {
+  --borde: #d5dbe3;
+  --tinta: #1a2029;
+  --suave: #5d6875;
+  --fondo: #f6f8fa;
+  --acento: #1f4e79;
+  --ok: #1e7a45;
+  --fail: #b42318;
+  --na: #6b7480;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--tinta);
+  background: var(--fondo);
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1rem 1.5rem;
+  background: #fff;
+  border-bottom: 1px solid var(--borde);
+}
+
+header h1 { margin: 0; font-size: 1.25rem; }
+
+nav { display: flex; gap: 0.25rem; }
+
+nav button {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+  color: var(--suave);
+  font: inherit;
+}
+
+nav button.activo {
+  border-color: var(--borde);
+  background: var(--fondo);
+  color: var(--tinta);
+  font-weight: 600;
+}
+
+#salir { margin-left: auto; color: var(--suave); }
+
+main { padding: 1.5rem; max-width: 1100px; }
+
+h3 { margin: 1.5rem 0 0.5rem; }
+h4 { margin: 1.25rem 0 0.25rem; font-size: 0.95rem; }
+
+label { display: block; font-size: 0.85rem; color: var(--suave); margin-top: 0.5rem; }
+
+input, select, textarea {
+  width: 100%;
+  max-width: 22rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  font: inherit;
+  background: #fff;
+}
+
+textarea { max-width: 34rem; resize: vertical; }
+
+button {
+  font: inherit;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+button[disabled] { opacity: 0.45; cursor: not-allowed; }
+
+button[type="submit"] {
+  background: var(--acento);
+  border-color: var(--acento);
+  color: #fff;
+  margin-top: 1rem;
+}
+
+.fila { display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
+
+/* El checkbox de "obligatorio" es una casilla, no un campo de texto: sin esto
+   mide el ancho de un input y parece un campo mas del formulario. */
+input[type="checkbox"] { width: auto; max-width: none; }
+
+small { color: var(--suave); font-size: 0.78rem; }
+
+code { background: var(--fondo); padding: 0 0.2rem; border-radius: 3px; }
+
+.tarjetas { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; }
+
+.tarjeta {
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  min-width: 8rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.tarjeta strong { font-size: 1.4rem; }
+.tarjeta span { font-size: 0.8rem; color: var(--suave); }
+
+.ficha {
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.ficha strong { display: block; font-size: 0.9rem; }
+.ficha span { display: block; font-size: 0.78rem; color: var(--suave); }
+.ficha.vacia { color: var(--suave); font-style: italic; }
+
+table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--borde); border-radius: 8px; }
+
+th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--borde); vertical-align: top; }
+
+th { font-size: 0.8rem; color: var(--suave); text-transform: uppercase; letter-spacing: 0.03em; }
+
+tr:last-child td { border-bottom: none; }
+
+td button { padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.25rem; }
+
+.lineas { display: flex; flex-direction: column; gap: 0.35rem; }
+
+.linea {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--fondo);
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.linea .estado { margin-left: auto; color: var(--suave); font-size: 0.78rem; }
+
+/* La ficha de una corrida, en el dialogo. El form de editar y los botones de
+   estado van dentro del mismo dialogo porque los dos se usan sobre la misma
+   corrida, sin salir de ella. */
+dialog {
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  padding: 1.5rem;
+  min-width: 34rem;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
+
+dialog h3 { margin-top: 0; }
+
+#corrida-editar-form { border-top: 1px solid var(--borde); margin-top: 1rem; padding-top: 0.5rem; }
+
+.meta { color: var(--suave); font-size: 0.85rem; }
+
+/*
+  Los puntos de la corrida. Cada uno lleva su numero, su texto, los tres botones
+  de respuesta y su nota. El color del borde izquierdo es el unico que distingue
+  "sin responder" de los tres resultados: el texto del boton ya dice cual es, y
+  cuatro colores mas serian ruido.
+*/
+.puntos { display: flex; flex-direction: column; gap: 0.4rem; }
+
+.punto {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-left: 4px solid var(--borde);
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+}
+
+.punto.ok { border-left-color: var(--ok); }
+.punto.fail { border-left-color: var(--fail); }
+.punto.na { border-left-color: var(--na); }
+
+.punto .numero { color: var(--suave); font-size: 0.85rem; text-align: right; }
+.punto .texto { font-size: 0.9rem; }
+.punto .acciones { display: flex; gap: 0.25rem; }
+.punto .acciones button { padding: 0.2rem 0.45rem; font-size: 0.75rem; }
+
+/* La nota va en su propia fila cuando hay espacio, para que escribirla no sea
+   pelear con un campo de 20 pixeles de alto. */
+.punto .nota, .punto .nota-texto { grid-column: 2 / 4; }
+
+.punto .nota-texto { font-size: 0.8rem; color: var(--suave); }
+
+dl { display: grid; grid-template-columns: 8rem 1fr; gap: 0.25rem 0.75rem; font-size: 0.9rem; }
+dt { color: var(--suave); }
+dd { margin: 0; }
+
+#aviso {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  background: var(--acento);
+  color: #fff;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  max-width: 26rem;
+}
+
+#aviso.malo { background: var(--fail); }

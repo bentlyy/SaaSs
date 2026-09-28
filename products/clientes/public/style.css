@@ -1,0 +1,203 @@
+/* Estilos de clientes. Sin framework: es una pantalla y una hoja de estilos. */
+
+:root {
+  --borde: #d5dbe3;
+  --tinta: #1a2029;
+  --suave: #5d6875;
+  --fondo: #f6f8fa;
+  --acento: #0f766e;
+  --peligro: #b42318;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--tinta);
+  background: var(--fondo);
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1rem 1.5rem;
+  background: #fff;
+  border-bottom: 1px solid var(--borde);
+}
+
+header h1 { margin: 0; font-size: 1.25rem; }
+
+nav { display: flex; gap: 0.25rem; }
+
+nav button {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+  color: var(--suave);
+  font: inherit;
+}
+
+nav button.activo {
+  border-color: var(--borde);
+  background: var(--fondo);
+  color: var(--tinta);
+  font-weight: 600;
+}
+
+#salir { margin-left: auto; color: var(--suave); }
+
+main { padding: 1.5rem; max-width: 1100px; }
+
+h3 { margin: 1.5rem 0 0.5rem; }
+h4 { margin: 1.25rem 0 0.25rem; font-size: 0.95rem; }
+
+label { display: block; font-size: 0.85rem; color: var(--suave); margin-top: 0.5rem; }
+
+input, select {
+  width: 100%;
+  max-width: 22rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  font: inherit;
+  background: #fff;
+}
+
+button {
+  font: inherit;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+button[type="submit"] {
+  background: var(--acento);
+  border-color: var(--acento);
+  color: #fff;
+  margin-top: 1rem;
+}
+
+.fila { display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
+
+.tarjetas { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; }
+
+.tarjeta {
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  min-width: 8rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.tarjeta strong { font-size: 1.4rem; }
+.tarjeta span { font-size: 0.8rem; color: var(--suave); }
+
+/* El tablero: una columna por estado del pendiente. Es la pantalla principal, así
+   que las columnas se reparten el ancho y no se apilan. */
+.tablero { display: flex; gap: 0.75rem; align-items: flex-start; overflow-x: auto; }
+
+.columna {
+  flex: 1 0 15rem;
+  background: var(--fondo);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 0.6rem;
+}
+
+.columna h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--suave);
+}
+
+.tarjeta-seguimiento {
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-left: 3px solid var(--acento);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.tarjeta-seguimiento strong { display: block; font-size: 0.9rem; }
+.tarjeta-seguimiento span { display: block; font-size: 0.78rem; color: var(--suave); }
+
+.ficha {
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.ficha strong { display: block; font-size: 0.9rem; }
+.ficha span { display: block; font-size: 0.78rem; color: var(--suave); }
+.ficha.vacia { color: var(--suave); font-style: italic; }
+
+table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--borde); border-radius: 8px; }
+
+th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--borde); vertical-align: top; }
+
+th { font-size: 0.8rem; color: var(--suave); text-transform: uppercase; letter-spacing: 0.03em; }
+
+tr:last-child td { border-bottom: none; }
+
+td button { padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.25rem; }
+
+.lineas { display: flex; flex-direction: column; gap: 0.35rem; }
+
+.linea {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--fondo);
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.linea .estado { margin-left: auto; color: var(--suave); font-size: 0.78rem; }
+
+/* La ficha del cliente, en el diálogo. */
+dialog {
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  padding: 1.5rem;
+  min-width: 32rem;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
+
+dialog h3 { margin-top: 0; }
+
+.meta { color: var(--suave); font-size: 0.85rem; }
+
+dl { display: grid; grid-template-columns: 8rem 1fr; gap: 0.25rem 0.75rem; font-size: 0.9rem; }
+dt { color: var(--suave); }
+dd { margin: 0; }
+
+#aviso {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  background: var(--acento);
+  color: #fff;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  max-width: 26rem;
+}
+
+#aviso.malo { background: var(--peligro); }

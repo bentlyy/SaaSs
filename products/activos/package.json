@@ -1,17 +1,16 @@
 {
-  "name": "@amg/cotizaciones",
+  "name": "@amg/activos",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Cotizaciones sobre el runtime de AMG: presupuestos con lineas, totales en centavos y estados. Sin usuarios ni contrasenas propias.",
+  "description": "Activos sobre el runtime de AMG: equipos y bienes con su historial de movimientos. Sin usuarios ni contrasenas propias.",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
-    "migrate:legacy": "tsx src/migrate-legacy.ts"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@amg/auth-client": "*",

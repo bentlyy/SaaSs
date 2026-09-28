@@ -1,586 +1,429 @@
-/* ============================================================
-   Cotizaciones Pro · Frontend SPA (vanilla, sin dependencias)
-   Presupuestos y recibos profesionales. Contratos de API:
-   documents, customers (core): /api/documents, /api/customers.
-   ============================================================ */
-(() => {
-  'use strict';
-
-  const $ = (sel, root) => (root || document).querySelector(sel);
-  const $$ = (sel, root) => [...(root || document).querySelectorAll(sel)];
-  /**
- * Pinta un monto que YA VIENE HUMANO desde la API.
+/**
+ * Interfaz de cotizaciones.
  *
- * Antes dividia por 100 sobre un valor que el backend ya habia dividido, asi
- * que un total de $250 aparecia como $2,50.
+ * Tres reglas que no son de estilo sino de arquitectura:
  *
- * Regla unica: la base guarda centavos, el backend convierte, aca solo se pinta.
- * Este archivo no multiplica ni divide ningun monto.
+ *   1. No hay datos escritos en el navegador. La pagina se sirve vacia y todo
+ *      entra por la API, que es la que filtra por organizacion. Si el HTML
+ *      trajera datos, el servidor tendria que confiar en que el navegador no los
+ *      altere.
+ *
+ *   2. La pantalla NO resuelve el folio ni el total. No sabe si esta cotizacion
+ *      es la numero 8 o la 9: eso lo dice el servidor, que es el unico que ve
+ *      las cotizaciones de las otras organizaciones. El total que se muestra aca
+ *      es una aproximacion para leerlo antes de guardar, y el que queda escrito
+ *      es el que calcula la API.
+ *
+ *   3. La pantalla NO cambia el estado. El estado se mueve por
+ *      `POST /api/quotes/:id/estado`, que es la unica puerta que ademas sella
+ *      cuando se mando y cuando se acepto. Si el formulario mandara el estado en
+ *      el PATCH, se podria aceptar una cotizacion sin dejar rastro.
  */
-const money = (amount) => `$${Number(amount ?? 0).toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const $ = (sel) => document.querySelector(sel);
+const dinero = (centavos) =>
+  `${estado.cfg.currency}${(centavos / 100).toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
-  /* ---------- Iconos (stroke, estilo Lucide) ---------- */
-  const ICON = {
-    menu: '<line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>',
-    x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
-    plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
-    search: '<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
-    grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',
-    file: '<rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="3 7 12 13 21 7"/>',
-    users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
-    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
-    edit: '<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/>',
-    trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>',
-    settings: '<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
-    check: '<polyline points="20 6 9 17 4 12"/>',
-    alert: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
-    info: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
-    logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
-    inbox: '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
-    arrowRight: '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
-    send: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
-    dollar: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
-    pie: '<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>',
-  };
-  const svg = (name, size = 18) =>
-    `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name] || ICON.info}</svg>`;
+const ESTADOS = ['draft', 'sent', 'accepted', 'rejected', 'expired'];
+const ETIQUETA = {
+  draft: 'Borrador',
+  sent: 'Enviada',
+  accepted: 'Aceptada',
+  rejected: 'Rechazada',
+  expired: 'Vencida',
+};
 
-  /* ---------- Estado ---------- */
-  const state = {
-    session: null,
-    tenant: null,
-    customers: [],
-    documents: [],
-    loaded: { customers: false, documents: false },
-    docFilter: { q: '', type: '' },
-    busy: false,
-    prevFocus: null,
-  };
+/** A donde se puede ir desde cada estado. Es la misma tabla que valida el servidor. */
+const TRANSICIONES = {
+  draft: ['sent', 'expired'],
+  sent: ['accepted', 'rejected', 'expired'],
+  accepted: [],
+  rejected: [],
+  expired: ['sent'],
+};
 
-  const DOC_STATUS_LABEL = {
-    draft: 'Borrador', sent: 'Enviada', accepted: 'Aceptada', rejected: 'Rechazada',
-  };
-  const DOC_NEXT = {
-    draft: 'sent', sent: 'accepted',
-  };
+const estado = {
+  cotizaciones: [],
+  cfg: { currency: '$', defaultTaxRateBp: 0, validityDays: 30, nextNumber: 1 },
+  /** Las lineas de la cotizacion que se esta editando, antes de guardarla. */
+  borrador: [],
+  editando: null,
+};
 
-  /* ---------- API ---------- */
-  async function api(path, options = {}) {
-    const res = await fetch(path, {
-      credentials: 'same-origin',
-      headers: { 'content-type': 'application/json', ...(options.headers || {}) },
-      ...options,
-    });
-    const isJson = res.headers.get('content-type')?.includes('json');
-    if (!res.ok) {
-      const body = isJson ? await res.json() : {};
-      throw new Error(body.error || `Error ${res.status}`);
-    }
-    return isJson ? res.json() : res;
-  }
-
-  /* ---------- Toast ---------- */
-  function toast(message, kind = 'info') {
-    const icons = { ok: 'check', error: 'alert', info: 'info' };
-    const el = document.createElement('div');
-    el.className = `toast ${kind}`;
-    el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
-    el.innerHTML = svg(icons[kind] || 'info', 17) + `<span>${esc(message)}</span>`;
-    $('#toasts').appendChild(el);
-    setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateY(8px)'; }, 2600);
-    setTimeout(() => el.remove(), 2900);
-  }
-
-  /* ---------- Modal (accesible) ---------- */
-  function openModal(title, html, large = false) {
-    state.prevFocus = document.activeElement;
-    $('#modal-title').textContent = title;
-    $('#modal-body').innerHTML = html;
-    $('#modal').querySelector('.modal-content').classList.toggle('lg', large);
-    $('#modal').classList.remove('hidden');
-    requestAnimationFrame(() => {
-      const first = $('#modal').querySelector('input:not([type=hidden]):not([disabled]), select, textarea, button');
-      if (first) first.focus();
-    });
-  }
-  function closeModal() {
-    $('#modal').classList.add('hidden');
-    $('#modal-body').innerHTML = '';
-    if (state.prevFocus && document.contains(state.prevFocus)) state.prevFocus.focus();
-  }
-  $('#modal').addEventListener('click', (e) => {
-    const close = e.target.closest('[data-close]') || e.target === $('#modal');
-    if (close && !$('#modal').classList.contains('hidden')) closeModal();
+async function api(ruta, opciones = {}) {
+  const res = await fetch(ruta, {
+    headers: { 'content-type': 'application/json' },
+    ...opciones,
+    body: opciones.body ? JSON.stringify(opciones.body) : undefined,
   });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !$('#modal').classList.contains('hidden')) closeModal();
+  const datos = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(datos.error ?? 'No se pudo completar la operacion');
+    err.status = res.status;
+    throw err;
+  }
+  return datos;
+}
+
+function avisar(mensaje, malo = false) {
+  const caja = $('#aviso');
+  caja.textContent = mensaje;
+  caja.classList.toggle('malo', malo);
+  caja.hidden = false;
+  clearTimeout(caja.t);
+  caja.t = setTimeout(() => { caja.hidden = true; }, 5000);
+}
+
+function escapar(texto) {
+  return String(texto ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
+  );
+}
+
+/** La fecha de hoy en `AAAA-MM-DD`, que es como el servidor la espera. */
+function hoy() {
+  return new Date().toLocaleDateString('en-CA');
+}
+
+/** Hoy mas N dias, para proponer la vigencia de la oferta. */
+function dentroDe(dias) {
+  const d = new Date();
+  d.setDate(d.getDate() + dias);
+  return d.toLocaleDateString('en-CA');
+}
+
+// ─────────────────────────────────────────────────────────────── carga de datos
+
+async function cargar() {
+  const [lista, cfg] = await Promise.all([api('/api/quotes?limit=500'), api('/api/settings')]);
+  estado.cotizaciones = lista.items;
+  // Lo que se guarda es el objeto de ajustes SIN envolver. Leer un `settings`
+  // adentro de `cfg` seria leer `undefined` y reventar al pintar.
+  estado.cfg = cfg.settings;
+}
+
+// ─────────────────────────────────────────────────────────────────────── inicio
+
+async function pintarInicio() {
+  const d = await api('/api/dashboard');
+  $('#resumen').innerHTML = [
+    ['Cotizaciones', d.total],
+    ['Enviadas', d.porEstado.sent],
+    ['Aceptadas', d.porEstado.accepted],
+    [`Del mes (${d.mes})`, dinero(d.mesCents)],
+    ['En la mesa', dinero(d.totalCents)],
+  ]
+    .map(([titulo, valor]) => `<div class="tarjeta"><strong>${valor}</strong><span>${titulo}</span></div>`)
+    .join('');
+
+  // "Pendientes de respuesta" son las enviadas y las borradores: lo que todavia
+  // no tiene veredicto del cliente. Las aceptadas y las rechazadas ya lo tienen.
+  const abiertas = estado.cotizaciones.filter((c) => c.status === 'sent' || c.status === 'draft');
+  $('#abiertas').innerHTML =
+    abiertas.length === 0
+      ? '<p>No hay cotizaciones esperando respuesta.</p>'
+      : abiertas
+          .map(
+            (c) => `<div class="ficha">
+              <strong>#${c.number} · ${escapar(c.customerName)}</strong>
+              <span>${escapar(c.title ?? 'Sin titulo')}</span>
+              <span>${dinero(c.totalCents)}</span>
+            </div>`,
+          )
+          .join('');
+}
+
+// ─────────────────────────────────────────────────────────────── cotizaciones
+
+function pintarCotizaciones() {
+  const filtro = $('#filtro-estado').value;
+  const busqueda = $('#buscar').value.trim().toLowerCase();
+  const lista = estado.cotizaciones.filter((c) => {
+    if (filtro && c.status !== filtro) return false;
+    if (!busqueda) return true;
+    return [String(c.number), c.customerName ?? '', c.title ?? '']
+      .join(' ')
+      .toLowerCase()
+      .includes(busqueda);
   });
 
-  /* ---------- Confirm ---------- */
-  function confirmDialog({ title = '¿Confirmar?', message = '', danger = false, confirmLabel = 'Eliminar' } = {}) {
-    return new Promise((resolve) => {
-      const html = `
-        <div class="confirm-body">${esc(message)}</div>
-        <div class="confirm-actions">
-          <button type="button" class="btn ghost" data-confirm-cancel>Cancelar</button>
-          <button type="button" class="btn ${danger ? 'danger solid' : 'primary'}" data-confirm-ok>${esc(confirmLabel)}</button>
-        </div>`;
-      if (!$('#modal').classList.contains('hidden')) closeModal();
-      openModal(title, html);
-      $('#modal').querySelector('[data-confirm-ok]').addEventListener('click', () => { closeModal(); resolve(true); });
-      $('#modal').querySelector('[data-confirm-cancel]').addEventListener('click', () => { closeModal(); resolve(false); });
-      $('#modal').addEventListener('click', (e) => {
-        if (e.target === $('#modal')) { $('#modal').classList.add('hidden'); resolve(false); }
-      }, { once: true });
+  $('#cotizaciones-lista').innerHTML =
+    lista.length === 0
+      ? '<p>Todavia no hay cotizaciones.</p>'
+      : `<table>
+          <thead><tr><th>Folio</th><th>Cliente</th><th>Emision</th><th>Estado</th><th>Total</th><th></th></tr></thead>
+          <tbody>
+            ${lista
+              .map(
+                (c) => `<tr>
+                  <td>#${c.number}</td>
+                  <td>${escapar(c.customerName)}</td>
+                  <td>${escapar(c.issueDate ?? '—')}</td>
+                  <td>${ETIQUETA[c.status] ?? c.status}</td>
+                  <td>${dinero(c.totalCents)}</td>
+                  <td>
+                    <button type="button" data-ver="${escapar(c.id)}">Ver</button>
+                    <button type="button" data-borrar="${escapar(c.id)}">Borrar</button>
+                  </td>
+                </tr>`,
+              )
+              .join('')}
+          </tbody>
+        </table>`;
+
+  for (const b of document.querySelectorAll('[data-ver]')) {
+    b.addEventListener('click', () => abrirCotizacion(b.dataset.ver));
+  }
+  for (const b of document.querySelectorAll('[data-borrar]')) {
+    b.addEventListener('click', async () => {
+      if (!confirm('Borrar la cotizacion y sus lineas?')) return;
+      try {
+        await api(`/api/quotes/${b.dataset.borrar}`, { method: 'DELETE' });
+        avisar('Cotizacion borrada');
+        await recargar();
+      } catch (e) {
+        avisar(e.message, true);
+      }
     });
   }
+}
 
-  /* ---------- Estados visuales ---------- */
-  function skeletonRows(cells, rows = 4) {
-    const tds = Array.from({ length: cells }, () => `<td><div class="skeleton-cell"></div></td>`).join('');
-    return Array.from({ length: rows }, () => `<tr>${tds}</tr>`).join('');
-  }
-  function emptyStateHtml(title, text, btnLabel, action, icon = 'inbox') {
-    return `<div class="empty-state">
-      <span class="empty-icon">${svg(icon, 24)}</span>
-      <h4>${esc(title)}</h4>
-      <p>${esc(text)}</p>
-      ${btnLabel ? `<button class="btn primary sm" data-empty-action="${esc(action)}" type="button">${svg('plus', 15)} ${esc(btnLabel)}</button>` : ''}
-    </div>`;
-  }
-  function bindEmptyActions(scope) {
-    $$('[data-empty-action]', scope).forEach((btn) => btn.addEventListener('click', () => {
-      if (btn.dataset.emptyAction === 'new-doc') openNewDocument();
-      if (btn.dataset.emptyAction === 'reload') refreshDocs();
-      if (btn.dataset.emptyAction === 'new-customer') openNewCustomer();
-    }));
-  }
+// ────────────────────────────────────────────────────────── dialogo cotizacion
 
-  /* ---------- Auth ---------- */
-  $$('.seg-btn').forEach((btn) => btn.addEventListener('click', () => {
-    $$('.seg-btn').forEach((b) => { const on = b === btn; b.classList.toggle('active', on); b.setAttribute('aria-selected', String(on)); });
-    const tab = btn.dataset.tab;
-    $('#login-form').classList.toggle('hidden', tab !== 'login');
-    $('#register-form').classList.toggle('hidden', tab !== 'register');
+function pintarLineas() {
+  $('#cot-lineas').innerHTML =
+    estado.borrador
+      .map(
+        (l, i) => `<div class="linea">
+          <span>${escapar(l.description)}</span>
+          <span>${l.qty} × ${dinero(l.unitPriceCents)}</span>
+          <span>${dinero(l.lineTotalCents ?? 0)}</span>
+          <button type="button" data-quitar="${i}">Quitar</button>
+        </div>`,
+      )
+      .join('') || '<p class="ficha vacia">Sin lineas.</p>';
+
+  // Solo una estimacion para leerla antes de guardar. El que queda escrito es el
+  // que calcula el servidor.
+  const subtotal = estado.borrador.reduce((acc, l) => acc + (l.lineTotalCents ?? 0), 0);
+  const bp = Number($('#cot-impuesto').value) || 0;
+  $('#cot-total').textContent = dinero(subtotal + Math.round((subtotal * bp) / 10_000));
+
+  for (const b of document.querySelectorAll('[data-quitar]')) {
+    b.addEventListener('click', () => {
+      estado.borrador.splice(Number(b.dataset.quitar), 1);
+      pintarLineas();
+    });
+  }
+}
+
+/** Los botones de estado: solo los destinos que la tabla de transiciones permite. */
+function pintarEstados(actual) {
+  const destinos = TRANSICIONES[actual] ?? [];
+  $('#cot-estados').innerHTML =
+    destinos.length === 0
+      ? `<span class="ficha vacia">Una cotizacion ${ETIQUETA[actual] ?? actual} ya no cambia de estado.</span>`
+      : destinos
+          .map((e) => `<button type="button" data-estado="${e}">Pasar a ${ETIQUETA[e]}</button>`)
+          .join('');
+
+  for (const b of document.querySelectorAll('[data-estado]')) {
+    b.addEventListener('click', async () => {
+      try {
+        await api(`/api/quotes/${estado.editando}/estado`, { method: 'POST', body: { status: b.dataset.estado } });
+        avisar('Estado actualizado');
+        await recargar();
+        if (estado.editando) await abrirCotizacion(estado.editando);
+      } catch (e) {
+        avisar(e.message, true);
+      }
+    });
+  }
+}
+
+async function abrirCotizacion(id) {
+  const c = estado.cotizaciones.find((x) => x.id === id);
+  if (!c) return avisar('La cotizacion no esta en la lista', true);
+
+  const { lines } = await api(`/api/quotes/${id}/lineas`);
+  estado.editando = id;
+  estado.borrador = lines.map((l) => ({
+    description: l.description,
+    qty: l.qty,
+    unitPriceCents: l.unitPriceCents,
+    lineTotalCents: l.lineTotalCents,
   }));
 
-  $('#login-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const err = $('[data-err]', e.target);
-    err.textContent = '';
-    try {
-      await api('/api/auth/login', { method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(e.target))) });
-      enterApp();
-    } catch (ex) { err.textContent = ex.message; }
-  });
+  $('#cotizacion-form-titulo').textContent = `Cotizacion #${c.number}`;
+  $('#cotizacion-id').value = c.id;
+  $('#cot-folio').value = c.number;
+  $('#cot-cliente').value = c.customerName ?? '';
+  $('#cot-cliente-id').value = c.customerId ?? '';
+  $('#cot-correo').value = c.customerEmail ?? '';
+  $('#cot-titulo').value = c.title ?? '';
+  $('#cot-emision').value = c.issueDate ?? hoy();
+  $('#cot-vigencia').value = c.validUntil ?? '';
+  $('#cot-impuesto').value = c.taxRateBp ?? 0;
+  $('#cot-notas').value = c.notes ?? '';
 
-  $('#register-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const err = $('[data-err]', e.target);
-    err.textContent = '';
-    try {
-      await api('/api/auth/register', { method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(e.target))) });
-      toast('Cuenta creada. ¡Bienvenido!', 'ok');
-      enterApp();
-    } catch (ex) { err.textContent = ex.message; }
-  });
+  pintarLineas();
+  pintarEstados(c.status);
+  $('#cotizacion-dialog').showModal();
+}
 
-  $('#logout-btn').addEventListener('click', async () => {
-    await api('/api/auth/logout', { method: 'POST' });
-    location.reload();
-  });
+function abrirNueva() {
+  estado.editando = null;
+  estado.borrador = [];
+  $('#cotizacion-form-titulo').textContent = 'Nueva cotizacion';
+  $('#cotizacion-id').value = '';
+  // El folio es una PROPUESTA del servidor, no una reserva: si dos personas abren
+  // el formulario a la vez, la segunda que guarde recibe un 409 y recarga.
+  $('#cot-folio').value = estado.cfg.nextNumber;
+  $('#cot-cliente').value = '';
+  $('#cot-cliente-id').value = '';
+  $('#cot-correo').value = '';
+  $('#cot-titulo').value = '';
+  $('#cot-emision').value = hoy();
+  $('#cot-vigencia').value = dentroDe(estado.cfg.validityDays);
+  $('#cot-impuesto').value = estado.cfg.defaultTaxRateBp;
+  $('#cot-notas').value = '';
+  pintarLineas();
+  pintarEstados('draft');
+  $('#cotizacion-dialog').showModal();
+}
 
-  const initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+// ─────────────────────────────────────────────────────────────────────── eventos
 
-  async function enterApp() {
-    const { session, tenant, user } = await api('/api/auth/me');
-    state.session = session;
-    state.tenant = tenant;
-    $('#auth-view').classList.add('hidden');
-    $('#app').classList.remove('hidden');
-    $('#user-chip').textContent = `${user.name}`;
-    $('#user-avatar').textContent = initials(user.name);
-    $('#user-tenant').textContent = tenant.name;
-    document.title = `${tenant.name} · Cotizaciones Pro`;
-    await Promise.all([refreshCustomers(), refreshDocs()]);
-    switchPane(initialView());
-  }
+$('#linea-agregar').addEventListener('click', () => {
+  const description = $('#linea-descripcion').value.trim();
+  if (!description) return avisar('La linea necesita una descripcion', true);
+  const qty = Number($('#linea-cantidad').value) || 1;
+  const unitPriceCents = Number($('#linea-precio').value) || 0;
+  estado.borrador.push({ description, qty, unitPriceCents, lineTotalCents: Math.round(qty * unitPriceCents) });
+  $('#linea-descripcion').value = '';
+  $('#linea-cantidad').value = '1';
+  $('#linea-precio').value = '0';
+  pintarLineas();
+});
 
-  /* ---------- Navegación ---------- */
-  const VIEW_META = {
-    dashboard: ['Inicio', 'Resumen de cotizaciones'],
-    cotizaciones: ['Cotizaciones', 'Presupuestos y recibos'],
-    clientes: ['Clientes', 'Tus clientes'],
-    config: ['Configuración', 'Ajustes del negocio'],
+$('#cot-impuesto').addEventListener('input', pintarLineas);
+
+$('#cotizacion-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  // El estado NO va en el cuerpo: se cambia por su propia ruta, que ademas sella
+  // la fecha. Mandarlo por aca seria una segunda puerta sin sello.
+  const cuerpo = {
+    number: Number($('#cot-folio').value) || null,
+    customerName: $('#cot-cliente').value.trim(),
+    customerId: $('#cot-cliente-id').value.trim() || null,
+    customerEmail: $('#cot-correo').value.trim() || null,
+    title: $('#cot-titulo').value.trim() || null,
+    issueDate: $('#cot-emision').value || null,
+    validUntil: $('#cot-vigencia').value || null,
+    taxRateBp: Number($('#cot-impuesto').value) || 0,
+    notes: $('#cot-notas').value.trim() || null,
+    lines: estado.borrador.map(({ description, qty, unitPriceCents }) => ({ description, qty, unitPriceCents })),
   };
-
-  function switchPane(view) {
-    if (!VIEW_META[view]) view = 'dashboard';
-    $$('.nav-btn').forEach((b) => { const on = b.dataset.view === view; b.classList.toggle('active', on); b.setAttribute('aria-current', on ? 'page' : 'false'); });
-    $$('[data-view-pane]').forEach((p) => p.classList.toggle('hidden', p.dataset.viewPane !== view));
-    const [title, sub] = VIEW_META[view];
-    $('#view-title').textContent = title;
-    $('#view-sub').textContent = sub;
-    closeDrawer();
-    if (view === 'dashboard') renderDashboard();
-    if (view === 'cotizaciones') renderDocs();
-    if (view === 'clientes') renderClientes();
-    if (view === 'config') renderConfig();
-    if (window.location.hash !== `#/${view}`) history.replaceState(null, '', `#/${view}`);
-  }
-  function initialView() {
-    const v = (window.location.hash || '').replace('#/', '');
-    return VIEW_META[v] ? v : 'dashboard';
-  }
-  $$('.nav-btn').forEach((btn) => btn.addEventListener('click', () => switchPane(btn.dataset.view)));
-  window.addEventListener('popstate', () => switchPane(initialView()));
-
-  function openDrawer() { $('#sidebar').classList.add('open'); $('#overlay').hidden = false; document.body.style.overflow = 'hidden'; }
-  function closeDrawer() { $('#sidebar').classList.remove('open'); $('#overlay').hidden = true; document.body.style.overflow = ''; }
-  $('#nav-open').addEventListener('click', openDrawer);
-  $('#nav-close').addEventListener('click', closeDrawer);
-  $('#overlay').addEventListener('click', closeDrawer);
-
-  /* ---------- Datos ---------- */
-  async function refreshCustomers() {
-    const { customers } = await api('/api/customers');
-    state.customers = customers;
-    state.loaded.customers = true;
-    return customers;
-  }
-  async function refreshDocs() {
-    const { documents } = await api('/api/documents');
-    state.documents = documents;
-    state.loaded.documents = true;
-    return documents;
-  }
-
-  /* ---------- Dashboard ---------- */
-  async function renderDashboard() {
-    $('#dash-metrics').innerHTML = Array.from({ length: 4 }, () =>
-      `<div class="metric-card"><span class="metric-icon skeleton-cell" style="width:46px;height:46px;border-radius:12px"></span><div style="flex:1"><div class="skeleton-cell" style="width:60%"></div><div class="skeleton-cell" style="width:40%;margin-top:8px"></div></div></div>`).join('');
-    $('#dash-open').innerHTML = $('#dash-receipts').innerHTML = '<div class="empty-state"><div class="skeleton-cell" style="width:70%"></div><div class="skeleton-cell" style="width:50%"></div></div>';
-    try {
-      await Promise.all([refreshDocs(), refreshCustomers()]);
-      fillDashboard();
-    } catch (e) {
-      $('#dash-metrics').innerHTML = '';
-      $('#dash-open').innerHTML = $('#dash-receipts').innerHTML =
-        `<div class="empty-state"><span class="empty-icon">${svg('alert', 24)}</span><h4>No se pudo cargar</h4><p>${esc(e.message)}</p><button class="btn ghost sm" id="dash-retry" type="button">Reintentar</button></div>`;
-      $('#dash-retry')?.addEventListener('click', renderDashboard);
+  try {
+    if (estado.editando) {
+      await api(`/api/quotes/${estado.editando}`, { method: 'PATCH', body: cuerpo });
+      avisar('Cotizacion actualizada');
+    } else {
+      await api('/api/quotes', { method: 'POST', body: cuerpo });
+      avisar('Cotizacion creada');
     }
+    $('#cotizacion-dialog').close();
+    await recargar();
+  } catch (e) {
+    avisar(e.message, true);
   }
+});
 
-  function fillDashboard() {
-    const docs = state.documents;
-    const quotes = docs.filter((d) => d.type === 'cotizacion');
-    const receipts = docs.filter((d) => d.type === 'recibo');
-    const open = quotes.filter((d) => d.status === 'draft' || d.status === 'sent');
-    const accepted = quotes.filter((d) => d.status === 'accepted');
-    const openValue = open.reduce((acc, d) => acc + d.total, 0);
-    const pending = quotes.filter((d) => d.status === 'sent').length;
+$('#cotizacion-cancelar').addEventListener('click', () => $('#cotizacion-dialog').close());
+$('#cotizacion-nueva').addEventListener('click', abrirNueva);
+$('#buscar').addEventListener('input', pintarCotizaciones);
+$('#filtro-estado').addEventListener('change', pintarCotizaciones);
 
-    const metrics = [
-      { label: 'Cotizaciones', value: quotes.length, icon: 'file', tone: 'brand' },
-      { label: 'Pendientes de respuesta', value: pending, icon: 'send', tone: pending ? 'warn' : 'brand' },
-      { label: 'Aceptadas', value: accepted.length, icon: 'check', tone: 'brand' },
-      { label: 'Monto en espera', value: money(openValue), icon: 'dollar', tone: 'brand' },
-    ];
-    $('#dash-metrics').innerHTML = metrics.map((m) => `<div class="metric-card">
-      <span class="metric-icon ${m.tone}">${svg(m.icon, 20)}</span>
-      <div><p class="metric-value">${m.value}</p><p class="metric-label">${esc(m.label)}</p></div>
-    </div>`).join('');
-
-    $('#dash-open').innerHTML = open.length
-      ? open.slice(0, 5).map((d) => `<div class="item-row">
-          <span class="avatar">${svg('file', 15)}</span>
-          <div class="item-meta"><b>${esc(d.number)}</b><small>${esc(d.customer?.name || '—')} · ${esc(d.title)}</small></div>
-          <span class="tag ${d.status}">${DOC_STATUS_LABEL[d.status] || d.status}</span>
-        </div>`).join('')
-      : `<div class="empty-state"><span class="empty-icon">${svg('check', 24)}</span><h4>Todo respondido</h4><p>No hay cotizaciones pendientes de respuesta.</p></div>`;
-
-    $('#dash-receipts').innerHTML = receipts.length
-      ? receipts.slice(0, 5).map((d) => `<div class="item-row">
-          <span class="avatar">${svg('dollar', 15)}</span>
-          <div class="item-meta"><b>${esc(d.number)}</b><small>${esc(d.customer?.name || '—')}</small></div>
-          <b>${money(d.total)}</b>
-        </div>`).join('')
-      : `<div class="empty-state"><span class="empty-icon">${svg('file', 24)}</span><h4>Sin recibos</h4><p>Genera recibos para cobros parciales o pagos.</p></div>`;
-  }
-
-  /* ---------- Cotizaciones ---------- */
-  async function renderDocs() {
-    const tbody = $('#docs-tbody');
-    if (!state.loaded.documents) tbody.innerHTML = skeletonRows(6);
-    try {
-      await refreshDocs();
-    } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="6">${emptyStateHtml('No se pudo cargar', e.message, 'Reintentar', 'reload')}</td></tr>`;
-      bindEmptyActions(tbody);
-      return;
-    }
-    const q = state.docFilter.q.trim().toLowerCase();
-    const docs = state.documents.filter((d) => {
-      const okType = !state.docFilter.type || d.type === state.docFilter.type;
-      const okQ = !q || `${d.number} ${d.customer?.name} ${d.title}`.toLowerCase().includes(q);
-      return okType && okQ;
+$('#config-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const form = $('#config-form');
+  try {
+    await api('/api/settings', {
+      method: 'PUT',
+      body: {
+        currency: form.elements.currency.value.trim() || '$',
+        timezone: form.elements.timezone.value.trim(),
+        defaultTaxRateBp: Number(form.elements.defaultTaxRateBp.value) || 0,
+        validityDays: Number(form.elements.validityDays.value) || 30,
+      },
     });
-    if (!docs.length) {
-      $('#docs-tbody').innerHTML = `<tr><td colspan="6">${emptyStateHtml('Sin documentos', 'Crea tu primera cotización o recibo para clientes.', 'Crear documento', 'new-doc', 'file')}</td></tr>`;
-      bindEmptyActions($('#docs-tbody'));
-      return;
+    avisar('Ajustes guardados');
+    await recargar();
+  } catch (e) {
+    avisar(e.message, true);
+  }
+});
+
+// ───────────────────────────────────────────────────────────────── navegación
+
+const PANELES = {
+  inicio: pintarInicio,
+  cotizaciones: pintarCotizaciones,
+  ajustes: async () => renderConfig(),
+};
+
+for (const boton of document.querySelectorAll('#tabs button')) {
+  boton.addEventListener('click', async () => {
+    document.querySelectorAll('#tabs button').forEach((b) => b.classList.remove('activo'));
+    boton.classList.add('activo');
+    for (const [nombre, seccion] of Object.entries({
+      inicio: '#panel-inicio',
+      cotizaciones: '#panel-cotizaciones',
+      ajustes: '#panel-ajustes',
+    })) {
+      $(seccion).hidden = nombre !== boton.dataset.tab;
     }
-    $('#docs-tbody').innerHTML = docs.map((d) => `<tr>
-      <td><b>${esc(d.number)}</b></td>
-      <td data-label="Tipo">${d.type === 'recibo' ? 'Recibo' : 'Cotización'}</td>
-      <td data-label="Cliente">${esc(d.customer?.name || '—')}</td>
-      <td data-label="Total"><b>${money(d.total)}</b></td>
-      <td data-label="Estado"><span class="tag ${d.status}">${DOC_STATUS_LABEL[d.status] || d.status}</span></td>
-      <td data-label="Acciones"><div class="row-actions">
-        <button class="btn ghost sm" data-pdf="${d.id}" type="button" aria-label="Descargar PDF ${esc(d.number)}">${svg('download', 15)} PDF</button>
-        ${DOC_NEXT[d.status] ? `<button class="btn ghost sm" data-status="${d.id}" data-to="${DOC_NEXT[d.status]}" type="button">${d.status === 'draft' ? 'Enviar' : 'Aceptar'}</button>` : ''}
-        <button class="btn danger sm" data-del="${d.id}" type="button" aria-label="Eliminar ${esc(d.number)}">${svg('trash', 15)}</button>
-      </div></td>
-    </tr>`).join('');
-    $$('#docs-tbody [data-pdf]').forEach((b) => b.addEventListener('click', () => window.open(`/api/documents/${b.dataset.pdf}/pdf`, '_blank')));
-    $$('#docs-tbody [data-status]').forEach((b) => b.addEventListener('click', async () => {
-      try {
-        await api(`/api/documents/${b.dataset.status}/status`, { method: 'PATCH', body: JSON.stringify({ status: b.dataset.to }) });
-        toast('Estado actualizado', 'ok'); await renderDocs();
-      } catch (err) { toast(err.message, 'error'); }
-    }));
-    $$('#docs-tbody [data-del]').forEach((b) => b.addEventListener('click', async () => {
-      const doc = state.documents.find((x) => x.id === b.dataset.del);
-      const ok = await confirmDialog({
-        title: 'Eliminar documento',
-        message: `¿Eliminar ${doc?.number}? Esta acción no se puede deshacer.`,
-        danger: true,
-      });
-      if (!ok) return;
-      try {
-        await api(`/api/documents/${b.dataset.del}`, { method: 'DELETE' });
-        toast('Documento eliminado', 'ok'); await refreshDocs(); renderDocs();
-      } catch (err) { toast(err.message, 'error'); }
-    }));
-  }
-
-  function openNewDocument() {
-    if (!state.customers.length) {
-      toast('Primero registra un cliente', 'error');
-      return;
-    }
-    const cust = state.customers.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
-    openModal('Nuevo documento', `<form class="modal-form" id="doc-form" novalidate>
-      <div class="form-row">
-        <label class="field"><span>Tipo</span><select name="type"><option value="cotizacion">Cotización</option><option value="recibo">Recibo</option></select></label>
-        <label class="field"><span>Cliente</span><select name="customerId">${cust}</select></label>
-      </div>
-      <label class="field"><span>Título</span><input name="title" placeholder="Descripción corta (opcional)" /></label>
-      <div id="doc-lines">
-        <div class="doc-line">
-          <label class="field" style="grid-column:1/-1"><span>Descripción</span><input name="desc" /></label>
-          <label class="field"><span>Cant.</span><input name="qty" type="number" min="1" value="1" /></label>
-          <label class="field"><span>Precio</span><input name="price" type="number" step="0.01" value="0" /></label>
-        </div>
-      </div>
-      <button type="button" class="btn ghost sm" id="add-line">${svg('plus', 15)} Agregar línea</button>
-      <label class="field"><span>Impuesto %</span><input name="taxPercent" type="number" value="16" min="0" max="100" /></label>
-      <div id="doc-total" class="doc-total">Total: <b>$0.00</b></div>
-      <div class="row-actions">
-        <button type="button" class="btn ghost" data-close>Cancelar</button>
-        <button type="submit" class="btn primary">Generar documento</button>
-      </div>
-    </form>`);
-    bindDocForm();
-  }
-
-  function bindDocForm() {
-    const form = $('#doc-form');
-    const recalc = () => {
-      const taxP = Number(form.querySelector('[name=taxPercent]').value) || 0;
-      const lines = [...form.querySelectorAll('#doc-lines .doc-line')].map((el) => ({
-        qty: Number(el.querySelector('[name=qty]').value) || 0,
-        price: Number(el.querySelector('[name=price]').value) || 0,
-      }));
-      const subtotal = lines.reduce((a, l) => a + l.qty * l.price, 0);
-      const total = subtotal * (1 + taxP / 100);
-      const el = form.querySelector('#doc-total b');
-      if (el) el.textContent = `$${total.toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    };
-    form.querySelector('#add-line').addEventListener('click', () => {
-      const proto = form.querySelector('#doc-lines .doc-line').outerHTML;
-      const wrap = document.createElement('div');
-      wrap.innerHTML = proto;
-      form.querySelector('#doc-lines').appendChild(wrap.firstElementChild);
-      recalc();
-    });
-    form.querySelectorAll('input').forEach((el) => el.addEventListener('input', recalc));
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const f = new FormData(form);
-      const lineEls = [...form.querySelectorAll('#doc-lines .doc-line')];
-      const lines = lineEls.map((el) => ({
-        description: el.querySelector('[name=desc]').value,
-        qty: Number(el.querySelector('[name=qty]').value),
-        price: Number(el.querySelector('[name=price]').value),
-      })).filter((l) => l.description);
-      if (!lines.length) { toast('Agrega al menos una línea', 'error'); return; }
-      const btn = e.target.querySelector('button[type=submit]');
-      btn.disabled = true; btn.textContent = 'Generando…';
-      try {
-        const { document: doc } = await api('/api/documents', {
-          method: 'POST',
-          body: JSON.stringify({
-            type: f.get('type'), customerId: f.get('customerId'),
-            title: f.get('title') || undefined, lines, taxPercent: Number(f.get('taxPercent')) || 0,
-          }),
-        });
-        closeModal();
-        window.open(`/api/documents/${doc.id}/pdf`, '_blank');
-        toast('Documento generado', 'ok');
-        await refreshDocs(); renderDocs();
-      } catch (err) { toast(err.message, 'error'); btn.disabled = false; btn.textContent = 'Generar documento'; }
-    });
-  }
-
-  /* ---------- Clientes ---------- */
-  async function renderClientes() {
-    const tbody = $('#clientes-tbody');
-    if (!state.loaded.customers) tbody.innerHTML = skeletonRows(5);
-    try {
-      await refreshCustomers();
-    } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="5">${emptyStateHtml('No se pudo cargar', e.message, 'Reintentar', 'reload')}</td></tr>`;
-      bindEmptyActions(tbody);
-      return;
-    }
-    const q = state.docFilter.q.trim().toLowerCase();
-    const customers = q ? state.customers.filter((c) => `${c.name} ${c.email}`.toLowerCase().includes(q)) : state.customers;
-    if (!customers.length) {
-      $('#clientes-tbody').innerHTML = `<tr><td colspan="5">${emptyStateHtml('Sin clientes', 'Registra a tus clientes para cotizarles.', 'Registrar cliente', 'new-customer', 'users')}</td></tr>`;
-      bindEmptyActions($('#clientes-tbody'));
-      return;
-    }
-    $('#clientes-tbody').innerHTML = customers.map((c) => `<tr>
-      <td><b>${esc(c.name)}</b></td>
-      <td data-label="Teléfono" class="muted">${esc(c.phone || '—')}</td>
-      <td data-label="Correo" class="muted">${esc(c.email || '—')}</td>
-      <td data-label="Notas" class="muted">${esc(c.notes || '')}</td>
-      <td data-label="Acciones"><div class="row-actions">
-        <button class="btn ghost sm" data-edit="${c.id}" type="button" aria-label="Editar ${esc(c.name)}">${svg('edit', 15)}</button>
-        <button class="btn danger sm" data-del="${c.id}" type="button" aria-label="Eliminar ${esc(c.name)}">${svg('trash', 15)}</button>
-      </div></td>
-    </tr>`).join('');
-    $$('#clientes-tbody [data-edit]').forEach((b) => b.addEventListener('click', () => openCustomerForm(state.customers.find((c) => c.id === b.dataset.edit))));
-    $$('#clientes-tbody [data-del]').forEach((b) => b.addEventListener('click', async () => {
-      const c = state.customers.find((x) => x.id === b.dataset.del);
-      const ok = await confirmDialog({
-        title: 'Eliminar cliente',
-        message: `¿Eliminar a "${c?.name}"?`,
-        danger: true,
-      });
-      if (!ok) return;
-      try {
-        await api(`/api/customers/${c.id}`, { method: 'DELETE' });
-        toast('Cliente eliminado', 'ok'); await refreshCustomers(); renderClientes();
-      } catch (err) { toast(err.message, 'error'); }
-    }));
-  }
-
-  function openNewCustomer() { openCustomerForm(null); }
-  function openCustomerForm(c) {
-    openModal(c ? `Editar · ${c.name}` : 'Nuevo cliente', `<form class="modal-form" novalidate>
-      <label class="field"><span>Nombre</span><input name="name" value="${esc(c?.name || '')}" required /></label>
-      <label class="field"><span>Teléfono</span><input name="phone" value="${esc(c?.phone || '')}" /></label>
-      <label class="field"><span>Correo</span><input name="email" type="email" value="${esc(c?.email || '')}" /></label>
-      <label class="field"><span>Notas</span><textarea name="notes" rows="3">${esc(c?.notes || '')}</textarea></label>
-      <div class="row-actions">
-        <button type="button" class="btn ghost" data-close>Cancelar</button>
-        <button type="submit" class="btn primary">${c ? 'Guardar' : 'Registrar'}</button>
-      </div>
-    </form>`);
-    const form = $('#modal .modal-form');
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const f = new FormData(form);
-      const input = {
-        name: f.get('name'), phone: f.get('phone') || '', email: f.get('email') || '',
-        notes: f.get('notes') || '',
-      };
-      try {
-        await api(c ? `/api/customers/${c.id}` : '/api/customers', { method: c ? 'PUT' : 'POST', body: JSON.stringify(input) });
-        closeModal(); toast(c ? 'Cliente actualizado' : 'Cliente registrado', 'ok');
-        await refreshCustomers(); renderClientes();
-      } catch (err) { toast(err.message, 'error'); }
-    });
-  }
-
-  /* ---------- Configuración ---------- */
-  function renderConfig() {
-    const t = state.tenant;
-    const form = $('#config-form');
-    Object.entries(form.elements).forEach(([, el]) => {
-      if (!el.name) return;
-      if (el.type === 'checkbox') el.checked = Boolean(t[el.name]);
-      else el.value = t[el.name] ?? '';
-    });
-  }
-  $('#config-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const err = $('[data-err]', e.target);
-    err.textContent = '';
-    const f = new FormData(e.target);
-    const input = {
-      name: f.get('name'),
-      phone: f.get('phone') || '',
-      address: f.get('address') || '',
-      currency: f.get('currency') || '$',
-      timezone: f.get('timezone') || 'America/Mexico_City',
-    };
-    try {
-      const { tenant } = await api('/api/auth/settings', { method: 'PUT', body: JSON.stringify(input) });
-      state.tenant = tenant;
-      $('#user-tenant').textContent = tenant.name;
-      toast('Configuración guardada', 'ok');
-    } catch (ex) { err.textContent = ex.message; }
+    if (PANELES[boton.dataset.tab]) await PANELES[boton.dataset.tab]();
   });
+}
 
-  /* ---------- Helpers ---------- */
-  function debounce(fn, ms = 250) {
-    let t;
-    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+/** Vuelve a pedir todo y reagrupa. Se llama despues de cada escritura. */
+async function recargar() {
+  await cargar();
+  renderConfig();
+  const activo = document.querySelector('#tabs button.activo')?.dataset.tab ?? 'inicio';
+  if (PANELES[activo]) await PANELES[activo]();
+}
+
+/**
+ * Llena el form de ajustes.
+ *
+ * Se recorre `form.elements` y se usa el `name` de cada input como clave del
+ * ajuste, en vez de buscarlos por id uno por uno. Es lo que permite agregar un
+ * ajuste nuevo poniendo un `<input name="...">` en el HTML, sin tocar este JS.
+ */
+function renderConfig() {
+  const form = $('#config-form');
+  const c = estado.cfg;
+  for (const el of form.elements) {
+    if (!el.name || c[el.name] === undefined) continue;
+    el.value = c[el.name];
   }
+  // El folio siguiente no es un input: es el unico dato de los ajustes que NO se
+  // puede escribir, y por eso vive aparte del form.
+  $('#cfg-folio').textContent = String(c.nextNumber ?? 1);
+}
 
-  /* ---------- Bindings ---------- */
-  $('#docs-new').addEventListener('click', () => {
-    if (!state.customers.length) { switchPane('clientes'); return; }
-    openNewDocument();
-  });
-  $('#quick-new').addEventListener('click', () => { switchPane('cotizaciones'); setTimeout(openNewDocument, 0); });
-  $('#clientes-new').addEventListener('click', openNewCustomer);
-  $('[data-go-cotizaciones]').addEventListener('click', () => switchPane('cotizaciones'));
+/** El filtro de estado se arma UNA vez: si se rearmara en cada `renderConfig()`,
+ *  guardar unos ajustes borraria el estado que el usuario estaba filtrando. */
+function pintarFiltroEstado() {
+  $('#filtro-estado').innerHTML =
+    '<option value="">Todos los estados</option>' +
+    ESTADOS.map((e) => `<option value="${e}">${ETIQUETA[e]}</option>`).join('');
+}
 
-  $('#docs-search').addEventListener('input', debounce((e) => {
-    state.docFilter.q = e.target.value;
-    renderDocs();
-  }, 250));
-  $('#docs-type').addEventListener('change', (e) => {
-    state.docFilter.type = (e.target.value === 'cotizacion' || e.target.value === 'recibo') ? e.target.value : '';
-    renderDocs();
-  });
-  $('#clientes-search').addEventListener('input', debounce((e) => {
-    state.docFilter.q = e.target.value;
-    renderClientes();
-  }, 250));
-
-  /* ---------- Bootstrap ---------- */
-  (async () => {
-    try {
-      const session = await api('/api/auth/me');
-      if (session) { await enterApp(); return; }
-    } catch { /* no sesión */ }
-    $('#auth-view').classList.remove('hidden');
-  })();
-})();
+cargar().then(async () => {
+  renderConfig();
+  pintarFiltroEstado();
+  await pintarInicio();
+});

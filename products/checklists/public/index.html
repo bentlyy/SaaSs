@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checklists e Inspecciones</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<!--
+  Esta pagina no pide usuario ni contrasena: la sesion vive en el Core y este
+  documento solo se sirve si ya la hay. Todo lo que se ve sale de la API, que
+  filtra por organizacion; por eso aca no hay ningun dato de ninguna empresa.
+-->
+<header>
+  <h1>Checklists e Inspecciones</h1>
+  <nav id="tabs">
+    <button data-tab="tablero" class="activo">Tablero</button>
+    <button data-tab="plantillas">Plantillas</button>
+    <button data-tab="corridas">Corridas</button>
+    <button data-tab="ajustes">Ajustes</button>
+  </nav>
+  <a id="salir" href="/auth/logout">Salir</a>
+</header>
+
+<main>
+  <section id="panel-tablero">
+    <div class="tarjetas" id="resumen"></div>
+    <h3>Puntos fallados en las ultimas corridas</h3>
+    <div id="fallos" class="lineas"></div>
+  </section>
+
+  <section id="panel-plantillas" hidden>
+    <form id="plantilla-form">
+      <h3><span id="plantilla-titulo">Nueva plantilla</span></h3>
+      <div class="fila">
+        <div>
+          <label for="plantilla-nombre">Nombre</label>
+          <input id="plantilla-nombre" name="name" required maxlength="150">
+        </div>
+        <div>
+          <label for="plantilla-descripcion">Descripcion</label>
+          <input id="plantilla-descripcion" name="description" maxlength="1000">
+        </div>
+      </div>
+      <label for="plantilla-items">Puntos iniciales (uno por linea)</label>
+      <!--
+        El alta acepta `items: [{label, required}]` en la misma llamada, y por eso
+        el textarea va en el formulario y no en una pantalla aparte. La convencion
+        de la linea terminada en `*` esta escrita arriba del campo, porque un
+        asterisco sin explicacion se lee como un error de tipeo.
+      -->
+      <textarea id="plantilla-items" rows="5" placeholder="Extintor con carga vigente&#10;Piso sin cables sueltos*"></textarea>
+      <small>Un punto por linea. Si la linea termina en <code>*</code>, el punto es opcional: no hace falta responderlo para cerrar una corrida.</small>
+      <input type="hidden" id="plantilla-id">
+      <div class="fila">
+        <button type="submit">Guardar plantilla</button>
+        <button type="button" id="plantilla-cancelar" hidden>Cancelar edicion</button>
+      </div>
+    </form>
+
+    <div class="fila">
+      <div>
+        <label for="plantilla-buscar">Buscar</label>
+        <input id="plantilla-buscar" maxlength="100" placeholder="Nombre o descripcion">
+      </div>
+      <div>
+        <label for="plantilla-filtro">Ver</label>
+        <select id="plantilla-filtro">
+          <option value="1">Solo activas</option>
+          <option value="">Todas</option>
+          <option value="0">Solo inactivas</option>
+        </select>
+      </div>
+    </div>
+    <div id="plantillas-lista"></div>
+
+    <!--
+      Editor de puntos de la plantilla seleccionada. Los puntos llegan en orden
+      (el servidor los renumera a 1..N sin huecos) y cada uno se borra por su
+      endpoint, que ademas renumera lo que queda.
+    -->
+    <div id="plantilla-editor" hidden>
+      <h3>Puntos de <span id="plantilla-seleccionada"></span></h3>
+      <div id="plantilla-puntos-lista" class="lineas"></div>
+      <form id="punto-form">
+        <div class="fila">
+          <div>
+            <label for="punto-label">Nuevo punto</label>
+            <input id="punto-label" maxlength="200" required>
+          </div>
+          <div>
+            <label for="punto-requerido">Obligatorio</label>
+            <input id="punto-requerido" type="checkbox" checked>
+          </div>
+          <button type="submit">Agregar punto</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section id="panel-corridas" hidden>
+    <form id="corrida-form">
+      <h3>Empezar una corrida</h3>
+      <div class="fila">
+        <div>
+          <label for="corrida-plantilla">Plantilla</label>
+          <select id="corrida-plantilla"></select>
+        </div>
+        <div>
+          <label for="corrida-lugar">Lugar</label>
+          <input id="corrida-lugar" maxlength="150" placeholder="Bodega 2, faena norte">
+        </div>
+      </div>
+      <label for="corrida-notas">Notas</label>
+      <input id="corrida-notas" maxlength="2000">
+      <label for="corrida-items">Puntos (solo si la corrida es libre)</label>
+      <!--
+        Al empezar, el servidor COPIA los puntos de la plantilla a la corrida. Por
+        eso la corrida muestra siempre la misma lista aunque la plantilla cambie
+        despues, y por eso los puntos de una corrida libre se escriben aqui.
+      -->
+      <textarea id="corrida-items" rows="4" placeholder="Solo para corrida libre: un punto por linea, * marca los opcionales"></textarea>
+      <button type="submit">Empezar corrida</button>
+    </form>
+
+    <div class="fila">
+      <div>
+        <label for="corrida-buscar">Buscar</label>
+        <input id="corrida-buscar" maxlength="100" placeholder="Plantilla o lugar">
+      </div>
+      <div>
+        <label for="corrida-estado">Estado</label>
+        <select id="corrida-estado">
+          <option value="">Todos</option>
+          <option value="in_progress">En curso</option>
+          <option value="done">Completadas</option>
+          <option value="canceled">Canceladas</option>
+        </select>
+      </div>
+      <div>
+        <label for="corrida-plantilla-filtro">De la plantilla</label>
+        <select id="corrida-plantilla-filtro"></select>
+      </div>
+    </div>
+    <div id="corridas-lista"></div>
+  </section>
+
+  <section id="panel-ajustes" hidden>
+    <form id="config-form">
+      <h3>Ajustes</h3>
+      <label for="cfg-moneda">Moneda</label>
+      <input id="cfg-moneda" name="currency" maxlength="5">
+      <small>Este producto no maneja importes: la moneda queda como preferencia de la empresa.</small>
+      <label for="cfg-zona">Zona horaria</label>
+      <input id="cfg-zona" name="timezone" maxlength="64">
+      <button type="submit">Guardar ajustes</button>
+    </form>
+  </section>
+</main>
+
+<!--
+  La ficha de una corrida. Es un dialogo y no otra seccion porque se abre encima
+  del listado: se revisa, se responde y se vuelve a la lista, sin perder la pagina.
+-->
+<dialog id="ficha-dialog">
+  <div id="ficha"></div>
+
+  <form id="corrida-editar-form">
+    <div class="fila">
+      <div>
+        <label for="corrida-editar-lugar">Lugar</label>
+        <input id="corrida-editar-lugar" maxlength="150">
+      </div>
+      <div>
+        <label for="corrida-editar-estado">Estado</label>
+        <select id="corrida-editar-estado">
+          <option value="in_progress">En curso</option>
+          <option value="done">Completada</option>
+          <option value="canceled">Cancelada</option>
+        </select>
+      </div>
+    </div>
+    <label for="corrida-editar-notas">Notas</label>
+    <input id="corrida-editar-notas" maxlength="2000">
+    <button type="submit">Guardar cambios</button>
+  </form>
+
+  <!--
+    Los botones de estado van aparte del select del formulario, y no por gusto:
+    "Completar" es la accion que casi siempre se quiere, y el select del formulario
+    existe para cambiar el lugar y las notas. Los dos caminos pasan por la misma
+    regla del servidor (no se puede pasar a "completada" con obligatorios sin
+    responder), y por eso los dos muestran el mismo 400 con la lista de puntos que
+    faltan.
+  -->
+  <div class="fila">
+    <button type="button" id="ficha-completar">Completar corrida</button>
+    <button type="button" id="ficha-cancelar">Cancelar corrida</button>
+    <button type="button" id="ficha-reabrir">Reabrir</button>
+    <button type="button" id="ficha-borrar">Borrar corrida</button>
+    <button type="button" id="ficha-cerrar">Cerrar</button>
+  </div>
+</dialog>
+
+<div id="aviso" hidden></div>
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,9 +1,9 @@
 {
-  "name": "@amg/cotizaciones",
+  "name": "@amg/clientes",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Cotizaciones sobre el runtime de AMG: presupuestos con lineas, totales en centavos y estados. Sin usuarios ni contrasenas propias.",
+  "description": "Clientes sobre el runtime de AMG: la ficha del cliente y sus seguimientos. Sin usuarios ni contrasenas propias.",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",

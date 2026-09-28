@@ -1,271 +1,136 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cotizaciones y Presupuestos · Presupuestos y recibos</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/style.css" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cotizaciones</title>
+<link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <a href="#app" class="skip-link">Ir al contenido</a>
+<!--
+  Esta pagina no pide usuario ni contrasena: la sesion vive en el Core y este
+  documento solo se sirve si ya la hay. Todo lo que se ve sale de la API, que
+  filtra por organizacion; por eso aca no hay ningun dato de ninguna empresa.
 
-  <!-- ==== LOGIN / REGISTRO ==== -->
-  <section id="auth-view" class="auth-wrap hidden" aria-label="Acceso">
-    <div class="auth-card">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="3 7 12 13 21 7"/></svg>
-        </span>
-        <h1>Cotizaciones y Presupuestos</h1>
-        <p>Presupuestos y recibos profesionales en PDF</p>
-      </div>
+  Tampoco hay login, ni alta de cuentas, ni clientes: los clientes son del producto
+  `clientes`. Una cotizacion guarda el NOMBRE del cliente como foto, para poder
+  leerse sola, y un id suelto que apunta alla.
+-->
+<header>
+  <h1>Cotizaciones</h1>
+  <nav id="tabs">
+    <button data-tab="inicio" class="activo">Inicio</button>
+    <button data-tab="cotizaciones">Cotizaciones</button>
+    <button data-tab="ajustes">Ajustes</button>
+  </nav>
+  <a id="salir" href="/auth/logout">Salir</a>
+</header>
 
-      <div class="seg" role="tablist">
-        <button class="seg-btn active" role="tab" aria-selected="true" data-tab="login">Entrar</button>
-        <button class="seg-btn" role="tab" aria-selected="false" data-tab="register">Crear cuenta</button>
-      </div>
-
-      <form id="login-form" class="auth-form" novalidate>
-        <label class="field">
-          <span>Nombre corto del negocio</span>
-          <input name="slug" placeholder="mi-negocio" required autocomplete="username" />
-        </label>
-        <label class="field">
-          <span>Correo</span>
-          <input name="email" type="email" placeholder="tucorreo@mail.com" required autocomplete="email" />
-        </label>
-        <label class="field">
-          <span>Contraseña</span>
-          <input name="password" type="password" required autocomplete="current-password" />
-        </label>
-        <button type="submit" class="btn primary block">Entrar</button>
-        <p class="form-error" role="alert" data-err></p>
-      </form>
-
-      <form id="register-form" class="auth-form hidden" novalidate>
-        <label class="field">
-          <span>Nombre del negocio</span>
-          <input name="businessName" placeholder="Cotizaciones JM" required />
-        </label>
-        <label class="field">
-          <span>Nombre corto (URL)</span>
-          <input name="slug" placeholder="mi-negocio" required minlength="3" />
-          <small class="hint">minúsculas, números y guiones</small>
-        </label>
-        <div class="form-grid two">
-          <label class="field">
-            <span>Tu nombre</span>
-            <input name="ownerName" required placeholder="Jorge Méndez" />
-          </label>
-          <label class="field">
-            <span>Correo</span>
-            <input name="email" type="email" required placeholder="tucorreo@mail.com" />
-          </label>
-        </div>
-        <label class="field">
-          <span>Contraseña (mínimo 8)</span>
-          <input name="password" type="password" required minlength="8" />
-        </label>
-        <button type="submit" class="btn primary block">Crear mi cuenta</button>
-        <p class="form-error" role="alert" data-err></p>
-      </form>
-    </div>
+<main>
+  <section id="panel-inicio">
+    <div class="tarjetas" id="resumen"></div>
+    <h3>Pendientes de respuesta</h3>
+    <div id="abiertas"></div>
   </section>
 
-  <!-- ==== APP ==== -->
-  <div id="app" class="app hidden">
-    <aside id="sidebar" class="sidebar" aria-label="Menú principal">
-      <div class="sidebar-top">
-        <div class="brand small">
-          <span class="brand-mark sm" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="3 7 12 13 21 7"/></svg>
-          </span>
-          <h1>Cotizaciones y Presupuestos</h1>
-        </div>
-        <button id="nav-close" class="icon-btn sidebar-only" aria-label="Cerrar menú">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-
-      <nav class="nav">
-        <p class="nav-label">Operación</p>
-        <button class="nav-btn active" data-view="dashboard" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
-          <span>Inicio</span>
-        </button>
-        <button class="nav-btn" data-view="cotizaciones" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="3 7 12 13 21 7"/></svg>
-          <span>Cotizaciones</span>
-        </button>
-        <button class="nav-btn" data-view="clientes" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          <span>Clientes</span>
-        </button>
-
-        <p class="nav-label">Negocio</p>
-        <button class="nav-btn" data-view="config" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
-          <span>Configuración</span>
-        </button>
-      </nav>
-
-      <div class="sidebar-foot">
-        <div class="user-card">
-          <span id="user-avatar" class="avatar" aria-hidden="true">?</span>
-          <div class="user-meta">
-            <p id="user-chip"></p>
-            <p id="user-tenant" class="tenant-name"></p>
-          </div>
-        </div>
-        <button id="logout-btn" class="btn dark ghost small" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          <span>Salir</span>
-        </button>
-      </div>
-    </aside>
-
-    <div id="overlay" class="overlay" hidden></div>
-
-    <div class="main-shell">
-      <header class="topbar">
-        <button id="nav-open" class="icon-btn" aria-label="Abrir menú">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
-        </button>
-        <div class="topbar-title">
-          <h1 id="view-title">Inicio</h1>
-          <p id="view-sub" class="muted"></p>
-        </div>
-        <div class="topbar-actions">
-          <button id="quick-new" class="btn primary" type="button">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            <span>Nueva cotización</span>
-          </button>
-        </div>
-      </header>
-
-      <main class="main">
-        <!-- INICIO / DASHBOARD -->
-        <section data-view-pane="dashboard">
-          <div class="metrics" id="dash-metrics"></div>
-          <div class="dash-grid">
-            <div class="panel">
-              <div class="panel-head">
-                <h3>Pendientes de respuesta</h3>
-                <button class="btn ghost small" data-go-cotizaciones type="button">Ver todas</button>
-              </div>
-              <div id="dash-open" class="upcoming-list"></div>
-            </div>
-            <div class="panel">
-              <div class="panel-head"><h3>Recibos recientes</h3></div>
-              <div id="dash-receipts" class="upcoming-list"></div>
-            </div>
-          </div>
-        </section>
-
-        <!-- COTIZACIONES -->
-        <section data-view-pane="cotizaciones" class="hidden">
-          <div class="page-head">
-            <div class="toolbar grow">
-              <label class="field search">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input id="docs-search" type="search" placeholder="Buscar por número, cliente o título…" aria-label="Buscar documento" />
-              </label>
-            </div>
-            <div class="toolbar">
-              <label class="field compact">
-                <select id="docs-type" aria-label="Filtrar por tipo">
-                  <option value="">Todos</option>
-                  <option value="cotizacion">Cotizaciones</option>
-                  <option value="recibo">Recibos</option>
-                </select>
-              </label>
-              <button class="btn primary" id="docs-new" type="button">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                <span>Documento</span>
-              </button>
-            </div>
-          </div>
-          <div class="panel">
-            <div class="table-wrap">
-              <table class="table">
-                <thead><tr>
-                  <th>Número</th><th>Tipo</th><th>Cliente</th><th>Total</th><th>Estado</th><th class="th-actions">Acciones</th>
-                </tr></thead>
-                <tbody id="docs-tbody"></tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        <!-- CLIENTES -->
-        <section data-view-pane="clientes" class="hidden">
-          <div class="page-head">
-            <div class="toolbar grow">
-              <label class="field search">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input id="clientes-search" type="search" placeholder="Buscar cliente…" aria-label="Buscar cliente" />
-              </label>
-            </div>
-            <div class="toolbar">
-              <button class="btn primary" id="clientes-new" type="button">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                <span>Cliente</span>
-              </button>
-            </div>
-          </div>
-          <div class="panel">
-            <div class="table-wrap">
-              <table class="table">
-                <thead><tr>
-                  <th>Nombre</th><th>Teléfono</th><th>Correo</th><th>Notas</th><th class="th-actions">Acciones</th>
-                </tr></thead>
-                <tbody id="clientes-tbody"></tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        <!-- CONFIG -->
-        <section data-view-pane="config" class="hidden">
-          <div class="page-head"><div class="toolbar"><h2>Configuración</h2></div></div>
-          <form id="config-form" class="config-form panel-form" novalidate>
-            <div class="form-grid two">
-              <label class="field"><span>Nombre del negocio</span><input name="name" /></label>
-              <label class="field"><span>Teléfono</span><input name="phone" /></label>
-            </div>
-            <label class="field"><span>Dirección</span><input name="address" /></label>
-            <div class="form-grid two">
-              <label class="field"><span>Moneda</span><input name="currency" maxlength="3" placeholder="$" /></label>
-              <label class="field"><span>Zona horaria</span><input name="timezone" placeholder="America/Mexico_City" /></label>
-            </div>
-            <p class="hint">Estos datos aparecen en el encabezado de los PDF que generas.</p>
-            <div class="row-actions">
-              <button type="submit" class="btn primary">Guardar cambios</button>
-            </div>
-            <p class="form-error" role="alert" data-err></p>
-          </form>
-        </section>
-      </main>
+  <section id="panel-cotizaciones" hidden>
+    <div class="fila">
+      <label for="buscar">Buscar</label>
+      <input id="buscar" type="search" placeholder="Folio, cliente o titulo" maxlength="150">
+      <label for="filtro-estado">Estado</label>
+      <select id="filtro-estado"></select>
+      <button id="cotizacion-nueva" type="button">Nueva cotizacion</button>
     </div>
-  </div>
+    <div id="cotizaciones-lista"></div>
+  </section>
 
-  <!-- ==== MODAL GENÉRICO ==== -->
-  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-    <div class="modal-content">
-      <div class="modal-head">
-        <h3 id="modal-title"></h3>
-        <button class="icon-btn" data-close aria-label="Cerrar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
+  <section id="panel-ajustes" hidden>
+    <form id="config-form">
+      <h3>Ajustes</h3>
+      <label for="cfg-moneda">Moneda</label>
+      <input id="cfg-moneda" name="currency" maxlength="5">
+      <label for="cfg-zona">Zona horaria</label>
+      <input id="cfg-zona" name="timezone" maxlength="60">
+      <label for="cfg-impuesto">Impuesto por defecto (puntos basicos, 1600 = 16%)</label>
+      <input id="cfg-impuesto" name="defaultTaxRateBp" type="number" min="0" max="10000" step="1">
+      <label for="cfg-vigencia">Dias de vigencia de la oferta</label>
+      <input id="cfg-vigencia" name="validityDays" type="number" min="1" max="3650" step="1">
+      <p class="nota">
+        El folio siguiente NO se ajusta: es el ultimo numero de la empresa mas uno, y
+        se calcula en el servidor. Reservarlo desde aca dejaria huecos en la
+        numeracion.
+      </p>
+      <p>Folio siguiente: <strong id="cfg-folio">—</strong></p>
+      <button type="submit">Guardar ajustes</button>
+    </form>
+  </section>
+</main>
+
+<dialog id="cotizacion-dialog">
+  <form id="cotizacion-form">
+    <h3><span id="cotizacion-form-titulo">Nueva cotizacion</span></h3>
+    <input type="hidden" id="cotizacion-id">
+
+    <label for="cot-folio">Folio</label>
+    <input id="cot-folio" type="number" min="1" step="1" required>
+
+    <label for="cot-cliente">Cliente</label>
+    <input id="cot-cliente" maxlength="150" required placeholder="Nombre del cliente">
+    <p class="nota">Los clientes viven en el producto Clientes. Aca va el nombre.</p>
+
+    <label for="cot-cliente-id">Id del cliente en Clientes (opcional)</label>
+    <input id="cot-cliente-id" maxlength="64">
+
+    <label for="cot-correo">Correo del cliente (opcional)</label>
+    <input id="cot-correo" type="email" maxlength="200">
+
+    <label for="cot-titulo">Titulo (opcional)</label>
+    <input id="cot-titulo" maxlength="200">
+
+    <label for="cot-emision">Fecha de emision</label>
+    <input id="cot-emision" type="date">
+
+    <label for="cot-vigencia">Vigente hasta</label>
+    <input id="cot-vigencia" type="date">
+
+    <label for="cot-impuesto">Impuesto (puntos basicos, 1600 = 16%)</label>
+    <input id="cot-impuesto" type="number" min="0" max="10000" step="1" value="0">
+
+    <label for="cot-notas">Notas (opcional)</label>
+    <input id="cot-notas" maxlength="2000">
+
+    <h4>Lineas</h4>
+    <div id="cot-lineas"></div>
+    <div class="fila">
+      <div>
+        <label for="linea-descripcion">Descripcion</label>
+        <input id="linea-descripcion" maxlength="150" placeholder="Logo y tarjetas">
       </div>
-      <div id="modal-body"></div>
+      <div>
+        <label for="linea-cantidad">Cantidad</label>
+        <input id="linea-cantidad" type="number" min="1" step="0.5" value="1">
+      </div>
+      <div>
+        <label for="linea-precio">Precio unitario</label>
+        <input id="linea-precio" type="number" min="0" step="1" value="0">
+      </div>
+      <button type="button" id="linea-agregar">Agregar</button>
     </div>
-  </div>
 
-  <div id="toasts" class="toasts" aria-live="polite"></div>
-  <script src="/app.js"></script>
+    <p class="total">Total estimado: <span id="cot-total">—</span></p>
+    <p class="nota">El total que queda guardado lo calcula el servidor.</p>
+
+    <h4>Estado</h4>
+    <div class="fila" id="cot-estados"></div>
+
+    <div class="fila">
+      <button type="submit">Guardar</button>
+      <button type="button" id="cotizacion-cancelar">Cancelar</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="aviso" hidden></div>
+<script src="/app.js"></script>
 </body>
 </html>
