@@ -25,7 +25,7 @@ import { platformConfig } from './config.js';
  */
 
 /** Dominio central. Todos los productos vuelven acá para entrar y para cobrar. */
-export const PLATFORM_URL = 'https://desarrollador.amgdeveloper.cl';
+export const PLATFORM_URL = 'https://desarrollo.amgdeveloper.cl';
 
 export interface CatalogProduct {
   slug: string;

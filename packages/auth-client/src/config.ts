@@ -6,7 +6,7 @@
  * cuentas. El producto no tiene usuarios propios.
  */
 export interface AmgConfig {
-  /** URL pública del Core: https://desarrollador.amgdeveloper.cl */
+  /** URL pública del Core: https://desarrollo.amgdeveloper.cl */
   coreUrl: string;
   /** URL pública de ESTE producto: https://inventario.amgdeveloper.cl */
   productUrl: string;

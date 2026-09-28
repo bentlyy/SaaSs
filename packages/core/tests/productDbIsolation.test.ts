@@ -101,12 +101,11 @@ const LOS_NUEVE = [
 /**
  * Los que YA están sobre el runtime y tienen su compose definitivo.
  *
- * SeVa llenando producto por producto. El día del último, esta lista es igual a
- * `LOS_NUEVE` y `catalog.test.ts` pasa a ser el que hace cumplir el número. Se
- * separan para que cada commit quede con sus pruebas en verde: un test rojo en
- * un commit intermedio entrena al equipo a ignorar los tests rojos.
+ * Cuando esta lista llegó a ser igual a `LOS_NUEVE`, `catalog.test.ts` pasó a
+ * ser el que hace cumplir el número. Sigue separada para que el mensaje de un
+ * producto faltante diga el nombre del producto y no "faltan 5".
  */
-const NAVEGAN_AHORA = ['inventario', 'citas', 'espacios', 'solicitudes'];
+const NAVEGAN_AHORA = LOS_NUEVE;
 
 /**
  * Producto retirado -> el slug que lo absorbe. Mismo mapa que `RETIRED_SLUGS` en
@@ -186,7 +185,7 @@ describe('aislamiento entre productos en producción', () => {
     for (const slug of NAVEGAN_AHORA) {
       expect(bloqueDe(slug), `${slug} declara JWT_SECRET`).not.toMatch(/JWT_SECRET/);
       expect(bloqueDe(slug), `${slug} no declara su client_id de SSO`).toMatch(/AMG_SSO_CLIENT_ID/);
-      expect(bloqueDe(slug), `${slug} no apunta al Core`).toMatch(/CORE_URL: https:\/\/desarrollador\.amgdeveloper\.cl/);
+      expect(bloqueDe(slug), `${slug} no apunta al Core`).toMatch(/CORE_URL: https:\/\/desarrollo\.amgdeveloper\.cl/);
     }
   });
 

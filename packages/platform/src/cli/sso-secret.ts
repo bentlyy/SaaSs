@@ -14,6 +14,17 @@ import { ensureSsoClient, findSsoClient, rotateSsoClientSecret } from '../sso/re
 const args = process.argv.slice(2);
 const productSlug = args.find((a) => !a.startsWith('--'));
 const rotate = args.includes('--rotate');
+/**
+ * Imprime SOLO el secreto, en una linea, sin nada mas.
+ *
+ * Es para `ops/deploy.sh`, que tiene que escribir nueve secretos en el `.env` del
+ * servidor y no debe hacerlo parseando la salida humana de arriba: en cuanto ese
+ * formato cambia (una linea de mas, una traduccion), el deploy sigue funcionando
+ * y escribe un secreto ROTO en el `.env`, y el sintoma es que un producto no
+ * entra y no dice por que. Con un modo de una sola linea, o sale el secreto o
+ * falla el deploy.
+ */
+const soloSecreto = args.includes('--solo-secreto');
 
 if (!productSlug) {
   console.error('Uso: npm run sso:secret -w @amg/platform -- <producto> [--rotate]');
@@ -30,6 +41,11 @@ if (!client) {
   process.exit(1);
 }
 
+if (soloSecreto) {
+  process.stdout.write(client.secret);
+  process.exit(0);
+}
+
 console.log('');
 console.log(`  cliente_id     ${client.clientId}`);
 console.log(`  nombre         ${client.name}`);
@@ -39,5 +55,5 @@ console.log('');
 console.log('  En el .env del producto:');
 console.log(`    AMG_SSO_CLIENT_ID=${client.clientId}`);
 console.log(`    AMG_SSO_CLIENT_SECRET=${client.secret}`);
-console.log(`    CORE_URL=${process.env.CORE_URL ?? 'https://desarrollador.amgdeveloper.cl'}`);
+console.log(`    CORE_URL=${process.env.CORE_URL ?? 'https://desarrollo.amgdeveloper.cl'}`);
 console.log('');

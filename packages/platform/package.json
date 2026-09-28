@@ -15,6 +15,7 @@
     "seed": "tsx src/cli/seed.ts",
     "billing:confirm": "tsx src/cli/confirm-payment.ts",
     "sso:secret": "tsx src/cli/sso-secret.ts",
+    "bootstrap": "tsx src/cli/bootstrap-tenant.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

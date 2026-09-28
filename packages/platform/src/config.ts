@@ -57,7 +57,7 @@ export const platformConfig = {
   /**
    * URL publica del Core. Es la que aparece en los enlaces de SSO y en los
    * correos de recuperacion. En produccion DEBE ser la real
-   * (https://desarrollador.amgdeveloper.cl) o los enlaces de retorno apuntan
+   * (https://desarrollo.amgdeveloper.cl) o los enlaces de retorno apuntan
    * a localhost y el usuario vuelve a la pagina equivocada.
    */
   coreUrl: (process.env.CORE_URL ?? `http://localhost:${process.env.CORE_PORT ?? process.env.PORT ?? 3000}`).replace(/\/+$/, ''),
