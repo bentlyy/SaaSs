@@ -1,16 +1,16 @@
 # Arquitectura de la plataforma AMG
 
-Documento de referencia del Core central y de los 8 mini-SaaS. Si algo de acá
+Documento de referencia del Core central y de los 9 mini-SaaS. Si algo de acá
 contradice al código, el código manda: este documento explica por qué está así.
 
 ## La idea en una línea
 
-Hay **una sola base de usuarios** (`core.sqlite`) y **ocho bases de negocio**, una
+Hay **una sola base de usuarios** (`core.sqlite`) y **nueve bases de negocio**, una
 por producto. El Core sabe quién eres y qué compraste; cada producto sigue
 sabiendo todo de su propio dominio.
 
 Antes de esto, cada producto tenía su propia lista de usuarios. Eso obligaba a
-crear la misma cuenta ocho veces, ocho contraseñas que se olvidan y ocho lugares
+crear la misma cuenta nueve veces, nueve contraseñas que se olvidan y nueve lugares
 donde una contraseña se filtra. Ahora la contraseña existe en un solo lado.
 
 ## Los dos niveles
@@ -20,10 +20,10 @@ donde una contraseña se filtra. Ahora la contraseña existe en un solo lado.
 | Package | `@amg/platform` | `@saas-mini/core` + `products/<x>` |
 | Base | `core.sqlite` | `data/<x>/app.db` |
 | Guarda | usuarios, organizaciones, membresías, sesiones, catálogo, suscripciones, pagos, SSO | lo de su dominio: citas, stock, órdenes... |
-| Puerto | `3108` (host) | `3100`–`3107` (host) |
-| Dominio | `desarrollador.amgdeveloper.cl` | un subdominio por producto |
+| Puerto | `3108` (host) | `3100`-`3111` (host) |
+| Dominio | `desarrollo.amgdeveloper.cl` | un subdominio por producto |
 | Contraseñas | sí, es el único | **no tiene** |
-| `clients.json` | no lo usa | sí, lo usa (`clientsGuard`) |
+| `clients.json` | no lo usa | **tampoco**: ya no existe |
 
 ### Paquetes
 
@@ -79,17 +79,19 @@ docker compose logs -f landing
 Lo que necesita atención al desplegar:
 
 1. **El `.env` que lee `docker compose` es el de la raíz del repo**, no el de
-   `products/landing`. Ahí van los dos secretos del Core y los `*_JWT` de cada
-   producto (`PELU_JWT`, `INV_JWT`, `COTI_JWT`, `ALER_JWT`, `CRM_JWT`,
-   `DOCU_JWT`, `DEPO_JWT`, `TALLE_JWT`). `docker compose config` lo dice antes de
-   que nada, sin tocar un contenedor:
+   `products/landing`. Ahí van los dos secretos del Core y los nueve secretos SSO
+   de los productos. Ya no hay `*_JWT` por producto: cada producto se
+   autentica contra el Core con su `AMG_SSO_<PRODUCTO>_SECRET`, y no queda una
+   segunda lista de usuarios que mantener sincronizada con la primera. Copia
+   `.env.example` a `.env` antes de nada; `docker compose config` avisa del resto
+   sin tocar un contenedor:
 
    ```bash
    docker compose config --quiet
    ```
 
-2. **`AMG_SSO_ROOT_SECRET` es la raíz de todos los secretos SSO.** Si cambia, deja de validar el secreto de cada producto y hay que volver a pedir los 13. No se rota por debajo de la mesa.
-3. **`CORE_URL` tiene que ser la URL real** (`https://desarrollador.amgdeveloper.cl`). Es la que va en los enlaces de recuperación y en el `iss` de los tokens SSO. Con `localhost` los correos mandan al lugar equivocado y los productos rechazan el token por `issuer`.
+2. **`AMG_SSO_ROOT_SECRET` es la raíz de todos los secretos SSO.** Si cambia, deja de validar el secreto de cada producto y hay que volver a pedir los nueve. No se rota por debajo de la mesa.
+3. **`CORE_URL` tiene que ser la URL real** (`https://desarrollo.amgdeveloper.cl`). Es la que va en los enlaces de recuperación y en el `iss` de los tokens SSO. Con `localhost` los correos mandan al lugar equivocado y los productos rechazan el token por `issuer`.
 4. **El Core escucha en `127.0.0.1:3108`.** El binding a loopback es a propósito: nadie entra al Core desde internet sin pasar por el reverse proxy, que es el único que debe terminar TLS.
 5. **El volumen del Core es `saasmini_data_core`**, en `/app/data/core/core.sqlite`. El `Dockerfile` crea ese directorio con `node` como dueño antes de montar: si no, `better-sqlite3` no puede crear el archivo y el arranque falla.
 6. **Sin `CORE_DIAGNOSTICO_KEY`, `/api/_diagnostico` no existe** en producción (404). Con la clave, se puede consultar por header.

@@ -11,7 +11,7 @@ La biblioteca que hace esto es `@amg/auth-client`. Un producto no importa
 ## El flujo
 
 ```
- Usuario        Producto (stock.amg…)        Core (desarrollador.amg…)
+ Usuario        Producto (stock.amg…)        Core (desarrollo.amg…)
    │                    │                            │
    │ 1. entra           │                            │
    │───────────────────>│                            │
@@ -74,7 +74,7 @@ producto:
 {
   "sub": "id_...",         // user_id del Core
   "aud": "inventario",     // DEBE ser el slug de quien valida
-  "iss": "https://desarrollador.amgdeveloper.cl",
+  "iss": "https://desarrollo.amgdeveloper.cl",
   "org_id": "id_...",
   "org_slug": "salon-aurora",
   "role": "owner",
@@ -139,7 +139,7 @@ producto sabe quién es el usuario, después se le deja entrar.
 1. **Darse de alta.** El `client_id` ya existe (el seed crea un cliente SSO por
    producto). Copiar el `.env` que hoy tiene `JWT_SECRET` y reemplazarlo por:
    ```bash
-   CORE_URL=https://desarrollador.amgdeveloper.cl
+   CORE_URL=https://desarrollo.amgdeveloper.cl
    APP_URL=https://inventario.amgdeveloper.cl
    AMG_SSO_CLIENT_ID=inventario
    AMG_SSO_CLIENT_SECRET=<npm run sso:secret -w @amg/platform -- inventario>

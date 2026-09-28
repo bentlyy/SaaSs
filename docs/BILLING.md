@@ -67,7 +67,7 @@ regla que `catalog.test.ts` verifica para los nueve.
 
 Los subdominios anteriores (`canchas`, `agenda`, `ordenes`, `stock`,
 `presupuestos`) quedan como redirects a los nuevos. La plataforma es
-`desarrollador.amgdeveloper.cl` y no es un producto más: no tiene fila en
+`desarrollo.amgdeveloper.cl` y no es un producto más: no tiene fila en
 `products` ni volumen propio.
 
 Los productos en transición comparten `app_url` con su equivalente canónico, que es

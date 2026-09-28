@@ -5,18 +5,27 @@ los demás.**
 
 ## Las bases
 
-| Archivo | Contenido | Producto |
-|---|---|---|
-| `core.sqlite` | usuarios, organizaciones, membresías, sesiones, catálogo, suscripciones, pagos, SSO | el Core |
-| `espacios.sqlite` | espacios, extras, clientes, reservas | espacios |
-| `citas.sqlite` | citas, clientes, servicios, profesionales, avisos | citas |
-| `inventario.sqlite` | artículos, movimientos, proveedores | inventario |
-| `solicitudes.sqlite` | solicitudes, líneas de trabajo, repuestos, clientes, técnicos | solicitudes |
-| ... | ... | ... |
+| Archivo | Contenido | Producto | Puerto |
+|---|---|---|---|
+| `core.sqlite` | usuarios, organizaciones, membresías, sesiones, catálogo, suscripciones, pagos, SSO | el Core | 3108 |
+| `espacios.sqlite` | espacios, extras, clientes, reservas | espacios | 3101 |
+| `citas.sqlite` | citas, clientes, servicios, profesionales, avisos | citas | 3100 |
+| `inventario.sqlite` | artículos, movimientos, proveedores | inventario | 3103 |
+| `solicitudes.sqlite` | solicitudes, líneas de trabajo, repuestos, clientes, técnicos | solicitudes | 3102 |
+| `cotizaciones.sqlite` | cotizaciones, líneas, clientes | cotizaciones | 3104 |
+| `clientes.sqlite` | clientes y seguimientos | clientes | 3107 |
+| `activos.sqlite` | activos, movimientos, estados | activos | 3109 |
+| `checklists.sqlite` | plantillas, ejecuciones, items firmados | checklists | 3110 |
+| `pagos.sqlite` | cargos, abonos, saldos | pagos | 3111 |
 
-Nueve bases, nueve contenedores, nueve volúmenes Docker. **Ningún volumen se
-comparte.** Un contenedor comprometido no puede leer ni escribir la base de otro
-cliente, y ni siquiera montar el volumen ajeno: no lo tiene.
+Nueve bases de negocio, nueve contenedores, nueve volúmenes Docker. **Ningún
+volumen se comparte.** Un contenedor comprometido no puede leer ni escribir la
+base de otro cliente, y ni siquiera montar el volumen ajeno: no lo tiene.
+
+El puerto no se elige por estetica: se elige para que coincida con el `map` de
+`ops/nginx.conf` y con el `ports:` de `docker-compose.yml`. Son tres lugares que
+hay que cambiar en el mismo deploy, y desalinearlos abre el producto equivocado
+sin ningun error visible.
 
 La razón de que sean volúmenes separados y no un `SELECT` con un `WHERE tenant_id`
 no es la seguridad: es la base. Una consulta mal escrita, un `DELETE` sin filtro
@@ -96,7 +105,7 @@ Lo único que cruza de un producto al Core es la **identidad**, y cruza por SSO:
 - El Core nunca ve los datos del producto; el producto nunca ve la contraseña.
 
 El producto no recibe ni la cookie del Core ni el token de sesión central. La
-cookie del Core es host-only en `desarrollador.amgdeveloper.cl`: por diseño, un
+cookie del Core es host-only en `desarrollo.amgdeveloper.cl`: por diseño, un
 subdominio no puede leerla.
 
 Y al revés: el token de un producto no sirve en otro (`aud` + secreto distinto).
@@ -117,10 +126,18 @@ token. El Core no crece un cuarto rol.
 
 1. Ficha en `CATALOG` (`packages/platform/src/seed.ts`) con precio, período y
    `app_url`. El seed también da de alta el cliente SSO.
-2. `npm run sso:secret -w @amg/platform -- <slug>` y ponerlo en su `.env`.
-3. Volumen Docker nuevo, `DB_PATH` propio, y su entrada en `ops/clients.json`
-   mientras no se migre al SSO.
-4. Su subdominio apuntando al puerto que le toque.
+2. Volumen Docker nuevo, `DB_PATH` propio, y su servicio en
+   `docker-compose.yml` con un puerto que no uses nadie.
+3. Su entrada en el `map $host` de `ops/nginx.conf` apuntando a ese puerto, y el
+   nombre en el `server_name` del bloque.
+4. Su registro DNS y su certificado, si el subdominio es nuevo.
+5. `npm run sso:secret -- <slug>` y escribir el resultado en su
+   `AMG_SSO_<SLUG>_SECRET`. **El secreto lo genera el Core**, no se inventa: un
+   valor puesto a mano hace que el producto rechace todos los tokens.
+
+No hay `ops/clients.json`, ni `CLIENTS_GATE`, ni `JWT_SECRET`: la puerta es la
+suscripción en el Core, y `clientsGuard` quedó sin uso en la suite (sigue en
+`packages/core` y sus tests siguen ahí, pero ningún producto lo llama).
 
 Y la comprobación de que quedó bien aislado:
 

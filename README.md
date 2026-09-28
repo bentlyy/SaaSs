@@ -172,7 +172,7 @@ historial de visitas y seguimientos abiertos (`GET /api/customers/:id` y
 npm run dev    # http://localhost:3008
 ```
 
-La plataforma central vive en **`https://desarrollador.amgdeveloper.cl`**
+La plataforma central vive en **`https://desarrollo.amgdeveloper.cl`**
 (construido con `docker compose up -d landing`, puerto `3108`). Desde ahí se entra
 a los nueve productos, cada uno en su subdominio:
 
