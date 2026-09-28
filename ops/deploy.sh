@@ -284,12 +284,20 @@ if [ "${AMG_SKIP_MIGRATIONS:-0}" = "1" ]; then
   aviso "AMG_SKIP_MIGRATIONS=1: NO se migra nada"
 else
   paso "8. Migrar los datos legacy (una por vez)"
-  # Se.exporta AMG_ORG_SLUG para que el compose lo interpole. Sin esto, el
-  # `:?` de `migrate.compose.yml` aborta el `run`. Y se exporta el VALOR
-  # derivado: si el deploy no recibe AMG_ORG_SLUG por fuera, `ORG_SLUG` ya tiene
-  # el valor por defecto pero `AMG_ORG_SLUG` sigue vacia, y el compose falla con
-  # "required variable missing" sin importar que `ORG_SLUG` este bien.
+  # La organizacion destino. El `:?` de `migrate.compose.yml` aborta si no viene.
+  # Ojo con exportar el VALOR derivado y no la variable de control: exportar
+  # `AMG_ORG_SLUG` a secas pondria un valor vacio y el compose no lo distingue
+  # de un no definido ("missing a value").
   export AMG_ORG_SLUG="$ORG_SLUG"
+  # Los migradores importan `config.ts` del Core, que en produccion exige estos
+  # dos secretos al cargar el modulo. El CLI no firma sesiones, pero el import
+  # no lo sabe: sin ellos muere con "Falta la variable de entorno ...". Estan en
+  # el .env, no en el shell, asi que se leen y se exportan aqui.
+  for v in AMG_SESSION_SECRET AMG_SSO_ROOT_SECRET; do
+    valor="$(grep -m1 "^${v}=" .env | cut -d= -f2- 2>/dev/null || true)"
+    [ -n "$valor" ] || fallar "falta ${v} en el .env"
+    export "$v=$valor"
+  done
   fallos=0
   for m in "${MIGRACIONES[@]}"; do
     printf '    %-28s ' "$m"

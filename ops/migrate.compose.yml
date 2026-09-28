@@ -52,6 +52,13 @@ x-migra: &migra
     CORE_URL: https://desarrollo.amgdeveloper.cl
     # La organizacion destino. La pone deploy.sh; aqui solo se documentan los ids.
     AMG_ORG_SLUG: ${AMG_ORG_SLUG:?define AMG_ORG_SLUG (lo hace ops/deploy.sh)}
+    # La config del Core exige estos dos al IMPORTAR el modulo en produccion
+    # (fail-fast en `config.ts`, no solo en los endpoints de sesion), y los
+    # migradores la importan. El CLI no firma sesiones, pero el import no lo
+    # sabe: sin ellos, la migracion muere con "Falta la variable ...". Los lee
+    # deploy.sh del .env y los exporta al shell en el paso 8.
+    AMG_SESSION_SECRET: ${AMG_SESSION_SECRET:?lo pone ops/deploy.sh}
+    AMG_SSO_ROOT_SECRET: ${AMG_SSO_ROOT_SECRET:?lo pone ops/deploy.sh}
 
 volumes:
   # ── Destino: los que aun NO existen, declarados aqui para que se creen ──────
