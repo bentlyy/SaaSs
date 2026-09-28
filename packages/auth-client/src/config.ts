@@ -8,7 +8,7 @@
 export interface AmgConfig {
   /** URL pública del Core: https://desarrollo.amgdeveloper.cl */
   coreUrl: string;
-  /** URL pública de ESTE producto: https://inventario.amgdeveloper.cl */
+  /** URL pública de ESTE producto: https://stock.amgdeveloper.cl (NO el slug) */
   productUrl: string;
   /** Identificador de esta aplicación. Por convención = slug del producto. */
   clientId: string;
@@ -57,7 +57,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, productSlug?: s
     );
   }
   if (!productUrl) {
-    throw new Error(`Falta APP_URL: la URL pública de ${clientId} (ej. https://${clientId}.amgdeveloper.cl)`);
+    throw new Error(`Falta APP_URL: la URL pública de ${clientId} es la del subdominio que ya vive en el DNS (ej. https://stock.amgdeveloper.cl para inventario, no el slug)`);
   }
 
   return {
