@@ -57,6 +57,13 @@ x-app: &app
       max-file: "3"
   environment: &base-env
     NODE_ENV: production
+    # Los productos importan `config.ts` del Core (para verificar el SSO), y en
+    # produccion ese modulo exige los dos secretos al cargarse (fail-fast, sin
+    # valor por defecto). Sin ellos el proceso muere al arrancar con "Falta la
+    # variable de entorno ...". `landing` los re-declara abajo con los mismos
+    # valores: son los mismos del .env, y el duplicado es inofensivo.
+    AMG_SESSION_SECRET: ${AMG_SESSION_SECRET:?falta AMG_SESSION_SECRET en .env}
+    AMG_SSO_ROOT_SECRET: ${AMG_SSO_ROOT_SECRET:?falta AMG_SSO_ROOT_SECRET en .env}
 
 services:
   # peluqueria, recordatorios, deportes, talleres, crm y documentos ya NO tienen
