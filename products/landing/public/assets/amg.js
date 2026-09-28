@@ -387,11 +387,13 @@
     location.replace('/login?return_to=' + encodeURIComponent(location.pathname + location.search));
   }
 
-  /* Solo rutas internas: el Core igual sanea, pero no leemos un host ajeno. */
+  /* Solo rutas internas: el Core igual sanea, pero no leemos un host ajeno.
+   * Sin return_to explícito, se vuelve a la landing (/), que es ahora la base:
+   * ahí ya se ven la sesión y las aplicaciones activas. */
   function returnTarget() {
     var raw = new URLSearchParams(location.search).get('return_to');
     if (raw && /^\/(?!\/)/.test(raw)) return raw;
-    return '/mis-aplicaciones';
+    return '/';
   }
 
   /* ── páginas ──────────────────────────────────────────────────────────── */
@@ -581,7 +583,7 @@
       };
       if (values.organizationSlug) body.organizationSlug = values.organizationSlug;
       return api('/auth/register', { method: 'POST', body: body }).then(function () {
-        location.assign('/mis-aplicaciones');
+        location.assign('/');
       });
     });
     mount(target, authCard('Crea tu cuenta', 'Un solo acceso para todas las herramientas de AMG.', form));
@@ -668,7 +670,7 @@
         method: 'POST',
         body: { token: token, name: values.name, password: values.password },
       }).then(function () {
-        location.assign('/mis-aplicaciones');
+        location.assign('/');
       });
     });
     mount(target, authCard('Te invitaron a AMG', 'Crea tu contraseña para entrar.', form));
