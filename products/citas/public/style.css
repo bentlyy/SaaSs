@@ -1,15 +1,15 @@
 /* Citas: hoja de estilo propia. Sin framework, como el resto de los productos. */
 
 :root {
-  --bg: #f6f5f2;
+  --bg: #f6f8fa;
   --surface: #ffffff;
-  --ink: #1c1917;
-  --muted: #6e6860;
-  --border: #e8e4df;
+  --ink: #1a2029;
+  --muted: #5d6875;
+  --border: #d5dbe3;
   --brand: #4f46e5;
   --brand-soft: #eef2ff;
   --on-brand: #ffffff;
-  --danger: #b91c1c;
+  --danger: #b42318;
   --danger-bg: #fbe0e0;
   --ok: #047857;
   --ok-bg: #dbf2e8;
@@ -22,8 +22,9 @@
   --s-4: 16px;
   --s-5: 20px;
   --s-6: 24px;
+  --s-8: 32px;
   --r: 12px;
-  --font: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 * {
