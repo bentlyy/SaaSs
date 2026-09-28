@@ -267,8 +267,11 @@ if [ "${AMG_SKIP_MIGRATIONS:-0}" = "1" ]; then
 else
   paso "8. Migrar los datos legacy (una por vez)"
   # Se.exporta AMG_ORG_SLUG para que el compose lo interpole. Sin esto, el
-  # `:?` de `migrate.compose.yml` aborta el `run`.
-  export AMG_ORG_SLUG
+  # `:?` de `migrate.compose.yml` aborta el `run`. Y se exporta el VALOR
+  # derivado: si el deploy no recibe AMG_ORG_SLUG por fuera, `ORG_SLUG` ya tiene
+  # el valor por defecto pero `AMG_ORG_SLUG` sigue vacia, y el compose falla con
+  # "required variable missing" sin importar que `ORG_SLUG` este bien.
+  export AMG_ORG_SLUG="$ORG_SLUG"
   fallos=0
   for m in "${MIGRACIONES[@]}"; do
     printf '    %-28s ' "$m"
