@@ -37,6 +37,15 @@ set -euo pipefail
 RAIZ="${SAASMINI_RAIZ:-$HOME/projects/saas-mini}"
 cd "$RAIZ"
 
+# Hash de ESTA copia del script. El paso 2 hace `git pull`, que puede reemplazar
+# `ops/deploy.sh` en disco CON ESTE MISMO SCRIPT en ejecucion. Bash lee el archivo
+# por su file-descriptor, asi que al quedar el inode viejo huerfano sigue leyendo
+# la version vieja (es como ejecutar "dentro" de un archivo que se sobrescribe).
+# El paso 2 compara el hash y, si el disco cambio, se re-ejecuta con la version
+# nueva: idempotente, y evita que "pulle, pero despliego con el codigo de hace un
+# commit".
+AMG_SCRIPT_INICIAL="$(sha256sum ops/deploy.sh)"
+
 # El nombre del proyecto se fija a mano. Docker lo deduciria del nombre de la
 # carpeta, y si alguien clona el repo en `saas-mini-2` los volumenes serian OTROS
 # (con prefijo distinto) y arrancaria un stack vacio al lado del de produccion,
@@ -171,6 +180,15 @@ fi
 git fetch origin
 git pull --ff-only origin main
 info "en $(git rev-parse --short HEAD) ($(git log -1 --format=%s))"
+
+# Si el pull reemplazo este mismo script (ver AMG_SCRIPT_INICIAL arriba), seguir
+# ejecutando seria usar el codigo viejo a medias: bash sigue leyendo el inode que
+# ya no esta en disco. Se re-ejecuta la copia nueva y se aprovechan los pasos ya
+# hechos (el script es idempotente de arriba a abajo).
+if [ "$(sha256sum ops/deploy.sh)" != "$AMG_SCRIPT_INICIAL" ]; then
+  aviso "ops/deploy.sh cambio con el pull: me re-ejecuto con la version nueva"
+  exec bash ops/deploy.sh
+fi
 
 # ── 3. Imagen ───────────────────────────────────────────────────────────────
 if [ "${AMG_SKIP_BUILD:-0}" = "1" ]; then
