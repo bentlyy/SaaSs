@@ -251,14 +251,26 @@ paso "6. Secretos SSO reales (desde el Core)"
 # roto sin ninguna pista de por que.
 for p in "${PRODUCTOS[@]}"; do
   mayusculas="$(printf '%s' "$p" | tr '[:lower:]' '[:upper:]')"
+  # `--loglevel=silent` calla el banner que npm imprime ANTES del script
+  # (`> @amg/platform@0.1.0 sso:secret`) y que viaja por stdout. Sin el, sumado
+  # al `tr -d`, banner y secreto llegaban pegados al `.env`: el producto firmaba
+  # con un secreto roto y el login fallaba sin ninguna pista. LOG_LEVEL=warn
+  # calla el logger de tsx (stderr). Con los dos, el stdout es SOLO el secreto.
   secreto="$($DC exec -T -e LOG_LEVEL=warn landing \
-              npm run sso:secret -- "$p" --solo-secreto | tr -d '\r\n')"
-  # Un secreto vacio o con el placeholder significa que el CLI fallo. Escribirlo
-  # igual dejaria el producto con una puerta abierta de par en par.
-  [ -n "$secreto" ] || fallar "el Core no devolvio secreto para $p"
+              npm --loglevel=silent run sso:secret -- "$p" --solo-secreto | tr -d '\r\n' || true)"
+  # Validacion dura en vez de "si no esta vacio, sirve": un secreto mal
+  # extraido es indistinguible de uno bueno a ojo, y escribirlo deja al producto
+  # con una firma rota. Si el CLI no devolvio EXACTAMENTE base64url, se falla.
   case "$secreto" in
+    '')    fallar "el Core no devolvio secreto para $p" ;;
+    *' '*) fallar "el secreto de $p trae texto de mas (${secreto:0:24}...)" ;;
+    *">"*) fallar "el secreto de $p trae basura de la salida (${secreto:0:24}...)" ;;
     PENDIENTE-*) fallar "el Core devolvio un placeholder para $p, no un secreto" ;;
   esac
+  [[ "$secreto" =~ ^[A-Za-z0-9_-]{16,}$ ]] || {
+    local_foto="${secreto:0:24}"
+    fallar "el secreto de $p no es base64url valido ($local_foto...)"
+  }
   poner "AMG_SSO_${mayusculas}_SECRET" "$secreto" sobrescribir
 done
 info "los ${#PRODUCTOS[@]} secretos copiados del Core al .env"
