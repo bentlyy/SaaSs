@@ -3,9 +3,7 @@
 # que NO estan en git.
 #
 # Lo que no esta en git es justamente lo mas fragil:
-#   .env             -> JWT_SECRET. Si se pierde, nadie puede iniciar sesion.
-#   ops/clients.json -> la whitelist de la puerta. Si se pierde y el guard esta
-#                       fail-open, cualquiera se registra gratis.
+#   .env -> JWT_SECRET. Si se pierde, nadie puede iniciar sesion.
 # Por eso el backup copia tambien la configuracion, con permisos 600.
 #
 # Consistente sin downtime: snapshot via la API de backup de SQLite con la app
@@ -85,7 +83,7 @@ log "destino: $DEST"
 log "imagen : $IMAGEN"
 
 # --------------------------------------------------------------- configuracion
-for archivo in "$RAIZ/.env" "$RAIZ/ops/clients.json"; do
+for archivo in "$RAIZ/.env"; do
   if [ -f "$archivo" ]; then
     cp -p "$archivo" "$DEST/config/$(basename "$archivo")"
     chmod 600 "$DEST/config/$(basename "$archivo")"

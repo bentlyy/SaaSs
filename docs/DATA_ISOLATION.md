@@ -136,8 +136,7 @@ token. El Core no crece un cuarto rol.
    valor puesto a mano hace que el producto rechace todos los tokens.
 
 No hay `ops/clients.json`, ni `CLIENTS_GATE`, ni `JWT_SECRET`: la puerta es la
-suscripción en el Core, y `clientsGuard` quedó sin uso en la suite (sigue en
-`packages/core` y sus tests siguen ahí, pero ningún producto lo llama).
+suscripción en el Core.
 
 Y la comprobación de que quedó bien aislado:
 
@@ -149,6 +148,5 @@ docker compose exec <producto> ls /app/data     # solo su propio volumen
 
 - `packages/platform/tests/` cubre que una organización no lee a otra, que el
   acceso expira, y que los tokens no sirven para otro producto.
-- `packages/core` tiene tests de `clientsGuard`, incluido el caso fail-closed.
 - `products/*` siguen siendo independientes: cada uno con su `tsconfig`, su build y
   su base.

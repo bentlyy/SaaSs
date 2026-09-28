@@ -49,8 +49,8 @@ export interface AccessState {
 /**
  * ¿Tiene esta organización acceso a este producto?
  *
- * El Core es la fuente de verdad COMERCIAL. `ops/clients.json` (clientsGuard) es
- * la fuente de verdad TÉCNICA y va camino de desaparecer: ver docs/BILLING.md.
+ * El Core es la única fuente de verdad: decide la suscripción, no hay lista
+ * aparte. Ver docs/BILLING.md.
  */
 export function productAccess(organizationId: string, productSlug: string): AccessState {
   const organization = findOrganizationById(organizationId);

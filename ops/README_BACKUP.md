@@ -9,12 +9,11 @@ o alguien mete mano, el backup es lo unico que queda.
 |---|---|---|
 | 8 SQLite (`app.db`) | `~/backups/saasmini/<sello>/sqlite/` | snapshot consistente, app encendida |
 | `.env` | `<sello>/config/.env` | contiene `JWT_SECRET`; sin el nadie puede iniciar sesion |
-| `ops/clients.json` | `<sello>/config/clients.json` | la whitelist de la puerta; no esta en git a proposito |
 
 Cada backup lleva `manifest.txt` (commit, host, `integrity_check` y conteos por
 base) y `SHA256SUMS` para detectar corrupcion del propio archivo.
 
-Los dos archivos de `config/` van con permiso 600: son secretos.
+El archivo de `config/` va con permiso 600: es un secreto.
 
 ## Como corre
 

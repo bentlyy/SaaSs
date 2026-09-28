@@ -188,15 +188,6 @@ describe('aislamiento entre productos en producción', () => {
       expect(bloqueDe(slug), `${slug} no apunta al Core`).toMatch(/CORE_URL: https:\/\/desarrollo\.amgdeveloper\.cl/);
     }
   });
-
-  it('ningún producto migrado monta la lista de clientes', () => {
-    // clients.json era la puerta de los legacy. Sobre el runtime la puerta es
-    // la suscripción en el Core; si un producto vuelve a montarlo, tiene dos
-    // puertas y no se sabe cuál manda.
-    for (const slug of NAVEGAN_AHORA) {
-      expect(bloqueDe(slug), `${slug} monta clients.json`).not.toMatch(/clients\.json/);
-    }
-  });
 });
 
 describe('las reglas muerden (compose de mentira)', () => {

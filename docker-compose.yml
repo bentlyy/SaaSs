@@ -5,9 +5,9 @@
 # otro cliente (sin volumen compartido).
 #
 # El servicio `landing` es distinto de los demás: no es un mini-SaaS, es el Core
-# (@amg/platform). No usa clientsGuard ni JWT propio: guarda usuarios,
-# organizaciones, sesiones, suscripciones y pagos en core.sqlite, y sirve la web
-# (landing, catálogo, acceso, mi cuenta, mis aplicaciones).
+# (@amg/platform). No tiene login propio: guarda usuarios, organizaciones,
+# sesiones, suscripciones y pagos en core.sqlite, y sirve la web (landing,
+# catálogo, acceso, mi cuenta, mis aplicaciones).
 #
 # ──Puertos y dominios────────────────────────────────────────────────────────
 # El puerto NO se elige por estetica: se elige para que coincida con el reverse
@@ -277,8 +277,8 @@ services:
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
 
   # ── Plataforma central (Core) ─────────────────────────────────────────────
-  # Sirve la API de identidad/suscripciones y la web. Sin clients.json: el Core
-  # no lleva la lista de tenants, usa core.sqlite (ver docs/ARCHITECTURE.md).
+  # Sirve la API de identidad/suscripciones y la web. Usa core.sqlite (ver
+  # docs/ARCHITECTURE.md).
   landing:
     <<: *app
     container_name: saasmini-landing

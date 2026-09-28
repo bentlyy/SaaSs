@@ -192,11 +192,6 @@ producto sabe quién es el usuario, después se le deja entrar.
 
 6. **Apagar el login propio.** Recién acá. Mientras siga vivo, hay dos puertas.
 
-7. **Revisar `clientsGuard`.** Sigue siendo la activación técnica. Para que un
-   cliente nuevo entre solo con Core, hay que hacer que la lista deje de ser
-   obligatoria, o que el Core sea el que la consulte. Está pendiente (ver
-   `BILLING.md`).
-
 ### Lo que hay que sacar del producto
 
 - `users` / `sessions` propias y el login con contraseña.

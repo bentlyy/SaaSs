@@ -2,18 +2,21 @@
 
 ## Qué decide el Core
 
-El Core es la **fuente de verdad comercial**: si una organización tiene acceso a
-un producto, lo decide `core.sqlite`, no un archivo en el disco del contenedor.
-
-`ops/clients.json` (vía `clientsGuard`) es la **fuente de verdad técnica** y va
-camino de desaparecer. Ver "La transición" más abajo.
+El Core es la **única fuente de verdad**: si una organización tiene acceso a un
+producto lo decide `core.sqlite`. No existe una lista aparte: los productos no
+montan `clients.json` ni usan `clientsGuard` (ese mecanismo quedó fuera del
+despliegue). Ver "clientes sin clients.json" más abajo.
 
 ## Catálogo
 
-Trece productos en `products`, con precio, período y URL. El catálogo se siembra
-en cada arranque (`ensurePlatformSeed`) y el seed es **idempotente**: actualiza
-nombre, precio y estado sin tocar los `id`, así que las suscripciones que ya
-apuntan a un producto siguen apuntando al mismo.
+Nueve productos activos en `products`, con precio, período y URL. El catálogo se
+siembra en cada arranque (`ensurePlatformSeed`) y el seed es **idempotente**:
+actualiza nombre, precio y estado sin tocar los `id`, así que las suscripciones
+que ya apuntan a un producto siguen apuntando al mismo.
+
+Además, hay productos **retirados**: se dejan en la tabla con `status='inactive'`
+porque las suscripciones y pagos ya apuntan a su `product_id`. No se borran, pero
+no se venden ni se listan.
 
 ### Precios
 
@@ -28,24 +31,17 @@ Los precios del Core son **los que ya están publicados en la landing** (tabla
 | `solicitudes` | Solicitudes y Órdenes | $18.000 |
 | `cotizaciones` | Cotizaciones | $8.000 |
 | `clientes` | Gestión de Clientes | $7.000 |
-| `documentos` | Documentos y Comprobantes | $10.000 |
-| `recordatorios` | Recordatorios | $12.000 |
-| `crm` | CRM (en transición) | $7.000 |
-| `talleres` | Órdenes de Trabajo (en transición) | $18.000 |
 | `activos` | Control de Activos | $16.900 |
 | `checklists` | Checklists e Inspecciones | $14.900 |
 | `pagos` | Control de Pagos | $15.900 |
 
-Los en transición repiten el precio de su equivalente canónico a propósito: un
-cliente que ya paga $7.000 por Gestión de Clientes no puede ver $11.900 el día que
-se migra su acceso.
+Los retirados (`documentos`, `recordatorios`, `crm`, `talleres`, `peluqueria`,
+`deportes`, `inventario-v2`) quedan `inactive`, mapeados a su producto canónico
+en `RETIRED_SLUGS` (`packages/platform/src/seed.ts`): la suscripción que apuntaba
+a ellos ya no abre ningún producto.
 
 **Dos fuentes de verdad para un precio es un bug esperando.** Si cambia un precio,
 se cambia en `packages/platform/src/seed.ts` **y** en la landing.
-
-`activos`, `checklists` y `pagos` no están desplegados y **no tienen precio
-publicado**: los que están son propuestas internas. Antes de mostrarlos en la web
-pública hay que confirmarlos o sacarlos del catálogo activo.
 
 ### Los slugs y las URLs no son lo mismo
 
@@ -66,12 +62,16 @@ regla que `catalog.test.ts` verifica para los nueve.
 | `pagos` | `pagos.amgdeveloper.cl` |
 
 Los subdominios anteriores (`canchas`, `agenda`, `ordenes`, `stock`,
-`presupuestos`) quedan como redirects a los nuevos. La plataforma es
-`desarrollo.amgdeveloper.cl` y no es un producto más: no tiene fila en
-`products` ni volumen propio.
+`presupuestos`, `docs`, `recordatorios`) quedan como redirects a los nuevos. La
+plataforma es `desarrollo.amgdeveloper.cl` y no es un producto más: no tiene fila
+en `products` ni volumen propio.
 
-Los productos en transición comparten `app_url` con su equivalente canónico, que es
-justo lo que hay que tener en cuenta al migrarlos (ver `SSO.md`).
+## clientes sin clients.json
+
+Antes había dos listas de verdad: `ops/clients.json` (el archivo que `clientsGuard`
+leía en el contenedor) y `core.sqlite`. Esa puerta quedó **eliminada del
+despliegue y del código**: no existe `clientsGuard`, no se monta `ops/clients.json`
+ni existe el archivo. La activación la decide únicamente `subscriptions` en el Core.
 
 ## Suscripciones
 
@@ -300,29 +300,6 @@ quieran automatizar, el camino es una tabla de planes (un plan agrupa N producto
 con su precio) y que la suscripción apunte al plan en vez de a un producto suelto.
 Es un bloque de trabajo propio, no una extensión de este.
 
-## La transición desde `clients.json`
-
-Hoy hay dos listas de verdad y se contradicen:
-
-- `ops/clients.json`: qué clientes existen y qué pueden usar, por dominio. Vive
-  en el disco del contenedor, se edita a mano, es un bind mount.
-- `core.sqlite`: quién es el usuario, qué organización es y qué compró.
-
-Mientras un producto no se migre al SSO, su activación la decide `clientsGuard`
-(fail-closed: si el archivo no está, no entra nadie). El Core ya sabe la
-comercial, pero no la toca.
-
-El orden para cerrar la brecha:
-
-1. Que `clientsGuard` **consulte** al Core en vez de decidir por su cuenta, con la
-   lista local como caché y failover explícito.
-2. Recién ahí, sacar la lista local.
-3. Al final, los productos que siguen con login propio se migran según `SSO.md`.
-
-Mientras tanto, la divergencia conocida es real: un cliente puede estar en
-`clients.json` y no tener suscripción en el Core, o al revés. Vale la pena
-compararlas antes de vender.
-
 ## Lo que falta
 
 - [x] Costura de pasarela (`BillingProvider`) y flujo intención → confirmación.
@@ -335,9 +312,7 @@ compararlas antes de vender.
 - [ ] Renovación automática y cobros recurrentes.
 - [ ] `expireDueSubscriptions()` llamada por cron o en el arranque.
 - [ ] Reembolsos: hoy la cancelación inmediata no genera ninguno.
-- [ ] Confirmar o sacar del catálogo `activos`, `checklists` y `pagos`.
 - [ ] Planes y combos.
 - [ ] Facturación electrónica (Boletas/Facturas).
-- [ ] Migrar la activación técnica desde `clients.json`.
 - [ ] Conciliación: `provider_reference` ↔ respaldos del proveedor.
 - [ ] Quitar `manual` y `webpay` del enum, o dos de implementar.

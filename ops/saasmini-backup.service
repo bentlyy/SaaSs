@@ -1,6 +1,6 @@
 [Unit]
-# Copia las 8 SQLite sin downtime y respalda .env / clients.json, que no estan
-# en git. Si un dia falla, el timer sigue intentando manana (ver catchup).
+# Copia las 8 SQLite sin downtime y respalda .env, que no esta en git. Si un dia
+# falla, el timer sigue intentando manana (ver catchup).
 Description=Backup de SaaS Mini (SQLite + configuracion)
 Documentation=file:///home/opc/projects/saas-mini/ops/README_BACKUP.md
 After=docker.service

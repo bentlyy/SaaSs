@@ -23,11 +23,10 @@ donde una contraseña se filtra. Ahora la contraseña existe en un solo lado.
 | Puerto | `3108` (host) | `3100`-`3111` (host) |
 | Dominio | `desarrollo.amgdeveloper.cl` | un subdominio por producto |
 | Contraseñas | sí, es el único | **no tiene** |
-| `clients.json` | no lo usa | **tampoco**: ya no existe |
 
 ### Paquetes
 
-- **`packages/core`** (`@saas-mini/core`): lo que comparten los productos. `createApp`, config por producto, `clientsGuard`, helpers HTTP. **No sabe nada de la plataforma.**
+- **`packages/core`** (`@saas-mini/core`): lo que comparten los productos. `createApp`, config por producto, helpers HTTP. **No sabe nada de la plataforma.**
 - **`packages/platform`** (`@amg/platform`): el Core. Depende de `@saas-mini/core` solo por utilidades de HTTP y logger. No se importa desde un producto.
 - **`packages/auth-client`** (`@amg/auth-client`): lo único que un producto importa para validar usuarios. Habla con el Core por HTTP; no depende del package del Core.
 - **`products/landing`**: el servicio del Core. Sirve la API **y** la web (landing de marketing, catálogo, login, mi cuenta, mis aplicaciones). Es el único lugar donde se ejecuta `@amg/platform`.
@@ -143,10 +142,11 @@ arranca.
 ### Estado actual
 
 La plataforma está completa en su parte de identidad, catálogo y suscripciones.
-Los productos **siguen con su login propio**: `@amg/auth-client` está listo y
-probado, pero migrar un producto es un trabajo por producto (ver `SSO.md`). Hasta
-que se migren, `clients.json` sigue siendo la activación técnica y el Core la
-comercial.
+Los **nueve productos corren sobre `@amg/product-runtime`** con `@amg/auth-client`
+(SSO del Core): sin login propio, sin `JWT_SECRET`, sin `clientsGuard`. La puerta
+de acceso es únicamente la suscripción en el Core. `packages/core` queda como
+núcleo legacy: conserva `createApp` y sus tests, pero ningún producto desplegado
+lo usa.
 
 ## Documentos relacionados
 
