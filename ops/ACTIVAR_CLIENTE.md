@@ -32,7 +32,7 @@ Hay dos listas distintas y este archivo solo administra una de ellas:
 
 | Dónde | Qué es | Quién la cambia |
 |------|--------|-----------------|
-| `core.sqlite` → `subscriptions` | **Comercial.** La paga el cliente, la renueva, la cancela. | El cliente, desde `desarrollador.amgdeveloper.cl` |
+| `core.sqlite` → `subscriptions` | **Comercial.** La paga el cliente, la renueva, la cancela. | El cliente, desde `desarrollo.amgdeveloper.cl` |
 | `ops/clients.json` | **Técnica.** Apagar un producto con una línea, sin deploy y sin esperar un ciclo de facturación. | Tú, por SSH |
 
 `mode` dice cuál manda, y **no hay lectura ambigua**:

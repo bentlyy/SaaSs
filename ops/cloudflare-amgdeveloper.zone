@@ -1,16 +1,52 @@
-; cloudflare-amgdeveloper.cl · zona documental (Cloudflare: proxy naranja sobre 146.181.55.59)
+; cloudflare-amgdeveloper.cl — zona DOCUMENTAL de la suite AMG
+;
+; NO es la zona real: la zona que vale es la de Cloudflare, y ahi estos registros
+; se crean a mano desde el panel. Este archivo sirve para saber que deberia
+; existir, compararlo con lo que resuelve, y no perder de vista que `docs` y
+; `recordatorios` ya no son productos aunque sus registros sigan ahi.
+;
+; Resolver (proxy naranja de Cloudflare por encima de 146.181.55.59):
+;   agenda         -> citas
+;   canchas        -> espacios
+;   ordenes        -> solicitudes
+;   stock          -> inventario
+;   presupuestos   -> cotizaciones
+;   clientes       -> clientes
+;   desarrollo     -> el Core (la plataforma: acceso, catalogo, mi cuenta)
+;   activos        -> activos            [NUEVO, falta crear]
+;   checklists     -> checklists         [NUEVO, falta crear]
+;   pagos          -> pagos              [NUEVO, falta crear]
+;   docs           -> RETIRADO, redirige a presupuestos
+;   recordatorios  -> RETIRADO, redirige a agenda
+;
+; ── PENDIENTE: crear estos tres registros A antes de emitir el certificado ────
+; Los tres son nombre nuevo. Mientras no existan, el certbot no puede validarlos
+; y `ops/nginx.conf` no se puede instalar. Es el paso que bloquea a los otros dos,
+; y es el unico que hay que hacer a mano en el panel de Cloudflare.
+; Cloudflare en modo proxy (naranja) no estorba la validacion HTTP-01: el
+; challenge sigue llegando al origen.
+
 $ORIGIN amgdeveloper.cl.
 $TTL 300
 
-; Registros cortos de la suite AMG (nombres funcionales)
+activos		IN	A	146.181.55.59
+checklists		IN	A	146.181.55.59
+pagos		IN	A	146.181.55.59
+
+; Los seis productos que ya existen
 agenda		IN	A	146.181.55.59
 canchas		IN	A	146.181.55.59
 ordenes		IN	A	146.181.55.59
 stock		IN	A	146.181.55.59
 presupuestos	IN	A	146.181.55.59
-docs		IN	A	146.181.55.59
-recordatorios	IN	A	146.181.55.59
 clientes	IN	A	146.181.55.59
 
-; Landing pública (proxy)
+; Plataforma central
 desarrollo	IN	A	146.181.55.59
+
+; Retirados. Se pueden borrar del panel cuando ya no quede nadie que los teclee,
+; pero mientras el certificado los cubra y el 301 exista son inofensivos: el
+; borrado sin quitar el redirect deja a quien los teclee con un error de
+; certificado, que es peor que una redireccion.
+docs		IN	A	146.181.55.59
+recordatorios	IN	A	146.181.55.59

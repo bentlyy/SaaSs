@@ -1,14 +1,42 @@
-# Suite SaaS Mini: la plataforma central (Core) + 8 productos sobre una misma
-# imagen (core + build). Cada producto corre un workspace y persiste su SQLite en
-# SU PROPIO volumen (saasmini_data_<producto>): aislamiento — un contenedor
-# comprometido no puede leer ni escribir las bases de otro cliente (sin volumen
-# compartido). Los JWT vienen del archivo .env de compose (generado en el servidor,
-# NO commiteado).
+# Suite SaaS Mini: la plataforma central (Core) + los NUEVE productos, todos
+# sobre una misma imagen (core + build). Cada producto corre un workspace y
+# persiste su SQLite en SU PROPIO volumen (saasmini_data_<producto>):
+# aislamiento — un contenedor comprometido no puede leer ni escribir las bases de
+# otro cliente (sin volumen compartido).
 #
 # El servicio `landing` es distinto de los demás: no es un mini-SaaS, es el Core
 # (@amg/platform). No usa clientsGuard ni JWT propio: guarda usuarios,
 # organizaciones, sesiones, suscripciones y pagos en core.sqlite, y sirve la web
 # (landing, catálogo, acceso, mi cuenta, mis aplicaciones).
+#
+# ──Puertos y dominios────────────────────────────────────────────────────────
+# El puerto NO se elige por estetica: se elige para que coincida con el reverse
+# proxy que YA esta en el servidor (/etc/nginx/conf.d/saas-mini.conf). Un deploy
+# que cambia el puerto de un dominio obliga a cambiar nginx en el mismo instante,
+# y si esas dos cosas se desalinean el dominio abre el producto equivocado sin
+# ningun error visible: fue lo que paso con canchas->3101 (espacios) y
+# presupuestos->3104 (citas) mientras los legacy seguian ahi.
+#
+#   puerto  dominio                            producto
+#   3100    agenda.amgdeveloper.cl             citas        (era peluqueria)
+#   3101    canchas.amgdeveloper.cl            espacios     (absorbe deportes)
+#   3102    ordenes.amgdeveloper.cl            solicitudes  (absorbe talleres)
+#   3103    stock.amgdeveloper.cl              inventario
+#   3104    presupuestos.amgdeveloper.cl       cotizaciones (absorbe documentos)
+#   3107    clientes.amgdeveloper.cl           clientes     (absorbe crm)
+#   3108    desarrollo.amgdeveloper.cl         Core
+#   3109    activos.amgdeveloper.cl            activos      (nuevo)
+#   3110    checklists.amgdeveloper.cl         checklists   (nuevo)
+#   3111    pagos.amgdeveloper.cl              pagos        (nuevo)
+#
+# Los puertos 3105 (documentos) y 3106 (recordatorios) quedan LIBRES a proposito:
+# sus productos se retiraron. No se reciclan porque un dominio viejo que todavia
+# se teclea (docs.*, recordatorios.*) debe seguir levando a la redireccion nueva,
+# no a un producto que hoy este asignado a otro.
+#
+# Tres dominios (activos, checklists, pagos) son NUEVOS: necesitan registro DNS y
+# certificado antes de publicar. `ops/nginx.conf` los trae ya, pero sin DNS el
+# certbot no puede emitirlos.
 
 x-app: &app
   image: saas-mini:latest
@@ -16,33 +44,24 @@ x-app: &app
   restart: unless-stopped
   # Rotacion de logs: el driver json-file de Docker NO rota solo y se lleva el
   # disco sin avisar (le paso a clinic-db: 331 MB en 3 semanas). Tope de ~30 MB
-  # por servicio, 3 archivos, y el ciclo es automatico. Los 9 servicios heredan
+  # por servicio, 3 archivos, y el ciclo es automatico. Los servicios heredan
   # este bloque del ancla, asi que no hay que repetirlo.
   logging:
     driver: json-file
     options:
       max-size: "10m"
       max-file: "3"
-  volumes:
-    # Puerta de acceso: edita ops/clients.json en el servidor para activar/pausar clientes.
-    # Al ser en vivo (bind mount), el cambio aplica sin rebuild ni reinicio de servicios.
-    - ./ops/clients.json:/app/clients.json:ro
   environment: &base-env
     NODE_ENV: production
-    # QUien decide el acceso, y solo para los 8 legacy (los unicos que montan
-    # clients.json): el Core con `subscriptions`, o esta lista de emergencia.
-    # `allowlist` es el unico modo que un producto legacy puede cumplir, porque
-    # todavia no consulta suscripciones. Cuando un producto migre al Core, se
-    # saca el bind mount de clients.json y la lista deja de existir para el.
-    CLIENTS_GATE: allowlist
 
 services:
-  # peluqueria, recordatorios y deportes ya no tienen servicio: sus datos se
-  # migraron a citas (25 citas, 25 lineas, 5 avisos) y a espacios (5 espacios,
-  # 4 extras, 5 clientes, 11 reservas). Arrancar cualquiera de los tres seria
-  # otra puerta para el mismo producto. Sus volumenes quedan declarados ABAJO,
-  # sin servicio, porque son la fuente de la migracion: borrarlos seria tirar
-  # los datos que todavia no estan respaldados fuera de Docker.
+  # peluqueria, recordatorios, deportes, talleres, crm y documentos ya NO tienen
+  # servicio: sus datos se migraron a los productos que los absorben (citas,
+  # espacios, solicitudes, clientes y cotizaciones). Arrancar cualquiera de los
+  # seis seria otra puerta para el mismo producto. Sus volumenes quedan
+  # declarados ABAJO, sin servicio, porque son la fuente de las migraciones:
+  # borrarlos seria tirar los datos que todavia no estan respaldados fuera de
+  # Docker.
 
   # Reemplaza al legacy `deportes`, que vivia en el puerto 3101 con su propio
   # JWT_SECRET y su clients.json. Sus datos ya estan migrados a ESPACIOS, que
@@ -61,8 +80,8 @@ services:
       DB_PATH: /app/data/espacios.sqlite
       DB_SCHEMA_VERSION: "1"
       APP_NAME: Espacios
-      APP_URL: https://espacios.amgdeveloper.cl
-      CORE_URL: https://desarrollador.amgdeveloper.cl
+      APP_URL: https://canchas.amgdeveloper.cl
+      CORE_URL: https://desarrollo.amgdeveloper.cl
       AMG_SSO_CLIENT_ID: espacios
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_ESPACIOS_SECRET:?falta AMG_SSO_ESPACIOS_SECRET en .env}
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
@@ -90,8 +109,8 @@ services:
       DB_PATH: /app/data/solicitudes.sqlite
       DB_SCHEMA_VERSION: "1"
       APP_NAME: Solicitudes y Ordenes
-      APP_URL: https://solicitudes.amgdeveloper.cl
-      CORE_URL: https://desarrollador.amgdeveloper.cl
+      APP_URL: https://ordenes.amgdeveloper.cl
+      CORE_URL: https://desarrollo.amgdeveloper.cl
       AMG_SSO_CLIENT_ID: solicitudes
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_SOLICITUDES_SECRET:?falta AMG_SSO_SOLICITUDES_SECRET en .env}
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
@@ -104,7 +123,7 @@ services:
   #
   # Este producto NO monta clients.json ni consulta clientsGuard: su puerta es
   # `subscriptions` en el Core, que se mira en cada request. Por eso el
-  # CLIENTS_GATE heredado no aplica aqui.
+  # CLIENTS_GATE de los legacy ya no existe en ningun servicio.
   inventario:
     <<: *app
     container_name: saasmini-inventario
@@ -119,8 +138,8 @@ services:
       DB_PATH: /app/data/inventario.sqlite
       DB_SCHEMA_VERSION: "1"
       APP_NAME: Inventario
-      APP_URL: https://inventario.amgdeveloper.cl
-      CORE_URL: https://desarrollador.amgdeveloper.cl
+      APP_URL: https://stock.amgdeveloper.cl
+      CORE_URL: https://desarrollo.amgdeveloper.cl
       AMG_SSO_CLIENT_ID: inventario
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_INVENTARIO_SECRET:?falta AMG_SSO_INVENTARIO_SECRET en .env}
       # Corta el acceso al instante si le cancelan la suscripción, a costa de una
@@ -135,7 +154,7 @@ services:
     volumes:
       - saasmini_data_citas:/app/data
     ports:
-      - "127.0.0.1:3104:3000"
+      - "127.0.0.1:3100:3000"
     environment:
       <<: *base-env
       PRODUCT: '@amg/citas'
@@ -143,65 +162,128 @@ services:
       DB_PATH: /app/data/citas.sqlite
       DB_SCHEMA_VERSION: "1"
       APP_NAME: Citas
-      APP_URL: https://citas.amgdeveloper.cl
-      CORE_URL: https://desarrollador.amgdeveloper.cl
+      APP_URL: https://agenda.amgdeveloper.cl
+      CORE_URL: https://desarrollo.amgdeveloper.cl
       AMG_SSO_CLIENT_ID: citas
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_CITAS_SECRET:?falta AMG_SSO_CITAS_SECRET en .env}
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
 
+  # Reemplaza al legacy `cotizaciones` (puerto 3104, su propio JWT_SECRET) y al
+  # legacy `documentos`, que se le suma. Los dos eran el mismo producto con dos
+  # puertas: por eso sus dominios se funden en presupuestos.* y la base destino
+  # guarda el folio por empresa y no global.
   cotizaciones:
     <<: *app
     container_name: saasmini-cotizaciones
     volumes:
-      - saasmini_data_cotizaciones:/app/data/cotizaciones
-      - ./ops/clients.json:/app/clients.json:ro
+      - saasmini_data_cotizaciones:/app/data
     ports:
       - "127.0.0.1:3104:3000"
     environment:
       <<: *base-env
-      PRODUCT: cotizaciones
+      PRODUCT: '@amg/cotizaciones'
       PORT: "3000"
-      DB_PATH: /app/data/cotizaciones/app.db
-      JWT_SECRET: ${COTI_JWT:?falta COTI_JWT en .env}
-      APP_NAME: Cotizaciones y Presupuestos
+      DB_PATH: /app/data/cotizaciones.sqlite
+      DB_SCHEMA_VERSION: "1"
+      APP_NAME: Cotizaciones
       APP_URL: https://presupuestos.amgdeveloper.cl
+      CORE_URL: https://desarrollo.amgdeveloper.cl
+      AMG_SSO_CLIENT_ID: cotizaciones
+      AMG_SSO_CLIENT_SECRET: ${AMG_SSO_COTIZACIONES_SECRET:?falta AMG_SSO_COTIZACIONES_SECRET en .env}
+      AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
 
-  documentos:
+  # Reemplaza al legacy `crm`, que vivia en el puerto 3107 con su propio
+  # JWT_SECRET y su clients.json. Las 10 citas que tenia NO se migran aqui:
+  # las absorbe CITAS, que ya las leyo de esta misma base. Aca van los clientes
+  # y sus seguimientos.
+  clientes:
     <<: *app
-    container_name: saasmini-documentos
+    container_name: saasmini-clientes
     volumes:
-      - saasmini_data_documentos:/app/data/documentos
-      - ./ops/clients.json:/app/clients.json:ro
-    ports:
-      - "127.0.0.1:3105:3000"
-    environment:
-      <<: *base-env
-      PRODUCT: documentos
-      PORT: "3000"
-      DB_PATH: /app/data/documentos/app.db
-      JWT_SECRET: ${DOCU_JWT:?falta DOCU_JWT en .env}
-      APP_NAME: Documentos y Comprobantes
-      APP_URL: https://docs.amgdeveloper.cl
-
-  # recordatorios se retiro: los avisos son infraestructura de citas, no un
-  # producto vendible. Volumen conservado, ver la nota de arriba.
-
-  crm:
-    <<: *app
-    container_name: saasmini-crm
-    volumes:
-      - saasmini_data_crm:/app/data/crm
-      - ./ops/clients.json:/app/clients.json:ro
+      - saasmini_data_clientes:/app/data
     ports:
       - "127.0.0.1:3107:3000"
     environment:
       <<: *base-env
-      PRODUCT: crm
+      PRODUCT: '@amg/clientes'
       PORT: "3000"
-      DB_PATH: /app/data/crm/app.db
-      JWT_SECRET: ${CRM_JWT:?falta CRM_JWT en .env}
-      APP_NAME: Gestión de Clientes
+      DB_PATH: /app/data/clientes.sqlite
+      DB_SCHEMA_VERSION: "1"
+      APP_NAME: Clientes
       APP_URL: https://clientes.amgdeveloper.cl
+      CORE_URL: https://desarrollo.amgdeveloper.cl
+      AMG_SSO_CLIENT_ID: clientes
+      AMG_SSO_CLIENT_SECRET: ${AMG_SSO_CLIENTES_SECRET:?falta AMG_SSO_CLIENTES_SECRET en .env}
+      AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
+
+  # Activos: nuevo producto, sin fuente legacy. Control de patrimonio con
+  # historial de movimientos; NO es el inventario de repuestos, que es otro
+  # producto y otra base.
+  activos:
+    <<: *app
+    container_name: saasmini-activos
+    volumes:
+      - saasmini_data_activos:/app/data
+    ports:
+      - "127.0.0.1:3109:3000"
+    environment:
+      <<: *base-env
+      PRODUCT: '@amg/activos'
+      PORT: "3000"
+      DB_PATH: /app/data/activos.sqlite
+      DB_SCHEMA_VERSION: "1"
+      APP_NAME: Activos
+      APP_URL: https://activos.amgdeveloper.cl
+      CORE_URL: https://desarrollo.amgdeveloper.cl
+      AMG_SSO_CLIENT_ID: activos
+      AMG_SSO_CLIENT_SECRET: ${AMG_SSO_ACTIVOS_SECRET:?falta AMG_SSO_ACTIVOS_SECRET en .env}
+      AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
+
+  # Checklists: nuevo producto, sin fuente legacy. Plantillas reutilizables y su
+  # ejecucion, con snapshot para que editar la plantilla no altere lo ya
+  # firmado en campo.
+  checklists:
+    <<: *app
+    container_name: saasmini-checklists
+    volumes:
+      - saasmini_data_checklists:/app/data
+    ports:
+      - "127.0.0.1:3110:3000"
+    environment:
+      <<: *base-env
+      PRODUCT: '@amg/checklists'
+      PORT: "3000"
+      DB_PATH: /app/data/checklists.sqlite
+      DB_SCHEMA_VERSION: "1"
+      APP_NAME: Checklists e Inspecciones
+      APP_URL: https://checklists.amgdeveloper.cl
+      CORE_URL: https://desarrollo.amgdeveloper.cl
+      AMG_SSO_CLIENT_ID: checklists
+      AMG_SSO_CLIENT_SECRET: ${AMG_SSO_CHECKLISTS_SECRET:?falta AMG_SSO_CHECKLISTS_SECRET en .env}
+      AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
+
+  # Pagos: nuevo producto, sin fuente legacy. Cobros A clientes de la empresa,
+  # que es lo contrario de la suscripcion que la empresa le paga a AMG (esa
+  # vive en el Core). Ver docs/DATA_ISOLATION.md.
+  pagos:
+    <<: *app
+    container_name: saasmini-pagos
+    volumes:
+      - saasmini_data_pagos:/app/data
+    ports:
+      - "127.0.0.1:3111:3000"
+    environment:
+      <<: *base-env
+      PRODUCT: '@amg/pagos'
+      PORT: "3000"
+      DB_PATH: /app/data/pagos.sqlite
+      DB_SCHEMA_VERSION: "1"
+      APP_NAME: Control de Pagos
+      APP_URL: https://pagos.amgdeveloper.cl
+      CORE_URL: https://desarrollo.amgdeveloper.cl
+      AMG_SSO_CLIENT_ID: pagos
+      AMG_SSO_CLIENT_SECRET: ${AMG_SSO_PAGOS_SECRET:?falta AMG_SSO_PAGOS_SECRET en .env}
+      AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
 
   # ── Plataforma central (Core) ─────────────────────────────────────────────
   # Sirve la API de identidad/suscripciones y la web. Sin clients.json: el Core
@@ -221,7 +303,7 @@ services:
       CORE_DB_PATH: /app/data/core/core.sqlite
       # URL pública real: aparece en los enlaces de SSO y de recuperación de
       # contraseña. Con esto en localhost, los correos mandan al lugar errado.
-      CORE_URL: https://desarrollador.amgdeveloper.cl
+      CORE_URL: https://desarrollo.amgdeveloper.cl
       # Dos secretos y ninguno con valor por defecto en produccion (fail-fast).
       # AMG_SSO_ROOT_SECRET es la raiz de la que sale el secreto de cada producto
       # (HKDF): cambiarlo invalida todos los clientes SSO a la vez.
@@ -237,19 +319,50 @@ services:
       CONTACT_EMAIL: ${CONTACT_EMAIL:-hola@amgdeveloper.cl}
 
 volumes:
-  # Los de peluqueria, recordatorios, deportes y talleres NO los usa ningun
-  # servicio: son la fuente de las migraciones a citas, a espacios, a inventario y
-  # a solicitudes. Se conservan sin tocar hasta que exista un backup externo
-  # verificado. Borrarlos con `docker volume rm` tira datos reales.
-  saasmini_data_peluqueria:
-  saasmini_data_deportes:
-  saasmini_data_talleres:
-  saasmini_data_inventario:
+  # ── Los nueve, uno por producto ──────────────────────────────────────────
   saasmini_data_espacios:
   saasmini_data_citas:
+  saasmini_data_inventario:
   saasmini_data_solicitudes:
   saasmini_data_cotizaciones:
-  saasmini_data_documentos:
-  saasmini_data_recordatorios:
-  saasmini_data_crm:
+  saasmini_data_clientes:
+  saasmini_data_activos:
+  saasmini_data_checklists:
+  saasmini_data_pagos:
   saasmini_data_core:
+
+  # ── Los legacy: SIN servicio, y a proposito ────────────────────────────────
+  # peluqueria, recordatorios, deportes, talleres, documentos y crm ya no los
+  # usa nadie. Se conservan porque son la FUENTE de las migraciones a citas,
+  # espacios, solicitudes, cotizaciones y clientes, y `ops/backup.sh` final ya
+  # no los respalda: borrarlos con `docker volume rm` tira datos reales que solo
+  # estan aqui.
+  #
+  # OJO, sobre lo que realmente los protege: ESTE archivo no los protege mucho.
+  # Ningun servicio los monta, y compose descarta del config renderizado los
+  # volumenes declarados que nadie usa, asi que aqui son documentacion. Quien los
+  # monta de verdad es `ops/migrate.compose.yml`, y ahi si van `external: true` y
+  # con el nombre real completo. Ese es el punto donde un `down -v` o un
+  # `docker volume rm` se cruzaria con los datos, y los dos archivos tienen que
+  # coincidir.
+  #
+  # Lo que si evita este archivo: que alguien los borre creyendo que "compose ya
+  # no los usa, estan de mas". No se borran hasta que exista un respaldo externo
+  # verificado de cada uno, y ese respaldo no este en el MISMO servidor (un fallo
+  # de disco se los lleva juntos).
+  #
+  # `inventario` y `cotizaciones` NO aparecen aqui porque su volumen ya se usa
+  # como destino de la migracion: la app.db legacy y la <producto>.sqlite nueva
+  # conviven en el mismo volumen.
+  saasmini_data_peluqueria:
+    external: true
+  saasmini_data_deportes:
+    external: true
+  saasmini_data_talleres:
+    external: true
+  saasmini_data_documentos:
+    external: true
+  saasmini_data_recordatorios:
+    external: true
+  saasmini_data_crm:
+    external: true
