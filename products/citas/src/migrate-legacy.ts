@@ -325,7 +325,12 @@ export function migrarLegacy(opciones: OpcionesMigracion): ResultadoMigracion {
 
         // ── Preferencias, desde la fila del tenant.
         // El legacy no tenía tabla `settings`: los ajustes vivían en `tenants`.
-        if (!yaEsta(settings, `cfg_${tenant.id}`)) {
+        const configDeOrg = db
+          .select({ id: settings.id })
+          .from(settings)
+          .where(eq(settings.organizationId, org))
+          .get();
+        if (!configDeOrg) {
           db.insert(settings)
             .values({
               id: `cfg_${tenant.id}`,

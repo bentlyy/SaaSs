@@ -313,7 +313,12 @@ export function migrarLegacy(opciones: OpcionesMigracion): ResultadoMigracion {
         // ── Preferencias, desde la fila del tenant.
         // El legacy no tenía tabla `settings`: la moneda y la zona vivían en
         // `tenants`. La jornada no existía, así que va el default y se reporta.
-        if (!yaEsta(settings, `cfg_${tenant.id}`, 'settings')) {
+        const configDeOrg = db
+          .select({ id: settings.id })
+          .from(settings)
+          .where(eq(settings.organizationId, org))
+          .get();
+        if (!configDeOrg) {
           db.insert(settings)
             .values({
               id: `cfg_${tenant.id}`,

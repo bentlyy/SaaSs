@@ -632,7 +632,12 @@ export function migrarLegacy(opciones: OpcionesMigracion): ResultadoMigracion {
         // `tenants`. La tasa por defecto NO se deduce: las cotizaciones migradas
         // traen la tasa que se les aplico, pero suponer cual era la preferida
         // seria inventar. Se deja en 0 y el informe dice cual se uso mas.
-        if (!yaEsta(settings, `cfg_${tenant.id}`, 'settings')) {
+        const configDeOrg = db
+          .select({ id: settings.id })
+          .from(settings)
+          .where(eq(settings.organizationId, org))
+          .get();
+        if (!configDeOrg) {
           db.insert(settings)
             .values({
               id: `cfg_${tenant.id}`,
