@@ -678,26 +678,13 @@
 
   /* ── mi cuenta ────────────────────────────────────────────────────────── */
 
-  pages.cuenta = function (session) {
-    requireSession(session);
-    var target = slot('cuenta');
-    mount(target, el('div', { class: 'card skeleton', style: 'height: 20rem' }));
-
-    return api('/account/summary').then(function (data) {
-      var isAdmin = data.role === 'admin' || data.role === 'owner';
-      mount(target, el('div', { class: 'stack-lg' },
-        el('div', { dataset: { toast: '' } }),
-        perfil(data),
-        data.organizations.length > 1 ? cambiarOrganizacion(data) : null,
-        isAdmin ? datosOrganizacion(data) : null,
-        isAdmin ? miembros(data) : null,
-        seguridad(data),
-        facturacion(data),
-      ));
-    }).catch(function (err) {
-      if (err instanceof ApiError && err.status === 401) { requireSession(null); return; }
-      mount(target, errorBox(err));
-    });
+  /* La cuenta y las aplicaciones ya viven como secciones de la landing (/) con
+   * el mismo navbar. Estas dos rutas del SPA ya no se usan: vuelven a la
+   * landing con el ancla correspondiente para que nadie tope con el topbar
+   * distinto de la plataforma. */
+  pages.cuenta = function () {
+    location.replace('/#mi-cuenta');
+    return Promise.resolve();
   };
 
   function perfil(data) {
@@ -948,48 +935,9 @@
 
   /* ── mis aplicaciones ─────────────────────────────────────────────────── */
 
-  pages.aplicaciones = function (session) {
-    requireSession(session);
-    var target = slot('aplicaciones');
-    var focus = new URLSearchParams(location.search).get('p');
-    mount(target, skeletons(3));
-
-    return api('/account/applications').then(function (data) {
-      var isOwner = session.role === 'owner';
-      function reload() { return pages.aplicaciones(session); }
-
-      mount(target, el('div', { class: 'stack-lg' },
-        el('div', { dataset: { toast: '' } }),
-        el('div', { class: 'page-head' },
-          el('h1', { text: 'Mis aplicaciones' }),
-          el('p', { class: 'soft', text: 'Herramientas activas de ' + data.organization.name + ' y las que puedes contratar.' }),
-        ),
-        el('section', { class: 'stack' },
-          el('h2', { text: 'Activas' }),
-          data.active.length
-            ? el('div', { class: 'grid grid--2' }, data.active.map(function (entry) {
-                return appCard(entry, true, isOwner, focus, reload);
-              }))
-            : emptyBox('Todavía no tienes ninguna herramienta activa. Elige una de las de abajo.'),
-        ),
-        el('section', { class: 'stack' },
-          el('h2', { text: 'Disponibles' }),
-          data.available.length
-            ? el('div', { class: 'grid grid--2' }, data.available.map(function (entry) {
-                return appCard(entry, false, isOwner, focus, reload);
-              }))
-            : emptyBox('No hay herramientas disponibles por ahora.'),
-        ),
-      ));
-
-      if (focus) {
-        var targetCard = target.querySelector('[data-slug="' + focus.replace(/"/g, '') + '"]');
-        if (targetCard && targetCard.scrollIntoView) targetCard.scrollIntoView({ block: 'center' });
-      }
-    }).catch(function (err) {
-      if (err instanceof ApiError && err.status === 401) { requireSession(null); return; }
-      mount(target, errorBox(err));
-    });
+  pages.aplicaciones = function () {
+    location.replace('/#tus-aplicaciones');
+    return Promise.resolve();
   };
 
   function appCard(entry, contracted, isOwner, focus, reload) {
