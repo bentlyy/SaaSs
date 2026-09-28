@@ -102,14 +102,14 @@ describe('verifyIdentity', () => {
 
 describe('buildLoginUrl', () => {
   it('apunta a /api/sso/authorize del Core con la callback del producto', () => {
-    const url = new URL(buildLoginUrl({ coreUrl: CORE, clientId: 'inventario', productUrl: 'https://stock.amgdeveloper.cl', callbackPath: '/auth/callback' }));
+    const url = new URL(buildLoginUrl({ coreUrl: CORE, clientId: 'inventario', productUrl: 'https://inventario.amgdeveloper.cl', callbackPath: '/auth/callback' }));
     expect(url.origin + url.pathname).toBe(`${CORE}/api/sso/authorize`);
     expect(url.searchParams.get('client_id')).toBe('inventario');
-    expect(url.searchParams.get('redirect_uri')).toBe('https://stock.amgdeveloper.cl/auth/callback');
+    expect(url.searchParams.get('redirect_uri')).toBe('https://inventario.amgdeveloper.cl/auth/callback');
   });
 
   it('no manda un return_to fuera del producto', () => {
-    const base = { coreUrl: CORE, clientId: 'inventario', productUrl: 'https://stock.amgdeveloper.cl', callbackPath: '/auth/callback' };
+    const base = { coreUrl: CORE, clientId: 'inventario', productUrl: 'https://inventario.amgdeveloper.cl', callbackPath: '/auth/callback' };
     expect(isSafeReturnTo('/inventario/stock')).toBe(true);
     expect(isSafeReturnTo('//malo.com')).toBe(false);
     expect(isSafeReturnTo('https://malo.com')).toBe(false);
@@ -127,7 +127,7 @@ describe('buildLoginUrl', () => {
 describe('exchangeCode', () => {
   it('canjea un código y devuelve identidad verificada', async () => {
     const token = firmar();
-    const res = await exchangeCode('el-codigo', config('inventario', SECRETO_INVENTARIO), 'https://stock.amgdeveloper.cl/auth/callback', async () =>
+    const res = await exchangeCode('el-codigo', config('inventario', SECRETO_INVENTARIO), 'https://inventario.amgdeveloper.cl/auth/callback', async () =>
       new Response(JSON.stringify({ access_token: token }), { status: 200, headers: { 'content-type': 'application/json' } }),
     );
     expect(res.ok).toBe(true);

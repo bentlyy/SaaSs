@@ -14,15 +14,19 @@
 # proxy que YA esta en el servidor (/etc/nginx/conf.d/saas-mini.conf). Un deploy
 # que cambia el puerto de un dominio obliga a cambiar nginx en el mismo instante,
 # y si esas dos cosas se desalinean el dominio abre el producto equivocado sin
-# ningun error visible: fue lo que paso con canchas->3101 (espacios) y
-# presupuestos->3104 (citas) mientras los legacy seguian ahi.
+# ningun error visible: fue lo que paso mientras los subdominios viejos (canchas,
+# presupuestos) seguian apuntando a puertos que ya respondia otro producto.
+#
+# Desde el renombrado, el subdominio ES el nombre del producto (el slug): un solo
+# nombre para el DNS, el nginx, la base y el login, y una clase entera de
+# desalineaciones desaparece.
 #
 #   puerto  dominio                            producto
-#   3100    agenda.amgdeveloper.cl             citas        (era peluqueria)
-#   3101    canchas.amgdeveloper.cl            espacios     (absorbe deportes)
-#   3102    ordenes.amgdeveloper.cl            solicitudes  (absorbe talleres)
-#   3103    stock.amgdeveloper.cl              inventario
-#   3104    presupuestos.amgdeveloper.cl       cotizaciones (absorbe documentos)
+#   3100    citas.amgdeveloper.cl              citas        (era peluqueria)
+#   3101    espacios.amgdeveloper.cl           espacios     (absorbe deportes)
+#   3102    solicitudes.amgdeveloper.cl        solicitudes  (absorbe talleres)
+#   3103    inventario.amgdeveloper.cl         inventario
+#   3104    cotizaciones.amgdeveloper.cl       cotizaciones (absorbe documentos)
 #   3107    clientes.amgdeveloper.cl           clientes     (absorbe crm)
 #   3108    desarrollo.amgdeveloper.cl         Core
 #   3109    activos.amgdeveloper.cl            activos      (nuevo)
@@ -80,7 +84,7 @@ services:
       DB_PATH: /app/data/espacios.sqlite
       DB_SCHEMA_VERSION: "1"
       APP_NAME: Espacios
-      APP_URL: https://canchas.amgdeveloper.cl
+      APP_URL: https://espacios.amgdeveloper.cl
       CORE_URL: https://desarrollo.amgdeveloper.cl
       AMG_SSO_CLIENT_ID: espacios
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_ESPACIOS_SECRET:?falta AMG_SSO_ESPACIOS_SECRET en .env}
@@ -109,7 +113,7 @@ services:
       DB_PATH: /app/data/solicitudes.sqlite
       DB_SCHEMA_VERSION: "1"
       APP_NAME: Solicitudes y Ordenes
-      APP_URL: https://ordenes.amgdeveloper.cl
+      APP_URL: https://solicitudes.amgdeveloper.cl
       CORE_URL: https://desarrollo.amgdeveloper.cl
       AMG_SSO_CLIENT_ID: solicitudes
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_SOLICITUDES_SECRET:?falta AMG_SSO_SOLICITUDES_SECRET en .env}
@@ -138,7 +142,7 @@ services:
       DB_PATH: /app/data/inventario.sqlite
       DB_SCHEMA_VERSION: "1"
       APP_NAME: Inventario
-      APP_URL: https://stock.amgdeveloper.cl
+      APP_URL: https://inventario.amgdeveloper.cl
       CORE_URL: https://desarrollo.amgdeveloper.cl
       AMG_SSO_CLIENT_ID: inventario
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_INVENTARIO_SECRET:?falta AMG_SSO_INVENTARIO_SECRET en .env}
@@ -162,7 +166,7 @@ services:
       DB_PATH: /app/data/citas.sqlite
       DB_SCHEMA_VERSION: "1"
       APP_NAME: Citas
-      APP_URL: https://agenda.amgdeveloper.cl
+      APP_URL: https://citas.amgdeveloper.cl
       CORE_URL: https://desarrollo.amgdeveloper.cl
       AMG_SSO_CLIENT_ID: citas
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_CITAS_SECRET:?falta AMG_SSO_CITAS_SECRET en .env}
@@ -170,7 +174,7 @@ services:
 
   # Reemplaza al legacy `cotizaciones` (puerto 3104, su propio JWT_SECRET) y al
   # legacy `documentos`, que se le suma. Los dos eran el mismo producto con dos
-  # puertas: por eso sus dominios se funden en presupuestos.* y la base destino
+  # puertas: por eso sus dominios se funden en cotizaciones.* y la base destino
   # guarda el folio por empresa y no global.
   cotizaciones:
     <<: *app
@@ -186,7 +190,7 @@ services:
       DB_PATH: /app/data/cotizaciones.sqlite
       DB_SCHEMA_VERSION: "1"
       APP_NAME: Cotizaciones
-      APP_URL: https://presupuestos.amgdeveloper.cl
+      APP_URL: https://cotizaciones.amgdeveloper.cl
       CORE_URL: https://desarrollo.amgdeveloper.cl
       AMG_SSO_CLIENT_ID: cotizaciones
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_COTIZACIONES_SECRET:?falta AMG_SSO_COTIZACIONES_SECRET en .env}

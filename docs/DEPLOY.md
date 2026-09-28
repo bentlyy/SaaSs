@@ -35,20 +35,32 @@ nadie escuchando: 502 en todos a la vez.
 
 ## 1. DNS
 
-Crear en el panel de Cloudflare tres registros **A** a `146.181.55.59`:
+En el panel de Cloudflare, dejar los nueve nombres de producto **igual que el slug**
+de cada uno, todos `A` a `146.181.55.59`:
 
-| Nombre | Qué abre | Puerto |
+Renombrar (ya existen con el nombre viejo):
+
+| De (viejo) | A (nuevo) | Producto | Puerto |
+|---|---|---|---|
+| `agenda` | `citas` | citas | 3100 |
+| `canchas` | `espacios` | espacios | 3101 |
+| `ordenes` | `solicitudes` | solicitudes | 3102 |
+| `stock` | `inventario` | inventario | 3103 |
+| `presupuestos` | `cotizaciones` | cotizaciones | 3104 |
+
+Crear:
+
+| Nombre | Producto | Puerto |
 |---|---|---|
 | `activos` | activos | 3109 |
 | `checklists` | checklists | 3110 |
 | `pagos` | pagos | 3111 |
 
+`clientes` y `desarrollo` ya están bien, y `docs` + `recordatorios` se **conservan**
+retirados: sus redirects los necesitan (ver sección de certificado).
+
 Proxy naranja (activado) está bien: el challenge de Let's Encrypt sigue llegando
 al origen a través de Cloudflare.
-
-Los otros ocho (`agenda`, `canchas`, `ordenes`, `stock`, `presupuestos`,
-`clientes`, `desarrollo`, `docs`, `recordatorios`) ya existen. **No borrar** los
-dos últimos: sus redirects los necesitan.
 
 `ops/cloudflare-amgdeveloper.zone` es la lista de lo que debería existir.
 
@@ -61,9 +73,9 @@ un certificado nuevo con otra ruta, dejando los dos bloques sin el suyo.
 
 ```bash
 sudo certbot certonly --cert-name saasmini-nuevo --expand \
-  -d agenda.amgdeveloper.cl -d canchas.amgdeveloper.cl \
-  -d ordenes.amgdeveloper.cl -d stock.amgdeveloper.cl \
-  -d presupuestos.amgdeveloper.cl -d clientes.amgdeveloper.cl \
+  -d citas.amgdeveloper.cl -d espacios.amgdeveloper.cl \
+  -d solicitudes.amgdeveloper.cl -d inventario.amgdeveloper.cl \
+  -d cotizaciones.amgdeveloper.cl -d clientes.amgdeveloper.cl \
   -d docs.amgdeveloper.cl -d recordatorios.amgdeveloper.cl \
   -d activos.amgdeveloper.cl -d checklists.amgdeveloper.cl \
   -d pagos.amgdeveloper.cl

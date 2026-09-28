@@ -5,16 +5,18 @@ import { CATALOG, EXPECTED_SLUGS, PLATFORM_URL, RETIRED_SLUGS, seedCatalog } fro
 import { listProducts, findProductBySlug } from '../src/domain/products.js';
 
 /**
- * slug -> subdominio real. Es la unica fuente de esta lista en el repo: el
- * compose, el nginx, la zona de Cloudflare y el catalogo tienen que decir lo
+ * La regla ahora es identidad: el subdominio ES el slug. Los nombres viejos
+ * (agenda, canchas, ordenes, stock, presupuestos) se retiraron del DNS y del
+ * código, y los registros de Cloudflare se renombraron a los nombres de producto.
+ * El compose, el nginx, la zona de Cloudflare y el catalogo tienen que decir lo
  * mismo, y el test de mas abajo lo verifica contra el compose.
  */
 const ESPERADO: Record<string, string> = {
-  espacios: 'canchas',
-  citas: 'agenda',
-  inventario: 'stock',
-  solicitudes: 'ordenes',
-  cotizaciones: 'presupuestos',
+  espacios: 'espacios',
+  citas: 'citas',
+  inventario: 'inventario',
+  solicitudes: 'solicitudes',
+  cotizaciones: 'cotizaciones',
   clientes: 'clientes',
   activos: 'activos',
   checklists: 'checklists',
@@ -43,12 +45,11 @@ describe('catálogo de productos', () => {
     }
   });
 
-  it('el subdominio es el que ya vive en el servidor, no el slug', () => {
-    // El slug identifica el producto en la base. El host lo eligio el cliente
-    // hace aros y son los que estan en el nginx y en el certificado. No tienen
-    // por que llamarse igual: `espacios` se abre en canchas, `citas` en agenda.
-    // Asumir que si (y que el dominio nuevo se crea solo) rompe el login: el
-    // Core manda al navegador a app_url despues de autenticar.
+  it('el subdominio es el slug, que es lo que vive en el DNS y en el servidor', () => {
+    // La regla de antes era 'slug y subdominio distintos' (citas en agenda).
+    // Hoy el registro DNS se llama igual que el producto: citas abre en
+    // citas.amgdeveloper.cl. Si eso se rompe, el Core manda al navegador a un
+    // host que no existe despues de autenticar.
     for (const p of CATALOG) {
       expect(p.appUrl, `${p.slug} deberia abrir en ${ESPERADO[p.slug]}`).toBe(
         `https://${ESPERADO[p.slug]}.amgdeveloper.cl`,
@@ -56,16 +57,17 @@ describe('catálogo de productos', () => {
     }
   });
 
-  it('ningún producto vendible es un subdominio viejo ni el de la plataforma', () => {
-    // Nombres que NO existen en el nginx de produccion. `agenda`, `canchas`,
-    // `ordenes`, `stock` y `presupuestos` NO van aca: son los vivos, y ponerlos
-    // en esta lista prohibia justamente los hosts correctos.
-    const nuncaExistieron = new Set([
-      'espacios',
-      'citas',
-      'inventario',
-      'solicitudes',
-      'cotizaciones',
+  it('ningún producto vendible usa un subdominio viejo ni el de la plataforma', () => {
+    // Nombres que YA NO existen en el nginx de produccion. `agenda`, `canchas`,
+    // `ordenes`, `stock` y `presupuestos` son los viejos, retirados a favor de
+    // los slugs: que un producto vuelva a apuntar a uno es señal de DNS en el
+    // estado anterior.
+    const nombresViejos = new Set([
+      'agenda',
+      'canchas',
+      'ordenes',
+      'stock',
+      'presupuestos',
       'docs',
       'recordatorios',
       'inv-v2',
@@ -73,7 +75,7 @@ describe('catálogo de productos', () => {
     ]);
     for (const p of CATALOG) {
       const host = new URL(p.appUrl).hostname.split('.')[0];
-      expect(nuncaExistieron.has(host), `${p.slug} apunta a ${host}, que no existe`).toBe(false);
+      expect(nombresViejos.has(host), `${p.slug} apunta a ${host}, que ya no existe`).toBe(false);
     }
   });
 
@@ -114,9 +116,9 @@ describe('siembra del catálogo', () => {
   it('los slugs nuevos quedan con su URL final', () => {
     seedCatalog();
     const citas = findProductBySlug('citas');
-    expect(citas?.app_url).toBe('https://agenda.amgdeveloper.cl');
+    expect(citas?.app_url).toBe('https://citas.amgdeveloper.cl');
     const espacios = findProductBySlug('espacios');
-    expect(espacios?.app_url).toBe('https://canchas.amgdeveloper.cl');
+    expect(espacios?.app_url).toBe('https://espacios.amgdeveloper.cl');
   });
 
   it('el catalogo y el compose dan el mismo host para los nueve', () => {

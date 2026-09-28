@@ -47,7 +47,7 @@ export const CATALOG: CatalogProduct[] = [
       'Reserva de espacios por franjas-horarias: disponibilidad real, solapamientos bloqueados y cobros por bloque. Pensado para peluquerías, clubes, coworkings y centros de eventos.',
     price: 18000,
     billingPeriod: 'monthly',
-      appUrl: 'https://canchas.amgdeveloper.cl',
+      appUrl: 'https://espacios.amgdeveloper.cl',
     sortOrder: 10,
   },
   {
@@ -58,7 +58,7 @@ export const CATALOG: CatalogProduct[] = [
       'Agenda de citas por profesional y servicio, con duración real, bloqueos y recordatorios automáticos por correo y WhatsApp. El reemplazo natural de la agenda de peluquerías.',
     price: 12000,
     billingPeriod: 'monthly',
-      appUrl: 'https://agenda.amgdeveloper.cl',
+      appUrl: 'https://citas.amgdeveloper.cl',
     sortOrder: 20,
   },
   {
@@ -69,7 +69,7 @@ export const CATALOG: CatalogProduct[] = [
       'Control de almacén: artículos, códigos, stock mínimo, entradas y salidas con motivo. Avisa qué se está por acabar antes de que se acabe.',
     price: 9000,
     billingPeriod: 'monthly',
-      appUrl: 'https://stock.amgdeveloper.cl',
+      appUrl: 'https://inventario.amgdeveloper.cl',
     sortOrder: 30,
   },
   {
@@ -80,7 +80,7 @@ export const CATALOG: CatalogProduct[] = [
       'Órdenes de trabajo genéricas: recepción, diagnóstico, materiales, mano de obra y estado hasta la entrega. Para servicios técnicos, mantenimiento y talleres de cualquier rubro.',
     price: 18000,
     billingPeriod: 'monthly',
-      appUrl: 'https://ordenes.amgdeveloper.cl',
+      appUrl: 'https://solicitudes.amgdeveloper.cl',
     sortOrder: 40,
   },
   {
@@ -91,7 +91,7 @@ export const CATALOG: CatalogProduct[] = [
       'Cotizaciones con líneas, impuestos y totales, versionadas y enviables. Cuando el cliente acepta, queda el respaldo de qué se cotizó.',
     price: 8000,
     billingPeriod: 'monthly',
-      appUrl: 'https://presupuestos.amgdeveloper.cl',
+      appUrl: 'https://cotizaciones.amgdeveloper.cl',
     sortOrder: 50,
   },
   {
