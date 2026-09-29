@@ -29,6 +29,7 @@ export {
   exchangeCode,
   type AmgIdentity,
   type Role,
+  type ToolIdentity,
   type VerifyResult,
   type IntrospectionResponse,
 } from './identity.js';

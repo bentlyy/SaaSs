@@ -3,10 +3,22 @@ import type { AmgConfig } from './config.js';
 
 export type Role = 'owner' | 'admin' | 'member';
 
+/** Una herramienta de la plataforma, tal y como la ve la barra lateral. */
+export interface ToolIdentity {
+  slug: string;
+  name: string;
+  /** URL donde abrir la herramienta. Puede venir vacía si el Core no la supo. */
+  url: string;
+}
+
 export interface AmgIdentity {
   userId: string;
   organizationId: string;
   organizationSlug: string;
+  /** Nombre de la organización, tal y como lo escribió el cliente. */
+  organizationName: string;
+  /** Herramientas a las que la organización tiene acceso. */
+  tools: ToolIdentity[];
   role: Role;
   email: string;
   name: string;
@@ -14,6 +26,25 @@ export interface AmgIdentity {
   sessionId: string;
   issuedAt?: number;
   expiresAt?: number;
+}
+
+/**
+ * Lee el claim `tools` del token.
+ *
+ * Un token emitido antes de que existiera este claim (o uno manipulado) no
+ * rompe la sesión: la barra lateral degrada a la herramienta actual, que es lo
+ * que hacía la app antes de que la navegación existiera.
+ */
+function readTools(value: unknown): ToolIdentity[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((t): t is Record<string, unknown> => typeof t === 'object' && t !== null)
+    .map((t) => ({
+      slug: String(t.slug ?? ''),
+      name: String(t.name ?? ''),
+      url: String(t.url ?? ''),
+    }))
+    .filter((t) => t.slug !== '' && t.name !== '');
 }
 
 export type VerifyResult =
@@ -62,6 +93,8 @@ export function verifyIdentity(token: string, config: Pick<AmgConfig, 'clientSec
       userId: claims.sub,
       organizationId: claims.org_id as string,
       organizationSlug: (claims.org_slug as string) ?? '',
+      organizationName: (claims.org_name as string) ?? '',
+      tools: readTools(claims.tools),
       role: claims.role as Role,
       email: (claims.email as string) ?? '',
       name: (claims.name as string) ?? '',
@@ -79,6 +112,9 @@ export interface IntrospectionResponse {
   user_id?: string;
   organization_id?: string;
   organization_slug?: string;
+  organization_name?: string;
+  /** Herramientas de la organización, para la barra lateral del producto. */
+  tools?: ToolIdentity[];
   role?: Role;
   product?: string;
   session_id?: string;
@@ -121,6 +157,8 @@ export async function introspect(
         userId: body.user_id ?? '',
         organizationId: body.organization_id ?? '',
         organizationSlug: body.organization_slug ?? '',
+        organizationName: body.organization_name ?? '',
+        tools: readTools(body.tools),
         role: (body.role ?? 'member') as Role,
         email: body.email ?? '',
         name: body.name ?? '',

@@ -3,6 +3,7 @@ import { getCoreDb, createId } from '../db/index.js';
 import { schema } from '../db/schema.js';
 import { deriveClientSecret } from '../security/tokens.js';
 import { findProductBySlug, type Product } from '../domain/products.js';
+import { platformConfig } from '../config.js';
 
 export type SsoClient = typeof schema.ssoClients.$inferSelect;
 
@@ -123,7 +124,11 @@ export function listSsoClients(): SsoClientInfo[] {
  */
 export function isRedirectUriAllowed(client: SsoClientInfo, redirectUri: string): boolean {
   if (!redirectUri) return false;
-  return client.redirectUris.includes(redirectUri);
+  if (client.redirectUris.includes(redirectUri)) return true;
+  // Callbacks de desarrollo (localhost). La lista viene de
+  // CORE_SSO_LOCAL_CALLBACKS y `config` la vacía en producción, así que acá no
+  // hay una puerta trasera que se pueda abrir con una variable de entorno.
+  return platformConfig.ssoLocalCallbacks.includes(redirectUri);
 }
 
 /** Resuelve el redirect_uri por defecto del producto, si lo tiene configurado. */

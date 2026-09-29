@@ -18,6 +18,17 @@ export interface ProductTokenClaims {
   /** organization_id: la organización que representa en ese producto. */
   org_id: string;
   org_slug: string;
+  /** Nombre de la organizaci��n: la barra lateral de cada herramienta lo muestra. */
+  org_name: string;
+  /**
+   * Catálogo de herramientas contratadas por la organización.
+   *
+   * Viaja en el token para que el producto dibuje su navegación SIN llamar al
+   * Core en cada carga. Son como mucho nueve entradas, así que no infla la
+   * cookie. Queda viejo si contratan o cancelan algo: se refresca al volver a
+   * iniciar sesión, que es justo cuando tiene sentido volver a mirar.
+   */
+  tools: ToolClaim[];
   role: Role;
   email: string;
   name: string;
@@ -31,10 +42,20 @@ export interface ProductTokenClaims {
   exp: number;
 }
 
+/** Una herramienta de la plataforma, tal y como la ve la barra lateral. */
+export interface ToolClaim {
+  slug: string;
+  name: string;
+  /** URL donde abrir la herramienta. Viene del callback SSO registrado. */
+  url: string;
+}
+
 export interface IssueProductTokenInput {
   userId: string;
   organizationId: string;
   organizationSlug: string;
+  organizationName: string;
+  tools: ToolClaim[];
   role: Role;
   email: string;
   name: string;
@@ -51,6 +72,8 @@ export function issueProductToken(input: IssueProductTokenInput, clientSecret: s
     {
       org_id: input.organizationId,
       org_slug: input.organizationSlug,
+      org_name: input.organizationName,
+      tools: input.tools,
       role: input.role,
       email: input.email,
       name: input.name,

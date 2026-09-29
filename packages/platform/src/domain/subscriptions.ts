@@ -5,6 +5,9 @@ import { schema } from '../db/schema.js';
 import { findOrganizationById, type Organization } from './organizations.js';
 import { findProductBySlug, requireProductById, type Product } from './products.js';
 import { canManageBilling, type Role } from './roles.js';
+import { findSsoClient } from '../sso/registry.js';
+import { platformConfig } from '../config.js';
+import type { ToolClaim } from '../sso/tokens.js';
 
 export type Subscription = typeof schema.subscriptions.$inferSelect;
 export type Payment = typeof schema.payments.$inferSelect;
@@ -176,6 +179,41 @@ export function organizationProductCatalog(organizationId: string): Array<{
       contracted: entry ? entry.state.allowed : false,
     };
   });
+}
+
+/**
+ * Las herramientas que la organización puede abrir, en el orden del catálogo.
+ *
+ * Es lo que cada producto dibuja en su barra lateral. Filtra por
+ * `state.allowed`, no solo por `contracted`: una suscripción suspendida o
+ * vencida esconde la herramienta en vez de llevar a un error de acceso.
+ */
+export function organizationToolList(organizationId: string): ToolClaim[] {
+  return organizationProductCatalog(organizationId)
+    .filter((entry) => entry.state.allowed)
+    .map((entry) => ({ slug: entry.product.slug, name: entry.product.name, url: toolUrl(entry.product) }));
+}
+
+/**
+ * Dónde vive una herramienta.
+ *
+ * `app_url` es el subdominio de producción. En local los productos corren en
+ * puertos distintos, y ese dato ya está escrito: es el `redirect_uri` que el
+ * cliente SSO tiene registrado. Se toma de ahí y no de una tabla de puertos
+ * aparte para que no puedan desincronizarse: si el callback local cambió, el
+ * enlace de la barra lateral cambia con él.
+ *
+ * Si el producto no tiene callback local, se cae a `app_url`.
+ */
+function toolUrl(product: Product): string {
+  // En desarrollo la URL local la da `CORE_LOCAL_APPS` (slug -> url), que es el
+  // mismo dato que el producto tiene en su propio .env. Sin ella se usaría el
+  // subdominio de producción y el salto entre herramientas se iría a internet.
+  const local = platformConfig.localApps[product.slug];
+  if (local) return local;
+  const registered = findSsoClient(product.slug)?.redirectUris.find((uri) => /\/auth\/callback$/.test(uri));
+  if (registered) return registered.replace(/\/auth\/callback$/, '');
+  return product.app_url ?? '';
 }
 
 function listActiveProductsForCatalog(): Product[] {

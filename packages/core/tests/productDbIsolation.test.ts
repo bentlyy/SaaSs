@@ -248,7 +248,12 @@ describe('desarrollo: el cwd es la única garantía, y hay que saberlo', () => {
   }
 
   it('ningún producto declara la base compartida de la raíz del repo', () => {
-    for (const producto of productos) {
+    // Solo los NUEVE. `landing` no está en la lista a propósito: no es un
+    // producto, es el Core, y su trabajo es justamente abrir la base central.
+    // Meterlo acá obligaría al Core a guardar su catálogo en
+    // products/landing/data/, que es la segunda base que este arreglo
+    // eliminó — la que hacía que un login funcionara en un cwd y no en otro.
+    for (const producto of NAVEGAN_AHORA) {
       const env = leerEnvEjemplo(producto);
       const declarada = env.DB_PATH ?? env.CORE_DB_PATH;
       if (!declarada) continue;
@@ -257,6 +262,20 @@ describe('desarrollo: el cwd es la única garantía, y hay que saberlo', () => {
         `products/${producto} declara ${declarada}, que no apunta dentro de su propia carpeta data/`,
       ).toBe(true);
     }
+  });
+
+  it('el Core sí declara la base compartida, y es la de la raíz', () => {
+    // La otra mitad de la invariante. Sin esto, el test anterior pasa igual si
+    // alguien le pone al Core cualquier ruta: basta con apuntar a otro lado
+    // para aislar y se rompe el login, que es el síntoma que costó hours.
+    // `../../data/core/core.sqlite` es relativo al cwd de `npm run -w`, que es
+    // products/landing, y resuelve justo a la raíz del monorepo.
+    const declarada = leerEnvEjemplo('landing').CORE_DB_PATH;
+    expect(declarada, 'landing no declara CORE_DB_PATH').toBeDefined();
+    expect(
+      declarada!.endsWith('data/core/core.sqlite'),
+      `el Core declara ${declarada}, que no es la base central compartida`,
+    ).toBe(true);
   });
 
   it('ningún producto migrado usa el app.db compartido en desarrollo', () => {

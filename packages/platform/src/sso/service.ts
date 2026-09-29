@@ -4,12 +4,12 @@ import { platformConfig } from '../config.js';
 import { getCoreDb, createId } from '../db/index.js';
 import { schema } from '../db/schema.js';
 import { randomToken, tokenFingerprint, safeEqual } from '../security/tokens.js';
-import { productAccess, accessMessage } from '../domain/subscriptions.js';
+import { productAccess, accessMessage, organizationToolList } from '../domain/subscriptions.js';
 import { recordAudit } from '../domain/audit.js';
 import { findUserById } from '../domain/users.js';
 import { findOrganizationById } from '../domain/organizations.js';
 import { defaultRedirectUri, findSsoClient, isRedirectUriAllowed, type SsoClientInfo } from './registry.js';
-import { issueProductToken, verifyProductToken, type ProductTokenClaims } from './tokens.js';
+import { issueProductToken, verifyProductToken, type ProductTokenClaims, type ToolClaim } from './tokens.js';
 import type { Role } from '../domain/roles.js';
 import type { VerifiedSession } from '../domain/sessions.js';
 
@@ -202,6 +202,8 @@ export function exchangeCode(input: { code: string; clientId: string; clientSecr
       userId: user.id,
       organizationId: organization.id,
       organizationSlug: organization.slug,
+      organizationName: organization.name,
+      tools: organizationToolList(organization.id),
       role: row.role as Role,
       email: user.email,
       name: user.name,
@@ -242,6 +244,9 @@ export interface IntrospectionResult {
   user_id?: string;
   organization_id?: string;
   organization_slug?: string;
+  organization_name?: string;
+  /** Herramientas de la organización, para la barra lateral del producto. */
+  tools?: ToolClaim[];
   role?: Role;
   product?: string;
   session_id?: string;
@@ -283,6 +288,8 @@ export function introspectToken(token: string, clientId: string, clientSecret: s
     user_id: claims.sub,
     organization_id: claims.org_id,
     organization_slug: claims.org_slug,
+    organization_name: claims.org_name ?? organization.name,
+    tools: Array.isArray(claims.tools) ? claims.tools : [],
     role: claims.role,
     product: claims.product,
     session_id: claims.sid,

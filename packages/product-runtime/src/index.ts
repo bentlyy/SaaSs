@@ -30,6 +30,8 @@ export {
   mountAmgProductAuth,
   requireRole,
   type Identity,
+  type Inicio,
+  type Tool,
   type MountedAuth,
   type MountAuthOptions,
 } from './auth.js';
