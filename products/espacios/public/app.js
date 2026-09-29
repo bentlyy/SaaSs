@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Interfaz de espacios.
  *
  * Dos reglas que no son de estilo sino de arquitectura:
@@ -12,8 +12,8 @@
  *      otra reserva. La decisión es del servidor, y esta UI solo muestra el 409.
  */
 
-const $ = (sel) => document.querySelector(sel);
-const dinero = (centavos) => `$${(centavos / 100).toLocaleString('es-CL', { minimumFractionDigits: 0 })}`;
+const $ = AMIGO_UI.$;
+const dinero = AMIGO_UI.dinero;
 
 const estado = {
   espacios: [],
@@ -27,30 +27,8 @@ const estado = {
 /** `Date.getUTCDay` y el servidor usan 0 = domingo. */
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-async function api(ruta, opciones = {}) {
-  const res = await fetch(ruta, {
-    headers: { 'content-type': 'application/json' },
-    ...opciones,
-    body: opciones.body ? JSON.stringify(opciones.body) : undefined,
-  });
-  const datos = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const err = new Error(datos.error ?? 'No se pudo completar la operacion');
-    err.status = res.status;
-    err.detalle = datos;
-    throw err;
-  }
-  return datos;
-}
+const api = AMIGO_UI.api;
 
-function avisar(mensaje, malo = false) {
-  const caja = $('#aviso');
-  caja.textContent = mensaje;
-  caja.classList.toggle('malo', malo);
-  caja.hidden = false;
-  clearTimeout(caja.t);
-  caja.t = setTimeout(() => { caja.hidden = true; }, 5000);
-}
 
 /**
  * Minutos desde medianoche -> "HH:MM", que es lo que acepta un
@@ -161,68 +139,76 @@ function pintar() {
   pintarHorarios();
 }
 
-function fila(columnas) {
-  const tr = document.createElement('tr');
-  for (const c of columnas) {
-    const td = document.createElement('td');
-    if (c && c.nodo) td.append(c.nodo);
-    else td.textContent = c ?? '';
-    tr.append(td);
-  }
-  return tr;
-}
+/**
+ * El estado de una reserva, como etiqueta y no como palabra suelta.
+ *
+ * El servidor guarda los estados en inglés (`confirmed`, `cancelled`) y no se
+ * tocan: son el contrato de la API. El que se traduce es el botón y la etiqueta,
+ * que son de la pantalla y no del dominio.
+ */
+const ESTADOS = {
+  confirmed: { texto: 'Confirmada', tono: 'ok', accion: 'Confirmar' },
+  pending: { texto: 'Por confirmar', tono: 'aviso', accion: 'Pasar a pendiente' },
+  done: { texto: 'Completada', tono: 'neutro', accion: 'Marcar hecha' },
+  cancelled: { texto: 'Cancelada', tono: 'malo', accion: 'Cancelar' },
+};
 
-function boton(texto, alHacerClic) {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.textContent = texto;
-  b.addEventListener('click', alHacerClic);
-  return b;
-}
+
+/**
+ * El siguiente paso de una reserva, para no llenar la fila de botones.
+ *
+ * Tres botones por renglón esconde la información: el que sirve casi siempre es
+ * uno, el de avanzar. Cancelar queda siempre, porque es la única acción
+ * destructiva y tiene que estar a la mano. Los estados de la API no se tocan;
+ * esto solo decide cuál se ofrece.
+ */
+const SIGUIENTE = { pending: 'confirmed', confirmed: 'done' };
+
 
 function pintarEspacios() {
-  const tabla = document.createElement('table');
-  tabla.innerHTML =
-    '<thead><tr><th>Nombre</th><th>Tipo</th><th>Aforo</th><th>Tarifa hora</th><th></th></tr></thead>';
-  const cuerpo = document.createElement('tbody');
+  const tabla = AMIGO_UI.tabla([
+    { titulo: 'Nombre' },
+    { titulo: 'Tipo' },
+    { titulo: 'Aforo', num: true },
+    { titulo: 'Tarifa hora', num: true },
+    { titulo: '' },
+  ]);
+  const cuerpo = AMIGO_UI.cuerpoDe(tabla);
   for (const e of estado.espacios) {
-    const acciones = document.createElement('td');
-    acciones.append(
-      boton('Editar', () => editarEspacio(e)),
-      boton('Archivar', async () => {
+    const acciones = AMIGO_UI.celda(
+      AMIGO_UI.boton('Editar', () => editarEspacio(e)),
+      AMIGO_UI.boton('Archivar', async () => {
         try {
           await api(`/api/spaces/${e.id}`, { method: 'DELETE' });
-          avisar(`Espacio "${e.name}" archivado`);
+          AMIGO_UI.avisar(`Espacio "${e.name}" archivado`);
           await cargar();
-        } catch (err) { avisar(err.message, true); }
+        } catch (err) { AMIGO_UI.avisar(err.message, true); }
       }),
     );
-    cuerpo.append(fila([e.name, e.type, e.capacity, dinero(e.pricePerHourCents), acciones]));
+    cuerpo.append(AMIGO_UI.fila([e.name, e.type, e.capacity, dinero(e.pricePerHourCents), acciones], { className: 'acciones' }));
   }
   tabla.append(cuerpo);
-  $('#espacios-lista').replaceChildren(tabla);
+  $('#espacios-lista').replaceChildren(AMIGO_UI.cajaTabla(tabla));
 }
 
 function pintarClientes() {
-  const tabla = document.createElement('table');
-  tabla.innerHTML = '<thead><tr><th>Nombre</th><th>Telefono</th><th>Correo</th></tr></thead>';
-  const cuerpo = document.createElement('tbody');
+  const tabla = AMIGO_UI.tabla([{ titulo: 'Nombre' }, { titulo: 'Teléfono' }, { titulo: 'Correo' }]);
+  const cuerpo = AMIGO_UI.cuerpoDe(tabla);
   for (const c of estado.clientes) {
-    cuerpo.append(fila([c.name, c.phone ?? '', c.email ?? '']));
+    cuerpo.append(AMIGO_UI.fila([c.name, c.phone ?? '', c.email ?? '']));
   }
   tabla.append(cuerpo);
-  $('#clientes-lista').replaceChildren(tabla);
+  $('#clientes-lista').replaceChildren(AMIGO_UI.cajaTabla(tabla));
 }
 
 function pintarExtras() {
-  const tabla = document.createElement('table');
-  tabla.innerHTML = '<thead><tr><th>Nombre</th><th>Precio</th></tr></thead>';
-  const cuerpo = document.createElement('tbody');
+  const tabla = AMIGO_UI.tabla([{ titulo: 'Nombre' }, { titulo: 'Precio', num: true }]);
+  const cuerpo = AMIGO_UI.cuerpoDe(tabla);
   for (const x of estado.extras) {
-    cuerpo.append(fila([x.name, dinero(x.priceCents)]));
+    cuerpo.append(AMIGO_UI.fila([x.name, dinero(x.priceCents)]));
   }
   tabla.append(cuerpo);
-  $('#extras-lista').replaceChildren(tabla);
+  $('#extras-lista').replaceChildren(AMIGO_UI.cajaTabla(tabla));
 }
 
 // ───────────────────────────────────────────────────────── horarios y bloqueos
@@ -252,67 +238,65 @@ function pintarHorarios() {
   const espacio = espacioHorario();
   const contenedor = $('#horarios-lista');
   if (!espacio) {
-    contenedor.textContent = 'Elige un espacio para ver sus horarios.';
-    $('#bloqueos-lista').textContent = '';
+    contenedor.innerHTML = '<p class="pequeno tenue">Elige un espacio para ver sus horarios.</p>';
+    $('#bloqueos-lista').innerHTML = '';
     return;
   }
 
-  const tabla = document.createElement('table');
-  tabla.innerHTML = '<thead><tr><th>Día</th><th>Desde</th><th>Hasta</th><th>Estado</th><th></th></tr></thead>';
-  const cuerpo = document.createElement('tbody');
+  const tabla = AMIGO_UI.tabla([
+    { titulo: 'Día' }, { titulo: 'Desde' }, { titulo: 'Hasta' }, { titulo: 'Estado' }, { titulo: '' },
+  ]);
+  const cuerpo = AMIGO_UI.cuerpoDe(tabla);
   for (const h of estado.horarios) {
-    const acciones = document.createElement('td');
-    acciones.append(
-      boton('Editar', () => editarHorario(h)),
-      boton('Borrar', async () => {
+    const acciones = AMIGO_UI.celda(
+      AMIGO_UI.boton('Editar', () => editarHorario(h)),
+      AMIGO_UI.boton('Borrar', async () => {
         try {
           await api(`/api/schedules/${h.id}`, { method: 'DELETE' });
-          avisar('Horario borrado');
+          AMIGO_UI.avisar('Horario borrado');
           await cargarHorarios();
-        } catch (err) { avisar(err.message, true); }
+        } catch (err) { AMIGO_UI.avisar(err.message, true); }
       }),
     );
-    const toggle = boton(h.active ? 'Desactivar' : 'Activar', async () => {
+    const toggle = AMIGO_UI.boton(h.active ? 'Desactivar' : 'Activar', async () => {
       try {
         await api(`/api/schedules/${h.id}`, { method: 'PATCH', body: { active: !h.active } });
-        avisar(`Horario ${h.active ? 'desactivado' : 'activado'}`);
+        AMIGO_UI.avisar(`Horario ${h.active ? 'desactivado' : 'activado'}`);
         await cargarHorarios();
-      } catch (err) { avisar(err.message, true); }
+      } catch (err) { AMIGO_UI.avisar(err.message, true); }
     });
     acciones.prepend(toggle);
-    cuerpo.append(fila([
+    cuerpo.append(AMIGO_UI.fila([
       DIAS[h.weekday],
       minutosAHora(h.startTime),
       minutosAHora(h.endTime),
-      h.active ? 'activo' : 'inactivo',
+      h.active ? 'Activo' : 'Inactivo',
       acciones,
-    ]));
+    ], { className: 'acciones' }));
   }
   if (estado.horarios.length === 0) {
-    cuerpo.append(fila(['Sin horario propio', '', '', 'cae a la jornada general', '']));
+    cuerpo.append(AMIGO_UI.fila(['Sin horario propio', '', '', 'cae a la jornada general', '']));
   }
   tabla.append(cuerpo);
-  contenedor.replaceChildren(tabla);
+  contenedor.replaceChildren(AMIGO_UI.cajaTabla(tabla));
 
-  const bloques = document.createElement('table');
-  bloques.innerHTML = '<thead><tr><th>Empieza</th><th>Termina</th><th>Motivo</th><th></th></tr></thead>';
-  const cuerpoBloques = document.createElement('tbody');
+    const bloques = AMIGO_UI.tabla([{ titulo: 'Empieza' }, { titulo: 'Termina' }, { titulo: 'Motivo' }, { titulo: '' }]);
+    const cuerpoBloques = AMIGO_UI.cuerpoDe(bloques);
   for (const b of estado.bloqueos) {
-    const acciones = document.createElement('td');
-    acciones.append(boton('Quitar', async () => {
+    const acciones = AMIGO_UI.celda(AMIGO_UI.boton('Quitar', async () => {
       try {
         await api(`/api/blocks/${b.id}`, { method: 'DELETE' });
-        avisar('Bloqueo quitado');
+        AMIGO_UI.avisar('Bloqueo quitado');
         await cargarHorarios();
-      } catch (err) { avisar(err.message, true); }
+      } catch (err) { AMIGO_UI.avisar(err.message, true); }
     }));
-    cuerpoBloques.append(fila([b.startAt, b.endAt, b.reason ?? '', acciones]));
+    cuerpoBloques.append(AMIGO_UI.fila([b.startAt, b.endAt, b.reason ?? '', acciones], { className: 'acciones' }));
   }
   if (estado.bloqueos.length === 0) {
-    cuerpoBloques.append(fila(['Sin bloqueos', '', '', '']));
+    cuerpoBloques.append(AMIGO_UI.fila(['Sin bloqueos', '', '', '']));
   }
   bloques.append(cuerpoBloques);
-  $('#bloqueos-lista').replaceChildren(bloques);
+  $('#bloqueos-lista').replaceChildren(AMIGO_UI.cajaTabla(bloques));
 }
 
 /** El form de horario sirve para crear y para editar; el input oculto lo dice. */
@@ -335,13 +319,13 @@ function limpiarFormHorario() {
 
 $('#horario-espacio').addEventListener('change', () => {
   limpiarFormHorario();
-  cargarHorarios().catch((e) => avisar(e.message, true));
+  cargarHorarios().catch((e) => AMIGO_UI.avisar(e.message, true));
 });
 
 $('#horario-form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const espacio = espacioHorario();
-  if (!espacio) { avisar('Elige un espacio', true); return; }
+  if (!espacio) { AMIGO_UI.avisar('Elige un espacio', true); return; }
   const id = $('#horario-id').value;
   const cuerpo = {
     spaceId: espacio,
@@ -352,10 +336,10 @@ $('#horario-form').addEventListener('submit', async (ev) => {
   };
   try {
     await api(id ? `/api/schedules/${id}` : '/api/schedules', { method: id ? 'PATCH' : 'POST', body: cuerpo });
-    avisar(id ? 'Horario actualizado' : 'Horario agregado');
+    AMIGO_UI.avisar(id ? 'Horario actualizado' : 'Horario agregado');
     limpiarFormHorario();
     await cargarHorarios();
-  } catch (err) { avisar(err.message, true); }
+  } catch (err) { AMIGO_UI.avisar(err.message, true); }
 });
 
 $('#horario-cancelar').addEventListener('click', limpiarFormHorario);
@@ -363,7 +347,7 @@ $('#horario-cancelar').addEventListener('click', limpiarFormHorario);
 $('#bloqueo-form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const espacio = espacioHorario();
-  if (!espacio) { avisar('Elige un espacio', true); return; }
+  if (!espacio) { AMIGO_UI.avisar('Elige un espacio', true); return; }
   const cuerpo = {
     spaceId: espacio,
     startAt: new Date($('#bloqueo-inicio').value).toISOString(),
@@ -373,9 +357,9 @@ $('#bloqueo-form').addEventListener('submit', async (ev) => {
   try {
     await api('/api/blocks', { method: 'POST', body: cuerpo });
     $('#bloqueo-form').reset();
-    avisar('Espacio bloqueado');
+    AMIGO_UI.avisar('Espacio bloqueado');
     await cargarHorarios();
-  } catch (err) { avisar(err.message, true); }
+  } catch (err) { AMIGO_UI.avisar(err.message, true); }
 });
 
 // ──────────────────────────────────────────────────────────────────── agenda
@@ -387,68 +371,90 @@ async function pintarAgenda() {
 
   const [agenda, resumen, disponibilidad] = await Promise.all([
     api(`/api/agenda?from=${dia.toISOString()}&to=${new Date(dia.getTime() + 86_400_000).toISOString()}${espacio ? `&spaceId=${espacio}` : ''}`),
-    api('/api/resumen'),
+    api(`/api/resumen?date=${dia.toISOString().slice(0, 10)}`),
     espacio
       ? api(`/api/availability?spaceId=${espacio}&date=${dia.toISOString().slice(0, 10)}`)
       : Promise.resolve(null),
   ]);
 
-  $('#resumen').innerHTML = '';
-  for (const [titulo, valor] of [
-    ['Hoy', resumen.hoy],
-    ['Confirmadas', resumen.confirmadas],
-    ['Por confirmar', resumen.porConfirmar],
-    ['Ingresos de hoy', dinero(resumen.ingresos)],
-  ]) {
-    const div = document.createElement('div');
-    div.className = 'tarjeta';
-    div.innerHTML = `<strong>${valor}</strong><span>${titulo}</span>`;
-    $('#resumen').append(div);
-  }
+  // El rótulo sigue al día que se está mirando. Decir "hoy" sobre las cifras de
+  // ayer no es un detalle de redacción: es la diferencia entre un tablero que
+  // informa y uno que miente con toda seguridad.
+  //
+  // La comparación es entre fechas, no entre instantes: `dia` es medianoche UTC
+  // y `new Date()` es hora local, así que comparar los dos con `toDateString`
+  // da "no es hoy" todos los días en cualquier huso detrás de UTC.
+  const hoyTexto = new Date();
+  const claveHoy = `${hoyTexto.getFullYear()}-${String(hoyTexto.getMonth() + 1).padStart(2, '0')}-${String(hoyTexto.getDate()).padStart(2, '0')}`;
+  const clave = dia.toISOString().slice(0, 10);
+  const esHoy = clave === claveHoy;
+  const cuando = esHoy ? 'Ingresos de hoy' : `Ingresos del ${dia.toLocaleDateString('es', { day: 'numeric', month: 'short' })}`;
 
-  const tabla = document.createElement('table');
-  tabla.innerHTML =
-    '<thead><tr><th>Hora</th><th>Espacio</th><th>Cliente</th><th>Estado</th><th>Total</th><th></th></tr></thead>';
-  const cuerpo = document.createElement('tbody');
+  AMIGO_UI.kpis($('#resumen'), [
+    [esHoy ? 'Hoy' : 'Ese día', resumen.hoy],
+    ['Confirmadas', resumen.confirmadas, true],
+    ['Por confirmar', resumen.porConfirmar],
+    [cuando, dinero(resumen.ingresos)],
+  ]);
+
+  const tabla = AMIGO_UI.tabla([
+    { titulo: 'Hora' }, { titulo: 'Espacio' }, { titulo: 'Cliente' }, { titulo: 'Estado' },
+    { titulo: 'Total', num: true }, { titulo: '' },
+  ]);
+  const cuerpo = AMIGO_UI.cuerpoDe(tabla);
   for (const b of agenda.bookings) {
-    const acciones = document.createElement('td');
-    for (const estado of ['confirmed', 'done', 'cancelled']) {
-      if (b.status === estado) continue;
-      acciones.append(boton(estado, async () => {
-        try {
-          await api(`/api/bookings/${b.id}`, { method: 'PATCH', body: { status: estado } });
-          await pintarAgenda();
-        } catch (err) { avisar(err.message, true); }
-      }));
+    const acciones = AMIGO_UI.celda();
+    const cambiar = (estado) => async () => {
+      try {
+        await api(`/api/bookings/${b.id}`, { method: 'PATCH', body: { status: estado } });
+        await pintarAgenda();
+      } catch (err) { AMIGO_UI.avisar(err.message, true); }
+    };
+    const avanza = SIGUIENTE[b.status];
+    if (avanza) {
+      acciones.append(
+        AMIGO_UI.boton(ESTADOS[avanza].accion, cambiar(avanza), 'ui-btn ui-btn--chico ui-btn--suave'),
+      );
     }
-    cuerpo.append(fila([
+    if (b.status !== 'cancelled' && b.status !== 'done') {
+      acciones.append(
+        AMIGO_UI.boton('Cancelar', cambiar('cancelled'), 'ui-btn ui-btn--chico ui-btn--fantasma'),
+      );
+    }
+    cuerpo.append(AMIGO_UI.fila([
       `${b.startAt.slice(11, 16)} - ${b.endAt.slice(11, 16)}`,
       b.spaceName ?? '-',
       b.customerName ?? 'Sin cliente',
-      b.status,
+        AMIGO_UI.estadoDe(b.status, ESTADOS),
       dinero(b.totalCents),
       acciones,
-    ]));
+    ], { className: 'acciones' }));
+  }
+  if (agenda.bookings.length === 0) {
+    cuerpo.append(AMIGO_UI.fila([]));
+    cuerpo.lastElementChild.innerHTML =
+      '<td colspan="6" class="ui-vacio"><strong>Nada reservado para este día</strong>' +
+      'Toca una franja libre de abajo para abrir la primera reserva.</td>';
   }
   tabla.append(cuerpo);
-  $('#agenda-lista').replaceChildren(tabla);
+  $('#agenda-lista').replaceChildren(AMIGO_UI.cajaTabla(tabla, { eje: true }));
 
   const franjas = $('#agenda-disponibles');
   franjas.innerHTML = '';
   if (!disponibilidad) {
-    franjas.textContent = 'Elige un espacio para ver sus franjas libres.';
+    franjas.innerHTML = '<p class="pequeno tenue">Elige un espacio para ver sus franjas libres.</p>';
     return;
   }
   for (const s of disponibilidad.slots) {
-    franjas.append(boton(`${s.startAt.slice(11, 16)} - ${dinero(s.totalCents)}`, () => {
+    franjas.append(AMIGO_UI.boton(`${s.startAt.slice(11, 16)} · ${dinero(s.totalCents)}`, () => {
       $('#reserva-espacio').value = espacio;
       $('#reserva-inicio').value = s.startAt.slice(0, 16);
       $('#reserva-fin').value = s.endAt.slice(0, 16);
       $('#reserva-dialog').showModal();
-    }));
+    }, 'ui-franja'));
   }
   if (disponibilidad.slots.length === 0) {
-    franjas.textContent = 'No quedan franjas libres ese dia.';
+    franjas.innerHTML = '<p class="pequeno tenue">No quedan franjas libres ese día.</p>';
   }
 }
 
@@ -483,10 +489,10 @@ $('#espacio-form').addEventListener('submit', async (ev) => {
   };
   try {
     await api(id ? `/api/spaces/${id}` : '/api/spaces', { method: id ? 'PATCH' : 'POST', body: cuerpo });
-    avisar(id ? 'Espacio actualizado' : 'Espacio creado');
+    AMIGO_UI.avisar(id ? 'Espacio actualizado' : 'Espacio creado');
     limpiarFormEspacio();
     await cargar();
-  } catch (err) { avisar(err.message, true); }
+  } catch (err) { AMIGO_UI.avisar(err.message, true); }
 });
 
 $('#espacio-cancelar').addEventListener('click', limpiarFormEspacio);
@@ -503,9 +509,9 @@ $('#cliente-form').addEventListener('submit', async (ev) => {
       },
     });
     $('#cliente-form').reset();
-    avisar('Cliente creado');
+    AMIGO_UI.avisar('Cliente creado');
     await cargar();
-  } catch (err) { avisar(err.message, true); }
+  } catch (err) { AMIGO_UI.avisar(err.message, true); }
 });
 
 $('#extra-form').addEventListener('submit', async (ev) => {
@@ -516,9 +522,9 @@ $('#extra-form').addEventListener('submit', async (ev) => {
       body: { name: $('#extra-nombre').value, priceCents: Number($('#extra-precio').value) },
     });
     $('#extra-form').reset();
-    avisar('Extra creado');
+    AMIGO_UI.avisar('Extra creado');
     await cargar();
-  } catch (err) { avisar(err.message, true); }
+  } catch (err) { AMIGO_UI.avisar(err.message, true); }
 });
 
 /**
@@ -537,10 +543,10 @@ $('#config-form').addEventListener('submit', async (ev) => {
   }
   try {
     await api('/api/settings', { method: 'PUT', body: cuerpo });
-    avisar('Ajustes guardados');
+    AMIGO_UI.avisar('Ajustes guardados');
     await cargar();
     await pintarAgenda();
-  } catch (err) { avisar(err.message, true); }
+  } catch (err) { AMIGO_UI.avisar(err.message, true); }
 });
 
 /** El total se estima en pantalla para dar una idea; el que vale es el del servidor. */
@@ -570,13 +576,13 @@ $('#reserva-form').addEventListener('submit', async (ev) => {
     await api('/api/bookings', { method: 'POST', body: cuerpo });
     $('#reserva-dialog').close();
     $('#reserva-form').reset();
-    avisar('Reserva creada');
+    AMIGO_UI.avisar('Reserva creada');
     await pintarAgenda();
   } catch (err) {
     // El 409 es el del servidor: dos personas presionaron "Reservar" a la vez, o
     // el horario se ocupó mientras la pantalla estaba abierta. La UI no lo
     // adivina, lo muestra.
-    avisar(err.status === 409 ? `Ese horario ya no está libre: ${err.message}` : err.message, true);
+    AMIGO_UI.avisar(err.status === 409 ? `Ese horario ya no está libre: ${err.message}` : err.message, true);
   }
 });
 
@@ -587,23 +593,30 @@ $('#reserva-cancelar').addEventListener('click', () => $('#reserva-dialog').clos
 
 // ──────────────────────────────────────────────────────────────────── arranque
 
-$('#tabs').addEventListener('click', (ev) => {
-  const botonPulsado = ev.target.closest('button[data-tab]');
-  if (!botonPulsado) return;
-  for (const b of document.querySelectorAll('#tabs button')) b.classList.remove('activo');
-  botonPulsado.classList.add('activo');
-  for (const s of document.querySelectorAll('main section')) s.hidden = true;
-  $(`#panel-${botonPulsado.dataset.tab}`).hidden = false;
-  if (botonPulsado.dataset.tab === 'agenda') pintarAgenda().catch((e) => avisar(e.message, true));
-  if (botonPulsado.dataset.tab === 'horarios') cargarHorarios().catch((e) => avisar(e.message, true));
+/**
+ * Las pestañas las lleva el shell compartido (`/amigo.js`), que además deja la
+ * sección activa en la URL para poder compartir un enlace a "la agenda de hoy".
+ * Acá solo se le dice qué hay que cargar cuando se entra a cada una: la agenda y
+ * los horarios piden datos propios y las demás ya están en memoria.
+ */
+function alEntrar(panel) {
+  if (panel === 'agenda') pintarAgenda().catch((e) => AMIGO_UI.avisar(e.message, true));
+  if (panel === 'horarios') cargarHorarios().catch((e) => AMIGO_UI.avisar(e.message, true));
+}
+
+AMIGO.montar({
+  nombre: 'Espacios',
+  paneles: ['agenda', 'espacios', 'horarios', 'clientes', 'extras', 'ajustes'],
+  alEntrar,
 });
 
 for (const sel of ['#agenda-espacio', '#agenda-fecha']) {
-  $(sel).addEventListener('change', () => pintarAgenda().catch((e) => avisar(e.message, true)));
+  $(sel).addEventListener('change', () => pintarAgenda().catch((e) => AMIGO_UI.avisar(e.message, true)));
 }
 $('#agenda-nueva').addEventListener('click', () => $('#reserva-dialog').showModal());
+$('#reserva-cerrar').addEventListener('click', () => $('#reserva-dialog').close());
 $('#agenda-fecha').value = new Date().toISOString().slice(0, 10);
 
 cargar()
   .then(() => pintarAgenda())
-  .catch((err) => avisar(err.message, true));
+  .catch((err) => AMIGO_UI.avisar(err.message, true));

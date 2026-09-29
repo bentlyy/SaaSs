@@ -75,9 +75,10 @@ describe('la interfaz', () => {
     const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
     expect(html.text).not.toMatch(/type=["']password["']/i);
 
-    // Y la salida se resuelve contra el Core, no contra un logout local.
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
-    expect(js.text).toContain('/auth/logout');
+    // Y la salida se resuelve contra el Core, no contra un logout local. La salida
+    // es un enlace del shell, no logica: por eso se busca en el HTML servido y no
+    // en el `app.js`, que ya no dibuja la cabecera.
+    expect(html.text).toContain('/auth/logout');
   });
 
   it('la UI no inventa datos ni se saltea el servidor para los choques', async () => {

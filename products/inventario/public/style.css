@@ -1,113 +1,25 @@
+/* ==========================================================================
+   INVENTARIO · el color de este producto
+   --------------------------------------------------------------------------
+   Esto es TODO lo que hace que Inventario se vea distinto de las otras ocho
+   herramientas. La forma esta en /amigo.css y es la misma en todas.
+
+   Para darle otro color a una herramienta se cambia este archivo, no el CSS
+   compartido: si alguna vez un producto necesita mas que un color, lo que se
+   anade es un bloque propio aqui, jamas una regla sobre las clases de la
+   plataforma.
+
+   Azul de bodega: es el color con el que este proyecto ya dibuja el almacen, y
+   ademas separa Inventario de Espacios, que tambien es una herramienta de
+   espacios fisicos y por lo tanto se visitan juntas.
+   ========================================================================== */
+
+@import url("/amigo.css");
+
 :root {
-  --fondo: #f6f8fa;
-  --panel: #ffffff;
-  --linea: #d5dbe3;
-  --texto: #1a2029;
-  --apagado: #5d6875;
-  --marca: #4f8cff;
-  --bien: #15803d;
-  --mal: #b42318;
-  --aviso: #b45309;
+  --acento: #2f6fd0;
+  --acento-fuerte: #24579f;
+  --acento-tenue: #e6effb;
+  --acento-borde: #bcd4f2;
+  --sobre-acento: #ffffff;
 }
-* { box-sizing: border-box; }
-body {
-  margin: 0;
-  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
-  background: var(--fondo);
-  color: var(--texto);
-}
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  padding: 14px 22px;
-  border-bottom: 1px solid var(--linea);
-  background: var(--panel);
-}
-.marca { display: flex; align-items: baseline; gap: 10px; }
-.marca strong { font-size: 17px; }
-.org { color: var(--apagado); font-size: 13px; }
-.sesion { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--apagado); }
-.rol {
-  border: 1px solid var(--linea);
-  border-radius: 999px;
-  padding: 2px 9px;
-  text-transform: uppercase;
-  font-size: 11px;
-  letter-spacing: .04em;
-}
-.link { background: none; border: 0; color: var(--marca); cursor: pointer; font: inherit; padding: 0; }
-.link:hover { text-decoration: underline; }
-
-.tarjetas { display: flex; gap: 12px; padding: 18px 22px 0; flex-wrap: wrap; }
-.tarjeta {
-  background: var(--panel);
-  border: 1px solid var(--linea);
-  border-radius: 10px;
-  padding: 12px 16px;
-  min-width: 140px;
-}
-.tarjeta b { display: block; font-size: 22px; font-weight: 600; }
-.tarjeta span { color: var(--apagado); font-size: 12px; }
-.tarjeta.alerta b { color: var(--aviso); }
-
-main { display: grid; grid-template-columns: 1.35fr 1fr; gap: 18px; padding: 18px 22px 40px; align-items: start; }
-@media (max-width: 900px) { main { grid-template-columns: 1fr; } }
-.panel { background: var(--panel); border: 1px solid var(--linea); border-radius: 12px; overflow: hidden; }
-.panel-cab {
-  display: flex; justify-content: space-between; align-items: center; gap: 12px;
-  padding: 14px 16px; border-bottom: 1px solid var(--linea); flex-wrap: wrap;
-}
-.panel-cab h2 { margin: 0; font-size: 15px; font-weight: 600; }
-.acciones { display: flex; gap: 8px; }
-
-input, select {
-  background: #ffffff; color: var(--texto);
-  border: 1px solid var(--linea); border-radius: 8px; padding: 7px 10px; font: inherit;
-}
-input:focus, select:focus { outline: 2px solid var(--marca); outline-offset: -1px; }
-button {
-  background: var(--marca); color: #fff; border: 0; border-radius: 8px;
-  padding: 8px 13px; font: inherit; cursor: pointer;
-}
-button:disabled { opacity: .5; cursor: not-allowed; }
-
-table { width: 100%; border-collapse: collapse; }
-th, td { text-align: left; padding: 9px 16px; border-bottom: 1px solid var(--linea); font-size: 14px; }
-th { color: var(--apagado); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
-tbody tr:last-child td { border-bottom: 0; }
-tbody tr:hover { background: #f0f3f6; }
-.num { text-align: right; font-variant-numeric: tabular-nums; }
-.bajo { color: var(--aviso); font-weight: 600; }
-.sube { color: var(--bien); }
-.fila-acciones { display: flex; gap: 6px; justify-content: flex-end; }
-.fila-acciones button { padding: 5px 9px; font-size: 13px; }
-.vacio { color: var(--apagado); text-align: center; padding: 26px; }
-
-.aviso {
-  margin: 12px 16px; padding: 9px 12px; border-radius: 8px;
-  background: #fdeecb; color: var(--aviso); font-size: 13px;
-  border: 1px solid #f0d78a;
-}
-.oculto { display: none; }
-.error { color: var(--mal); font-size: 13px; }
-
-dialog {
-  background: var(--panel); color: var(--texto);
-  border: 1px solid var(--linea); border-radius: 12px;
-  padding: 20px; min-width: 340px; max-width: 92vw;
-}
-dialog::backdrop { background: rgba(0, 0, 0, .4); }
-dialog h3 { margin: 0 0 14px; font-size: 16px; }
-.campo { display: grid; gap: 5px; margin-bottom: 12px; }
-.campo label { font-size: 12px; color: var(--apagado); }
-dialog menu { display: flex; justify-content: flex-end; gap: 10px; margin: 16px 0 0; padding: 0; }
-dialog .link { color: var(--apagado); }
-
-.config-cuerpo { padding: 16px; }
-.nota { margin: 0 0 14px; font-size: 13px; color: var(--apagado); }
-#config-form { display: grid; gap: 12px; max-width: 420px; }
-.config-acciones { display: flex; align-items: center; gap: 14px; }
-.config-acciones .link { color: var(--apagado); font-size: 13px; text-decoration: underline; }
-.colapsada .panel:last-child .config-cuerpo { display: none; }

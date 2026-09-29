@@ -21,10 +21,14 @@
  *      centavos y se muestran como pesos dividiendo por 100 para leerlos. En
  *      esta pantalla no hay ningun `* 100`: convertir dos veces es exactamente
  *      como se rompieron los precios del legacy.
+ *
+ * La tabla, las etiquetas y los botones vienen de `AMIGO_UI`; lo de mas abajo
+ * es de esta herramienta.
  */
 
-const $ = (sel) => document.querySelector(sel);
-const miles = new Intl.NumberFormat('es-CL');
+const $ = AMIGO_UI.$;
+const api = AMIGO_UI.api;
+const avisar = AMIGO_UI.avisar;
 
 const estado = {
   activos: [],
@@ -33,66 +37,34 @@ const estado = {
   fichaId: null,
 };
 
-async function api(ruta, opciones = {}) {
-  const res = await fetch(ruta, {
-    headers: { 'content-type': 'application/json' },
-    ...opciones,
-    body: opciones.body ? JSON.stringify(opciones.body) : undefined,
-  });
-  const datos = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const err = new Error(datos.error ?? 'No se pudo completar la operacion');
-    err.status = res.status;
-    err.detalle = datos;
-    throw err;
-  }
-  return datos;
-}
+const ESTADOS = {
+  active: { texto: 'En uso', tono: 'ok' },
+  repair: { texto: 'En reparacion', tono: 'aviso' },
+  retired: { texto: 'Dado de baja', tono: 'neutro' },
+  lost: { texto: 'Perdido', tono: 'malo' },
+};
 
-function avisar(mensaje, malo = false) {
-  const caja = $('#aviso');
-  caja.textContent = mensaje;
-  caja.classList.toggle('malo', malo);
-  caja.hidden = false;
-  clearTimeout(caja.t);
-  caja.t = setTimeout(() => { caja.hidden = true; }, 5000);
-}
-
-function escapar(texto) {
-  return String(texto ?? '').replace(/[&<>"']/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
-  );
-}
+const MOVIMIENTOS = {
+  checkin: { texto: 'Volvio', tono: 'ok' },
+  checkout: { texto: 'Salio', tono: 'acento' },
+  maintenance: { texto: 'A reparacion', tono: 'aviso' },
+  loss: { texto: 'Se perdio', tono: 'malo' },
+};
 
 /**
- * Centavos a texto legible.
+ * Centavos a texto legible, con el centavo SIEMPRE a la vista.
  *
- * `Math.trunc(c / 100)` y `c % 100` son exactos para enteros, asi que el
- * centavo se ve siempre: un costo de $45,01 no se muestra como $45. Y la
- * division es la UNICA operacion de dinero de esta pantalla, porque el numero
- * que llega de la API ya esta en la unidad en que se guarda.
+ * Aqui no se usa `AMIGO_UI.dinero` a proposito: ese redondea al peso, que es lo
+ * correcto en una venta, y aqui no. Un costo de $45,01 mostrado como $45 hace
+ * pensar que el activo costo menos de lo que costo, y en un inventario la
+ * diferencia entre el valor contable y el real se nota. La division por 100 es
+ * la UNICA operacion de dinero de esta pantalla, porque el numero que llega de
+ * la API ya esta en la unidad en que se guarda.
  */
+const fmtMonto = new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function monto(centavos) {
-  const simbolo = estado.cfg?.currency ?? '$';
-  const n = Math.trunc(Number(centavos ?? 0));
-  const signo = n < 0 ? '-' : '';
-  const abs = Math.abs(n);
-  return `${signo}${simbolo} ${miles.format(Math.trunc(abs / 100))},${String(abs % 100).padStart(2, '0')}`;
+  return `${estado.cfg?.currency ?? '$'} ${fmtMonto.format(Math.trunc(Number(centavos ?? 0)) / 100)}`;
 }
-
-const ETIQUETA_ESTADO = {
-  active: 'En uso',
-  repair: 'En reparacion',
-  retired: 'Dado de baja',
-  lost: 'Perdido',
-};
-
-const ETIQUETA_MOVIMIENTO = {
-  checkin: 'Volvio',
-  checkout: 'Salio',
-  maintenance: 'A reparacion',
-  loss: 'Se perdio',
-};
 
 /** `AAAA-MM-DD` a `DD/MM`: como lo lee una persona, sin cambiar el dato. */
 function fechaCorta(fecha) {
@@ -113,43 +85,49 @@ async function cargar() {
   pintarCosto();
 }
 
-function tarjeta(numero, texto) {
-  return `<div class="tarjeta"><strong>${escapar(numero)}</strong><span>${escapar(texto)}</span></div>`;
-}
-
 // ─────────────────────────────────────────────────────────────────────── tablero
 
 async function pintarTablero() {
   const tablero = await api('/api/dashboard');
   const porStatus = tablero.porStatus;
 
-  $('#resumen').innerHTML = [
-    tarjeta(tablero.total, 'Activos en libros'),
-    tarjeta(porStatus.active, 'En uso'),
-    tarjeta(porStatus.repair, 'En reparacion'),
-    tarjeta(porStatus.retired, 'Dados de baja'),
-    tarjeta(porStatus.lost, 'Perdidos'),
-    tarjeta(monto(tablero.valorEnUsoCents), 'Valor en uso'),
-  ].join('');
+  AMIGO_UI.kpis($('#resumen'), [
+    [tablero.total, 'Activos en libros', true],
+    [porStatus.active, 'En uso'],
+    [porStatus.repair, 'En reparacion'],
+    [porStatus.retired, 'Dados de baja'],
+    [porStatus.lost, 'Perdidos'],
+    [monto(tablero.valorEnUsoCents), 'Valor en uso'],
+  ]);
 
-  const vacio = '<div class="ficha vacia">Todavia no hay activos registrados</div>';
-  $('#recientes').innerHTML =
-    tablero.recientes
-      .map(
-        (a) =>
-          '<div class="ficha"><strong>' +
-          escapar(a.code) +
-          ' &middot; ' +
-          escapar(a.name) +
-          '</strong><span>' +
-          escapar(ETIQUETA_ESTADO[a.status] ?? a.status) +
-          (a.assignedTo ? ' &middot; ' + escapar(a.assignedTo) : '') +
-          (a.location ? ' &middot; ' + escapar(a.location) : '') +
-          ' &middot; ' +
-          escapar(monto(a.costCents)) +
-          '</span></div>',
-      )
-      .join('') || vacio;
+  const caja = $('#recientes');
+  if (tablero.recientes.length === 0) {
+    AMIGO_UI.vacio(caja, 'Todavia no hay activos registrados');
+    return;
+  }
+  caja.replaceChildren(
+    ...tablero.recientes.map((a) => {
+      const ficha = document.createElement('div');
+      ficha.className = 'ui-ficha';
+      const cuerpo = document.createElement('div');
+      cuerpo.className = 'ui-ficha__cuerpo';
+      const titulo = document.createElement('span');
+      titulo.className = 'ui-ficha__titulo';
+      titulo.textContent = `${a.code} · ${a.name}`;
+      const nota = document.createElement('span');
+      nota.className = 'ui-ficha__nota';
+      // Los datos que vienen, se muestran; los que no, no se inventan.
+      nota.textContent = [ESTADOS[a.status]?.texto ?? a.status, a.assignedTo, a.location, monto(a.costCents)]
+        .filter(Boolean)
+        .join(' · ');
+      cuerpo.append(titulo, nota);
+      const acciones = document.createElement('div');
+      acciones.className = 'ui-ficha__acciones';
+      acciones.append(AMIGO_UI.boton('Ficha', () => abrirFicha(a.id).catch((e) => avisar(e.message, true))));
+      ficha.append(cuerpo, acciones);
+      return ficha;
+    }),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────── activos
@@ -170,50 +148,90 @@ function pintarActivos() {
     );
   });
 
-  $('#activos-lista').innerHTML = lista.length
-    ? '<table><thead><tr><th>Codigo</th><th>Nombre</th><th>Categoria</th><th>Estado</th><th>Lo tiene</th><th>Ubicacion</th><th>Costo</th><th>Acciones</th></tr></thead><tbody>' +
-      lista
-        .map(
-          (a) =>
-            '<tr><td>' +
-            escapar(a.code) +
-            '</td><td>' +
-            escapar(a.name) +
-            (a.serial ? '<br><small>' + escapar(a.serial) + '</small>' : '') +
-            '</td><td>' +
-            escapar(a.category) +
-            '</td><td>' +
-            escapar(ETIQUETA_ESTADO[a.status] ?? a.status) +
-            '</td><td>' +
-            escapar(a.assignedTo ?? '—') +
-            '</td><td>' +
-            escapar(a.location ?? '—') +
-            '</td><td>' +
-            escapar(monto(a.costCents)) +
-            '</td><td>' +
-            '<button type="button" data-ficha="' +
-            a.id +
-            '">Ficha</button> ' +
-            '<button type="button" data-editar="' +
-            a.id +
-            '">Editar</button> ' +
-            '<button type="button" data-archivar="' +
-            a.id +
-            '">Archivar</button> ' +
-            '<button type="button" data-borrar="' +
-            a.id +
-            '">Borrar</button>' +
-            '</td></tr>',
-        )
-        .join('') +
-      '</tbody></table>'
-    : '<div class="ficha vacia">No hay activos que coincidan</div>';
+  const tabla = AMIGO_UI.tabla(
+    ['Codigo', 'Nombre', 'Categoria', 'Estado', 'Lo tiene', 'Ubicacion', 'Costo', ''],
+    { num: [6] },
+  );
+  const cuerpo = AMIGO_UI.cuerpoDe(tabla);
+
+  if (lista.length === 0) {
+    cuerpo.append(AMIGO_UI.filaVacia(8, 'No hay activos que coincidan'));
+  } else {
+    for (const a of lista) {
+      // El numero de serie va debajo del nombre y no en su propia columna: es un
+      // dato de la etiqueta del bien, y darle una columna propia obligaba a
+      // empujar la de acciones fuera de la pantalla en pantallas normales.
+      const nombre = document.createElement('div');
+      const fuerte = document.createElement('div');
+      fuerte.className = 'ui-ficha__titulo';
+      fuerte.textContent = a.name;
+      nombre.append(fuerte);
+      if (a.serial) {
+        const serie = document.createElement('div');
+        serie.className = 'ui-ficha__nota';
+        serie.textContent = a.serial;
+        nombre.append(serie);
+      }
+
+      cuerpo.append(
+        AMIGO_UI.fila(
+          [
+            a.code,
+            nombre,
+            a.category,
+            AMIGO_UI.estadoDe(a.status, ESTADOS),
+            a.assignedTo ?? '—',
+            a.location ?? '—',
+            monto(a.costCents),
+            AMIGO_UI.celda(
+              AMIGO_UI.boton('Ficha', () => abrirFicha(a.id).catch((e) => avisar(e.message, true))),
+              AMIGO_UI.boton('Editar', () => abrirActivo(a)),
+              AMIGO_UI.boton(
+                'Archivar',
+                async () => {
+                  // Archivar y borrar son cosas distintas: archivar saca el bien de
+                  // la lista sin tocar su historial, y es lo que la API ofrece
+                  // cuando el borrado responde 409.
+                  try {
+                    await api(`/api/assets/${a.id}`, { method: 'PATCH', body: { archived: true } });
+                    await recargar();
+                    avisar('Activo archivado');
+                  } catch (e) {
+                    avisar(e.message, true);
+                  }
+                },
+                'ui-btn ui-btn--chico ui-btn--fantasma',
+              ),
+              AMIGO_UI.boton(
+                'Borrar',
+                async () => {
+                  try {
+                    await api(`/api/assets/${a.id}`, { method: 'DELETE' });
+                    await recargar();
+                    avisar('Activo borrado');
+                  } catch (e) {
+                    // El 409 de borrar un activo con historial llega con el texto
+                    // que explica que lo que corresponde es archivar, asi que se
+                    // muestra tal cual: es la instruccion, no un error de programa.
+                    avisar(e.message, true);
+                  }
+                },
+                'ui-btn ui-btn--chico ui-btn--fantasma ui-btn--peligro',
+              ),
+            ),
+          ],
+          { num: [6], className: 'acciones' },
+        ),
+      );
+    }
+  }
+
+  $('#activos-lista').replaceChildren(AMIGO_UI.cajaTabla(tabla));
 }
 
 function abrirActivo(activo) {
   $('#activo-id').value = activo?.id ?? '';
   $('#activo-form-titulo').textContent = activo ? 'Editar activo' : 'Nuevo activo';
-  $('#activo-cancelar').hidden = !activo;
   $('#activo-codigo').value = activo?.code ?? '';
   $('#activo-nombre').value = activo?.name ?? '';
   $('#activo-categoria').value = activo?.category ?? '';
@@ -227,6 +245,7 @@ function abrirActivo(activo) {
   $('#activo-costo').value = activo?.costCents ?? 0;
   $('#activo-notas').value = activo?.notes ?? '';
   pintarCosto();
+  if (!$('#activo-dialog').open) $('#activo-dialog').showModal();
 }
 
 /** El costo en centavos, mostrado como se va a ver. Nunca se convierte para mandarlo. */
@@ -253,7 +272,9 @@ $('#activo-proponer-codigo').addEventListener('click', async () => {
   }
 });
 
-$('#activo-cancelar').addEventListener('click', () => abrirActivo(null));
+$('#activo-cancelar').addEventListener('click', () => $('#activo-dialog').close());
+$('#activo-cerrar').addEventListener('click', () => $('#activo-dialog').close());
+$('#activo-nuevo').addEventListener('click', () => abrirActivo(null));
 
 $('#activo-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -281,7 +302,7 @@ $('#activo-form').addEventListener('submit', async (e) => {
       method: id ? 'PATCH' : 'POST',
       body: cuerpo,
     });
-    abrirActivo(null);
+    $('#activo-dialog').close();
     await recargar();
     avisar(id ? 'Activo actualizado' : 'Activo creado');
   } catch (err) {
@@ -292,88 +313,87 @@ $('#activo-form').addEventListener('submit', async (e) => {
 $('#activo-buscar').addEventListener('input', pintarActivos);
 $('#activo-filtro').addEventListener('change', pintarActivos);
 
-$('#activos-lista').addEventListener('click', async (e) => {
-  const boton = e.target.closest('button');
-  if (!boton) return;
-  try {
-    if (boton.dataset.editar) {
-      abrirActivo(estado.activos.find((a) => a.id === boton.dataset.editar));
-    } else if (boton.dataset.ficha) {
-      await abrirFicha(boton.dataset.ficha);
-    } else if (boton.dataset.archivar) {
-      // Archivar y borrar son cosas distintas: archivar saca el bien de la lista
-      // sin tocar su historial, y es lo que la API ofrece cuando el borrado
-      // responde 409.
-      await api(`/api/assets/${boton.dataset.archivar}`, { method: 'PATCH', body: { archived: true } });
-      await recargar();
-      avisar('Activo archivado');
-    } else if (boton.dataset.borrar) {
-      await api(`/api/assets/${boton.dataset.borrar}`, { method: 'DELETE' });
-      await recargar();
-      avisar('Activo borrado');
-    }
-  } catch (err) {
-    // El 409 de borrar un activo con historial llega con el texto que explica que
-    // lo que corresponde es archivar, asi que se muestra tal cual: es la
-    // instruccion, no un error de programa.
-    avisar(err.message, true);
-  }
-});
-
 // ──────────────────────────────────────────────────────────────────────── ficha
+
+/** Un par etiqueta/valor. La ficha es una lista de datos, no filas que comparar. */
+function dato(termino, valor) {
+  const dt = document.createElement('dt');
+  dt.textContent = termino;
+  const dd = document.createElement('dd');
+  dd.textContent = valor;
+  return [dt, dd];
+}
 
 async function abrirFicha(idActivo) {
   const ficha = await api(`/api/assets/${idActivo}/ficha`);
   estado.fichaId = idActivo;
   const a = ficha.asset;
-  $('#ficha').innerHTML =
-    '<h3>' +
-    escapar(a.code) +
-    ' &middot; ' +
-    escapar(a.name) +
-    '</h3>' +
-    '<p class="meta">' +
-    escapar(ETIQUETA_ESTADO[a.status] ?? a.status) +
-    ' &middot; ' +
-    escapar(a.category) +
-    (a.assignedTo ? ' &middot; lo tiene ' + escapar(a.assignedTo) : '') +
-    (a.archivedAt ? ' &middot; archivado' : '') +
-    '</p>' +
-    '<dl>' +
-    '<dt>Marca</dt><dd>' +
-    escapar(a.brand ?? 'Sin marca') +
-    '</dd>' +
-    '<dt>Modelo</dt><dd>' +
-    escapar(a.model ?? 'Sin modelo') +
-    '</dd>' +
-    '<dt>Serie</dt><dd>' +
-    escapar(a.serial ?? 'Sin serie') +
-    '</dd>' +
-    '<dt>Ubicacion</dt><dd>' +
-    escapar(a.location ?? 'Sin ubicacion') +
-    '</dd>' +
-    (a.purchaseDate ? '<dt>Comprado</dt><dd>' + escapar(fechaCorta(a.purchaseDate)) + '</dd>' : '') +
-    '<dt>Costo</dt><dd>' +
-    escapar(monto(a.costCents)) +
-    '</dd>' +
-    (a.notes ? '<dt>Notas</dt><dd>' + escapar(a.notes) + '</dd>' : '') +
-    '</dl>' +
-    '<h4>Historial</h4><div class="lineas">' +
-    (ficha.movements
-      .map(
-        (m) =>
-          '<div class="linea"><span>' +
-          escapar(ETIQUETA_MOVIMIENTO[m.kind] ?? m.kind) +
-          (m.note ? ' &middot; ' + escapar(m.note) : '') +
-          '</span><span class="estado">' +
-          escapar(instanteCorto(m.happenedAt)) +
-          '</span></div>',
-      )
-      .join('') || '<div class="ficha vacia">Sin movimientos registrados</div>') +
-    '</div>' +
-    '<p class="meta">' +
-    ficha.resumen.totalMovimientos +
-    ' movimiento(s) en el historial</p>';
+  const caja = $('#ficha');
+  caja.replaceChildren();
+
+  const titulo = document.createElement('h2');
+  titulo.textContent = `${a.code} · ${a.name}`;
+
+  const linea = document.createElement('div');
+  linea.className = 'ui-fila';
+  linea.append(
+    AMIGO_UI.estadoDe(a.status, ESTADOS),
+    AMIGO_UI.etiqueta(a.category, 'neutro'),
+  );
+  if (a.assignedTo) linea.append(AMIGO_UI.etiqueta(`Lo tiene ${a.assignedTo}`, 'neutro'));
+  if (a.archivedAt) linea.append(AMIGO_UI.etiqueta('Archivado', 'neutro'));
+
+  // Los pares se arman con una lista y no con innerHTML: la ficha muestra
+  // nombre de marca, serie y notas, que son texto que eligio el cliente.
+  const datos = document.createElement('dl');
+  datos.className = 'ui-datos';
+  datos.append(
+    ...dato('Marca', a.brand ?? 'Sin marca'),
+    ...dato('Modelo', a.model ?? 'Sin modelo'),
+    ...dato('Serie', a.serial ?? 'Sin serie'),
+    ...dato('Ubicacion', a.location ?? 'Sin ubicacion'),
+  );
+  if (a.purchaseDate) datos.append(...dato('Comprado', fechaCorta(a.purchaseDate)));
+  datos.append(...dato('Costo', monto(a.costCents)));
+  if (a.notes) datos.append(...dato('Notas', a.notes));
+
+  const hist = document.createElement('h3');
+  hist.className = 'ui-tarjeta__cab';
+  hist.textContent = 'Historial';
+  const lista = document.createElement('div');
+  lista.className = 'ui-lista';
+
+  if (ficha.movements.length === 0) {
+    AMIGO_UI.vacio(lista, 'Sin movimientos registrados');
+  } else {
+    for (const m of ficha.movements) {
+      const fila = document.createElement('div');
+      fila.className = 'ui-ficha';
+      const cuerpo = document.createElement('div');
+      cuerpo.className = 'ui-ficha__cuerpo';
+      const tit = document.createElement('span');
+      tit.className = 'ui-ficha__titulo';
+      tit.textContent = MOVIMIENTOS[m.kind]?.texto ?? m.kind;
+      cuerpo.append(tit);
+      if (m.note) {
+        const nota = document.createElement('span');
+        nota.className = 'ui-ficha__nota';
+        nota.textContent = m.note;
+        cuerpo.append(nota);
+      }
+      const cuando = document.createElement('div');
+      cuando.className = 'ui-ficha__acciones';
+      cuando.append(AMIGO_UI.etiqueta(instanteCorto(m.happenedAt), 'neutro'));
+      fila.append(cuerpo, cuando);
+      lista.append(fila);
+    }
+  }
+
+  const resumen = document.createElement('p');
+  resumen.className = 'ui-pista';
+  resumen.textContent = `${ficha.resumen.totalMovimientos} movimiento(s) en el historial`;
+
+  caja.append(titulo, linea, datos, hist, lista, resumen);
   $('#ficha-dialog').showModal();
 }
 
@@ -402,45 +422,10 @@ $('#movimiento-form').addEventListener('submit', async (e) => {
   }
 });
 
-// ─────────────────────────────────────────────────────────────────── navegación
-
-const PANELES = {
-  tablero: pintarTablero,
-  activos: () => pintarActivos(),
-};
-
-for (const boton of document.querySelectorAll('#tabs button')) {
-  boton.addEventListener('click', async () => {
-    document.querySelectorAll('#tabs button').forEach((b) => b.classList.remove('activo'));
-    boton.classList.add('activo');
-    for (const [nombre, seccion] of Object.entries({
-      tablero: '#panel-tablero',
-      activos: '#panel-activos',
-      ajustes: '#panel-ajustes',
-    })) {
-      $(seccion).hidden = nombre !== boton.dataset.tab;
-    }
-    try {
-      if (PANELES[boton.dataset.tab]) await PANELES[boton.dataset.tab]();
-    } catch (err) {
-      avisar(err.message, true);
-    }
-  });
-}
-
-/** Vuelve a pedir todo y reagrupa. Se llama después de cada escritura. */
-async function recargar() {
-  await cargar();
-  const activo = document.querySelector('#tabs button.activo')?.dataset.tab ?? 'tablero';
-  if (activo === 'tablero') await pintarTablero();
-  else if (PANELES[activo]) await PANELES[activo]();
-}
-
 $('#config-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const form = e.target;
   const cuerpo = {};
-  for (const el of form.elements) {
+  for (const el of e.target.elements) {
     if (!el.name) continue;
     cuerpo[el.name] = el.value;
   }
@@ -455,16 +440,14 @@ $('#config-form').addEventListener('submit', async (e) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────── navegación
+
 /**
  * Llena el form de ajustes.
  *
  * Se recorre `form.elements` y se usa el `name` de cada input como clave del
  * ajuste, en vez de buscarlos por id uno por uno. Es lo que permite agregar un
  * ajuste nuevo poniendo un `<input name="...">` en el HTML, sin tocar este JS.
- *
- * OJO: el panel se llama `data-tab="ajustes"`, no `id="config"`. Por eso esto
- * no puede hacer `$$('#config input')`: ese selector no matchea nada y el panel
- * aparece vacío.
  */
 function renderConfig() {
   const form = $('#config-form');
@@ -475,4 +458,35 @@ function renderConfig() {
   }
 }
 
-cargar().then(pintarTablero);
+/**
+ * Pinta la sección que está a la vista.
+ *
+ * Se pregunta al shell y no a este archivo, porque la sección activa vive en la
+ * URL y la elige el shell. Así, guardar y volver a pintar no manda a nadie de
+ * vuelta al tablero: quien está revisando activos se queda en activos.
+ */
+function repintar() {
+  const activo = document.querySelector('[data-tab][aria-current="page"]')?.dataset.tab ?? 'tablero';
+  if (activo === 'activos') return pintarActivos();
+  if (activo === 'tablero') return pintarTablero();
+  return undefined;
+}
+
+/** Vuelve a pedir todo y vuelve a pintar lo que se está viendo. */
+async function recargar() {
+  await cargar();
+  await repintar();
+}
+
+AMIGO.montar({ nombre: 'Activos', paneles: ['tablero', 'activos', 'ajustes'], alEntrar: conAviso(repintar) });
+
+/** Corre una parte de la pantalla y avisa si falla, en vez de dejarla a medias. */
+async function conAviso(fn) {
+  try {
+    await fn();
+  } catch (e) {
+    avisar(e.message, true);
+  }
+}
+
+cargar().then(repintar).catch((e) => avisar(e.message, true));

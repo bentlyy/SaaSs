@@ -7,19 +7,22 @@
  *    middleware ya redirigió al login central antes de servir este HTML.
  * 2. Cada `fetch` manda `credentials: same-origin` a propósito. Sin eso el
  *    navegador no manda la cookie y la API responde 401 aunque el usuario haya
- *    entrado: el error clásico de "entra y dice que no".
+ *    entrado: el error clásico de "entra y dice que no". De eso se encarga
+ *    `AMIGO_UI.api`, que además salta al login cuando la sesión vence.
  *
  * Lo que la interfaz NO hace es decidir si dos citas se pisan. Puede avisarlo
  * mientras se elige la hora, pero el que manda es el servidor: si el chequeo
  * estuviera acá, dos personas agendando a la vez meterían doble reserva.
+ *
+ * El nombre de la empresa y de la persona, el canal y las pestañas los pone
+ * `/amigo.js`; las tablas, tarjetas y etiquetas, `AMIGO_UI`.
  */
 
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => [...document.querySelectorAll(sel)];
-const fmt = new Intl.NumberFormat('es-CL');
+const $ = AMIGO_UI.$;
+const api = AMIGO_UI.api;
+const avisar = AMIGO_UI.avisar;
 
 const estado = {
-  me: null,
   settings: null,
   resumen: {},
   citas: [],
@@ -30,94 +33,59 @@ const estado = {
   horarios: [],
   bloqueos: [],
   fecha: new Date().toISOString().slice(0, 10),
-  vista: 'agenda',
 };
 
 /** `Date.getUTCDay` y el servidor usan 0 = domingo. */
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
+/** Los estados de una cita, con su tono. La forma la pone el modulo compartido. */
+const ESTADOS = {
+  confirmed: { texto: 'Confirmada', tono: 'ok' },
+  pending: { texto: 'Por confirmar', tono: 'aviso' },
+  done: { texto: 'Realizada', tono: 'acento' },
+  cancelled: { texto: 'Cancelada', tono: 'neutro' },
+  no_show: { texto: 'No asistió', tono: 'malo' },
+};
+
+const ESTADOS_AVISO = {
+  sent: { texto: 'Enviado', tono: 'ok' },
+  failed: { texto: 'Falló', tono: 'malo' },
+  pending: { texto: 'Pendiente', tono: 'aviso' },
+};
+
 /** Formatea centavos. El símbolo sale de la organización, no de una constante. */
-const pesos = (centavos) => `${estado.settings?.currency ?? '$'} ${fmt.format(Math.round(centavos / 100))}`;
-
-async function api(ruta, opciones = {}) {
-  const res = await fetch(ruta, {
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    ...opciones,
-  });
-  if (res.status === 401) {
-    // La sesión central venció o la suscripción ya no está: volvemos al login.
-    const cuerpo = await res.json().catch(() => ({}));
-    if (cuerpo.loginUrl) {
-      window.location.href = cuerpo.loginUrl;
-      throw new Error('sesion vencida');
-    }
-  }
-  const cuerpo = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const detalle = cuerpo.errors?.fieldErrors
-      ? Object.entries(cuerpo.errors.fieldErrors)
-          .map(([campo, msgs]) => `${campo}: ${msgs.join(' ')}`)
-          .join(' · ')
-      : cuerpo.error || `Error ${res.status}`;
-    throw new Error(detalle);
-  }
-  return cuerpo;
-}
-
-/** Muestra un error en la barra de arriba, sin tirar nada por la consola. */
-function avisar(mensaje) {
-  const caja = $('#error');
-  if (!mensaje) {
-    caja.classList.add('oculto');
-    caja.textContent = '';
-    return;
-  }
-  caja.textContent = mensaje;
-  caja.classList.remove('oculto');
+function pesos(centavos) {
+  const simbolo = estado.settings?.currency ?? '$';
+  return `${simbolo} ${(Math.round(centavos / 100)).toLocaleString('es-CL')}`;
 }
 
 /** Envuelve una acción para que un error llegue a la barra y no se pierda. */
 async function conAviso(fn) {
   try {
-    avisar(null);
     await fn();
   } catch (e) {
-    avisar(e.message);
+    avisar(e.message, true);
   }
 }
 
 // --- carga ------------------------------------------------------------------
 
 async function cargar() {
-  const [me, resumen, settings] = await Promise.all([
-    api('/api/me'),
-    api('/api/resumen'),
-    api('/api/settings'),
-  ]);
-  estado.me = me;
+  const [resumen, settings] = await Promise.all([api('/api/resumen'), api('/api/settings')]);
   estado.resumen = resumen;
   estado.settings = settings.settings;
 
-  $('#org').textContent = me.organization?.name ?? '';
-  $('#usuario').textContent = me.user?.name ?? me.user?.email ?? '';
-  $('#rol').textContent = me.organization?.role ?? '';
   $('#fecha').value = estado.fecha;
   $('#c-fecha').value = estado.fecha;
 
-  renderResumen();
-  await cargarAgenda();
-}
+  AMIGO_UI.kpis($('#resumen'), [
+    [resumen.hoy ?? 0, 'Hoy', true],
+    [resumen.futuras ?? 0, 'Futuras'],
+    [resumen.porConfirmar ?? 0, 'Por confirmar'],
+  ]);
 
-function renderResumen() {
-  const r = estado.resumen;
-  $('#resumen').innerHTML = [
-    ['Hoy', r.hoy ?? 0],
-    ['Futuras', r.futuras ?? 0],
-    ['Por confirmar', r.porConfirmar ?? 0],
-  ]
-    .map(([titulo, valor]) => `<div class="tarjeta"><b>${valor}</b><span>${titulo}</span></div>`)
-    .join('');
+  renderConfig();
+  await cargarAgenda();
 }
 
 /**
@@ -144,99 +112,122 @@ function renderAgenda() {
       (c.staffName ?? '').toLowerCase().includes(filtro),
   );
 
+  // `eje: true`: en una agenda la primera columna es la hora, y se lee como el eje
+  // de tiempos de un calendario, no como "la primera celda de una fila".
+  const tabla = AMIGO_UI.tabla([
+    'Hora',
+    'Cliente',
+    'Profesional',
+    'Estado',
+    { titulo: 'Total', num: true },
+  ]);
+  const cuerpo = AMIGO_UI.cuerpoDe(tabla);
+
   if (citas.length === 0) {
-    $('#dia').innerHTML = '<p class="vacio">No hay citas para este día.</p>';
-    return;
+    cuerpo.append(AMIGO_UI.filaVacia(5, 'No hay citas para este día.'));
+  } else {
+    for (const c of citas) {
+      const hora = document.createElement('span');
+      hora.className = 'mono';
+      hora.textContent = new Date(c.startAt).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+      cuerpo.append(
+        AMIGO_UI.fila([
+          hora,
+          c.customerName ?? 'Sin cliente',
+          c.staffName ?? 'Sin profesional',
+          AMIGO_UI.estadoDe(c.status, ESTADOS),
+          pesos(c.totalCents),
+        ]),
+      );
+    }
   }
 
-  $('#dia').innerHTML = `<table>
-    <thead><tr><th>Hora</th><th>Cliente</th><th>Profesional</th><th>Estado</th><th class="num">Total</th></tr></thead>
-    <tbody>${citas
-      .map(
-        (c) => `<tr>
-          <td class="hora">${new Date(c.startAt).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}</td>
-          <td>${escapar(c.customerName ?? 'Sin cliente')}</td>
-          <td>${escapar(c.staffName ?? 'Sin profesional')}</td>
-          <td><span class="st st-${c.status}">${c.status}</span></td>
-          <td class="num">${pesos(c.totalCents)}</td>
-        </tr>`,
-      )
-      .join('')}</tbody>
-  </table>`;
-}
-
-/** Escapa lo que viene de la base antes de meterlo en el HTML. */
-function escapar(texto) {
-  return String(texto ?? '').replace(
-    /[&<>"']/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
-  );
+  $('#dia').replaceChildren(AMIGO_UI.cajaTabla(tabla, { eje: true }));
 }
 
 // --- catálogos --------------------------------------------------------------
+
+/** Pinta una tabla simple de un catálogo. `columnas` son [titulo, celda]. */
+function tablaDe(columnas, filas, vacio) {
+  const tabla = AMIGO_UI.tabla(columnas.map((c) => (typeof c === 'string' ? { titulo: c } : c)));
+  const cuerpo = AMIGO_UI.cuerpoDe(tabla);
+  if (filas.length === 0) cuerpo.append(AMIGO_UI.filaVacia(columnas.length, vacio));
+  else for (const f of filas) cuerpo.append(AMIGO_UI.fila(f));
+  return AMIGO_UI.cajaTabla(tabla);
+}
 
 async function cargarClientes() {
   const q = $('#buscar-cli').value.trim();
   const { customers } = await api(`/api/customers?limit=200${q ? `&q=${encodeURIComponent(q)}` : ''}`);
   estado.clientes = customers;
-  $('#clientes').innerHTML = customers.length
-    ? `<table><thead><tr><th>Nombre</th><th>Teléfono</th><th>Correo</th><th>Etiquetas</th></tr></thead><tbody>${customers
-        .map(
-          (c) => `<tr><td>${escapar(c.name)}</td><td>${escapar(c.phone ?? '—')}</td><td>${escapar(
-            c.email ?? '—',
-          )}</td><td>${escapar(c.tags ?? '—')}</td></tr>`,
-        )
-        .join('')}</tbody></table>`
-    : '<p class="vacio">No hay clientes.</p>';
+  $('#clientes').replaceChildren(
+    tablaDe(
+      ['Nombre', 'Teléfono', 'Correo', 'Etiquetas'],
+      customers.map((c) => [c.name, c.phone ?? '—', c.email ?? '—', c.tags ?? '—']),
+      'No hay clientes.',
+    ),
+  );
 }
 
 async function cargarServicios() {
   const { services } = await api('/api/services?limit=200');
   estado.servicios = services;
-  $('#servicios').innerHTML = services.length
-    ? `<table><thead><tr><th>Nombre</th><th class="num">Duración</th><th class="num">Precio</th><th>Estado</th></tr></thead><tbody>${services
-        .map(
-          (s) => `<tr><td>${escapar(s.name)}</td><td class="num">${s.durationMin} min</td><td class="num">${pesos(
-            s.priceCents,
-          )}</td><td>${s.active ? 'Activo' : 'Inactivo'}</td></tr>`,
-        )
-        .join('')}</tbody></table>`
-    : '<p class="vacio">No hay servicios.</p>';
+  $('#servicios').replaceChildren(
+    tablaDe(
+      ['Nombre', { titulo: 'Duración', num: true }, { titulo: 'Precio', num: true }, 'Estado'],
+      services.map((s) => [
+        s.name,
+        `${s.durationMin} min`,
+        pesos(s.priceCents),
+        AMIGO_UI.etiqueta(s.active ? 'Activo' : 'Inactivo', s.active ? 'ok' : 'neutro'),
+      ]),
+      'No hay servicios.',
+    ),
+  );
 }
 
 async function cargarProfesionales() {
   const { staff } = await api('/api/staff?limit=200');
   estado.profesionales = staff;
-  $('#profesionales').innerHTML = staff.length
-    ? `<table><thead><tr><th>Nombre</th><th>Teléfono</th><th>Color</th><th>Estado</th></tr></thead><tbody>${staff
-        .map(
-          (p) =>
-            `<tr><td><span class="punto" style="background:${escapar(p.color ?? '#999')}"></span>${escapar(
-              p.name,
-            )}</td><td>${escapar(p.phone ?? '—')}</td><td>${escapar(p.color ?? '—')}</td><td>${
-              p.active ? 'Activo' : 'Inactivo'
-            }</td></tr>`,
-        )
-        .join('')}</tbody></table>`
-    : '<p class="vacio">No hay profesionales.</p>';
+  $('#profesionales').replaceChildren(
+    tablaDe(
+      ['Nombre', 'Teléfono', 'Color', 'Estado'],
+      staff.map((p) => {
+        // El punto de color va antes del nombre: es lo que permite recorrer la
+        // tabla de un vistazo y decir de quién es cada fila sin leerla.
+        const punto = document.createElement('span');
+        punto.className = 'ui-punto';
+        punto.style.background = p.color ?? '#999';
+        punto.style.display = 'inline-block';
+        punto.style.marginRight = '.45rem';
+        return [
+          AMIGO_UI.celda(punto, p.name),
+          p.phone ?? '—',
+          p.color ?? '—',
+          AMIGO_UI.etiqueta(p.active ? 'Activo' : 'Inactivo', p.active ? 'ok' : 'neutro'),
+        ];
+      }),
+      'No hay profesionales.',
+    ),
+  );
 }
 
 async function cargarAvisos() {
   const { reminders } = await api('/api/reminders?limit=100');
   estado.avisos = reminders;
-  $('#avisos').innerHTML = reminders.length
-    ? `<table><thead><tr><th>Cuándo</th><th>Canal</th><th>Destino</th><th>Estado</th><th>Error</th></tr></thead><tbody>${reminders
-        .map(
-          (r) => `<tr>
-            <td>${new Date(r.sentAt ?? r.createdAt).toLocaleString('es-CL')}</td>
-            <td>${escapar(r.channel)}</td>
-            <td>${escapar(r.to ?? '—')}</td>
-            <td><span class="st st-${r.status === 'sent' ? 'confirmed' : 'cancelled'}">${escapar(r.status)}</span></td>
-            <td class="error-txt">${escapar(r.error ?? '—')}</td>
-          </tr>`,
-        )
-        .join('')}</tbody></table>`
-    : '<p class="vacio">Todavía no se mandó ningún aviso.</p>';
+  $('#avisos').replaceChildren(
+    tablaDe(
+      ['Cuándo', 'Canal', 'Destino', 'Estado', 'Error'],
+      reminders.map((r) => [
+        AMIGO_UI.fecha(r.sentAt ?? r.createdAt, true),
+        r.channel,
+        r.to ?? '—',
+        AMIGO_UI.estadoDe(r.status, ESTADOS_AVISO),
+        r.error ?? '—',
+      ]),
+      'Todavía no se mandó ningún aviso.',
+    ),
+  );
 }
 
 // --- configuracion ----------------------------------------------------------
@@ -253,11 +244,8 @@ function renderConfig() {
   const s = estado.settings ?? {};
   for (const el of form.elements) {
     if (!el.name) continue;
-    if (el.type === 'checkbox') {
-      el.checked = Boolean(s[el.name]);
-    } else if (s[el.name] !== undefined) {
-      el.value = s[el.name];
-    }
+    if (el.type === 'checkbox') el.checked = Boolean(s[el.name]);
+    else if (s[el.name] !== undefined) el.value = s[el.name];
   }
 }
 
@@ -265,49 +253,52 @@ $('#config-form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const form = ev.target;
   const err = $('[data-err]', form);
-  err.textContent = '';
+  err.hidden = true;
   const f = new FormData(form);
   const boton = $('button[type=submit]', form);
   boton.disabled = true;
   try {
     const { settings } = await api('/api/settings', {
       method: 'PUT',
-      body: JSON.stringify({
+      body: {
         timezone: f.get('timezone'),
         currency: f.get('currency'),
         reminderHours: Number(f.get('reminderHours')),
         emailEnabled: f.get('emailEnabled') === 'on',
-      }),
+      },
     });
     estado.settings = settings;
     // El símbolo de la moneda se usa en toda la agenda, así que hay que
     // repintar: si no, la pantalla muestra el signo viejo hasta que se recarga.
-    renderResumen();
+    AMIGO_UI.kpis($('#resumen'), [
+      [estado.resumen.hoy ?? 0, 'Hoy', true],
+      [estado.resumen.futuras ?? 0, 'Futuras'],
+      [estado.resumen.porConfirmar ?? 0, 'Por confirmar'],
+    ]);
     await cargarAgenda();
+    avisar('Ajustes guardados');
   } catch (e) {
     err.textContent = e.message;
-    err.classList.remove('oculto');
+    err.hidden = false;
   } finally {
     boton.disabled = false;
   }
 });
 
 /** Llena los `<select>` del formulario de cita con lo que hay cargado. */
-function llenarSelectores() {  const opciones = (lista, valor, texto) =>
-    lista.map((x) => `<option value="${escapar(valor(x))}">${escapar(texto(x))}</option>`).join('');
-  $('#c-cliente').innerHTML = estado.clientes.map((c) => `<option value="${escapar(c.id)}">${escapar(c.name)}</option>`).join('');
-  $('#c-profesional').innerHTML = estado.profesionales
-    .map((p) => `<option value="${escapar(p.id)}">${escapar(p.name)}</option>`)
-    .join('');
-  $('#c-servicio').innerHTML =
-    `<option value="">— sin servicio —</option>` +
-    opciones(estado.servicios, (s) => s.id, (s) => `${s.name} · ${pesos(s.priceCents)}`);
+function llenarSelectores() {
+  const select = (sel, lista, texto) => {
+    const el = $(sel);
+    el.replaceChildren();
+    for (const x of lista) el.append(new Option(texto(x), x.id));
+  };
 
-  // Al elegir un servicio se ofrece su precio: es lo de casi siempre, y editable.
-  $('#c-servicio').addEventListener('change', () => {
-    const s = estado.servicios.find((x) => x.id === $('#c-servicio').value);
-    if (s) $('#c-precio').value = s.priceCents;
-  });
+  select('#c-cliente', estado.clientes, (c) => c.name);
+  select('#c-profesional', estado.profesionales, (p) => p.name);
+
+  const servicio = $('#c-servicio');
+  servicio.replaceChildren(new Option('— sin servicio —', ''));
+  for (const s of estado.servicios) servicio.append(new Option(`${s.name} · ${pesos(s.priceCents)}`, s.id));
 }
 
 // --- horarios ---------------------------------------------------------------
@@ -330,11 +321,13 @@ async function cargarHorarios() {
     estado.profesionales = staff;
   }
   const sel = $('#horario-profesional');
-  sel.innerHTML = estado.profesionales.map((p) => `<option value="${escapar(p.id)}">${escapar(p.name)}</option>`).join('');
+  sel.replaceChildren();
+  for (const p of estado.profesionales) sel.append(new Option(p.name, p.id));
 
   const dia = $('#horario-dia');
   if (dia.options.length === 0) {
-    dia.innerHTML = DIAS.map((d, i) => `<option value="${i}">${d}</option>`).join('');
+    dia.replaceChildren();
+    DIAS.forEach((d, i) => dia.append(new Option(d, String(i))));
   }
 
   await refrescarHorarios();
@@ -345,8 +338,8 @@ async function refrescarHorarios() {
   if (!profesional) {
     estado.horarios = [];
     estado.bloqueos = [];
-    $('#horarios').innerHTML = '<p class="vacio">Elige un profesional para ver sus horarios.</p>';
-    $('#bloqueos').innerHTML = '';
+    $('#horarios').replaceChildren(AMIGO_UI.vacio(document.createElement('div'), 'Elige un profesional para ver sus horarios.'));
+    $('#bloqueos').replaceChildren();
     return;
   }
 
@@ -363,62 +356,59 @@ function renderHorarios() {
   const profesional = $('#horario-profesional').value;
   const prof = estado.profesionales.find((p) => p.id === profesional);
 
-  $('#horarios').innerHTML = estado.horarios.length
-    ? `<table>
-        <thead><tr><th>Día</th><th>Desde</th><th>Hasta</th><th>Estado</th><th></th></tr></thead>
-        <tbody>${estado.horarios
-          .map(
-            (h) => `<tr>
-              <td>${DIAS[h.weekday]}</td>
-              <td>${minutosAHora(h.startTime)}</td>
-              <td>${minutosAHora(h.endTime)}</td>
-              <td>${h.active ? 'Activo' : 'Inactivo'}</td>
-              <td>
-                <button type="button" class="link" data-ed-h="${h.id}">Editar</button>
-                <button type="button" class="link" data-bor-h="${h.id}">Borrar</button>
-              </td>
-            </tr>`,
-          )
-          .join('')}</tbody>
-      </table>`
-    : `<p class="vacio">${prof ? `${escapar(prof.name)}` : 'Este profesional'} atiende en la jornada general que pida la consulta.` +
-      ' Agrega un horario para cambiarle el día a la semana.</p>';
-
-  for (const b of document.querySelectorAll('[data-ed-h]')) {
-    b.addEventListener('click', () => editarHorario(estado.horarios.find((x) => x.id === b.dataset.edH)));
-  }
-  for (const b of document.querySelectorAll('[data-bor-h]')) {
-    b.addEventListener('click', async () => {
-      await conAviso(async () => {
-        await api(`/api/schedules/${b.dataset.borH}`, { method: 'DELETE' });
-        await refrescarHorarios();
-      });
-    });
+  if (estado.horarios.length === 0) {
+    $('#horarios').replaceChildren(
+      AMIGO_UI.vacio(
+        document.createElement('div'),
+        `${prof ? prof.name : 'Este profesional'} atiende en la jornada general que pida la consulta. Agrega un horario para cambiarle el día a la semana.`,
+      ),
+    );
+  } else {
+    const tabla = AMIGO_UI.tabla(['Día', 'Desde', 'Hasta', 'Estado', '']);
+    const cuerpo = AMIGO_UI.cuerpoDe(tabla);
+    for (const h of estado.horarios) {
+      const acciones = AMIGO_UI.celda(
+        AMIGO_UI.boton('Editar', () => editarHorario(h)),
+        AMIGO_UI.boton('Borrar', async () => {
+          await conAviso(async () => {
+            await api(`/api/schedules/${h.id}`, { method: 'DELETE' });
+            await refrescarHorarios();
+          });
+        }, 'ui-btn ui-btn--chico ui-btn--fantasma'),
+      );
+      cuerpo.append(
+        AMIGO_UI.fila(
+          [DIAS[h.weekday], minutosAHora(h.startTime), minutosAHora(h.endTime), AMIGO_UI.etiqueta(h.active ? 'Activo' : 'Inactivo', h.active ? 'ok' : 'neutro'), acciones],
+          { className: 'acciones' },
+        ),
+      );
+    }
+    $('#horarios').replaceChildren(AMIGO_UI.cajaTabla(tabla));
   }
 
-  $('#bloqueos').innerHTML = estado.bloqueos.length
-    ? `<table>
-        <thead><tr><th>Empieza</th><th>Termina</th><th>Motivo</th><th></th></tr></thead>
-        <tbody>${estado.bloqueos
-          .map(
-            (b) => `<tr>
-              <td>${new Date(b.startAt).toLocaleString('es-CL')}</td>
-              <td>${new Date(b.endAt).toLocaleString('es-CL')}</td>
-              <td>${escapar(b.reason ?? '—')}</td>
-              <td><button type="button" class="link" data-bor-b="${b.id}">Quitar</button></td>
-            </tr>`,
-          )
-          .join('')}</tbody>
-      </table>`
-    : '<p class="vacio">Sin bloqueos: el profesional atiende según su horario.</p>';
-
-  for (const b of document.querySelectorAll('[data-bor-b]')) {
-    b.addEventListener('click', async () => {
-      await conAviso(async () => {
-        await api(`/api/blocks/${b.dataset.borB}`, { method: 'DELETE' });
-        await refrescarHorarios();
-      });
-    });
+  if (estado.bloqueos.length === 0) {
+    $('#bloqueos').replaceChildren(
+      AMIGO_UI.vacio(document.createElement('div'), 'Sin bloqueos: el profesional atiende según su horario.'),
+    );
+  } else {
+    const tabla = AMIGO_UI.tabla(['Empieza', 'Termina', 'Motivo', '']);
+    const cuerpo = AMIGO_UI.cuerpoDe(tabla);
+    for (const b of estado.bloqueos) {
+      const acciones = AMIGO_UI.celda(
+        AMIGO_UI.boton('Quitar', async () => {
+          await conAviso(async () => {
+            await api(`/api/blocks/${b.id}`, { method: 'DELETE' });
+            await refrescarHorarios();
+          });
+        }),
+      );
+      cuerpo.append(
+        AMIGO_UI.fila([AMIGO_UI.fecha(b.startAt, true), AMIGO_UI.fecha(b.endAt, true), b.reason ?? '—', acciones], {
+          className: 'acciones',
+        }),
+      );
+    }
+    $('#bloqueos').replaceChildren(AMIGO_UI.cajaTabla(tabla));
   }
 }
 
@@ -427,17 +417,17 @@ function editarHorario(h) {
   $('#horario-desde').value = minutosAHora(h.startTime);
   $('#horario-hasta').value = minutosAHora(h.endTime);
   $('#horario-activo').value = String(h.active);
-  $('#horario-cancelar').classList.remove('oculto');
+  $('#horario-cancelar').hidden = false;
   $('#horario-cancelar').dataset.id = h.id;
-  $('#horario-err').classList.add('oculto');
+  $('#horario-err').hidden = true;
 }
 
 function limpiarFormHorario() {
   $('#horario-form').reset();
   $('#horario-activo').value = 'true';
-  $('#horario-cancelar').classList.add('oculto');
+  $('#horario-cancelar').hidden = true;
   delete $('#horario-cancelar').dataset.id;
-  $('#horario-err').classList.add('oculto');
+  $('#horario-err').hidden = true;
 }
 
 $('#horario-form').addEventListener('submit', async (ev) => {
@@ -446,26 +436,26 @@ $('#horario-form').addEventListener('submit', async (ev) => {
   const profesional = $('#horario-profesional').value;
   if (!profesional) {
     caja.textContent = 'Elige un profesional.';
-    caja.classList.remove('oculto');
+    caja.hidden = false;
     return;
   }
   const id = $('#horario-cancelar').dataset.id;
   try {
     await api(id ? `/api/schedules/${id}` : '/api/schedules', {
       method: id ? 'PATCH' : 'POST',
-      body: JSON.stringify({
+      body: {
         staffId: profesional,
         weekday: Number($('#horario-dia').value),
         startTime: aMinutos($('#horario-desde').value),
         endTime: aMinutos($('#horario-hasta').value),
         active: $('#horario-activo').value === 'true',
-      }),
+      },
     });
     limpiarFormHorario();
-    await conAviso(refrescarHorarios);
+    await refrescarHorarios();
   } catch (e) {
     caja.textContent = e.message;
-    caja.classList.remove('oculto');
+    caja.hidden = false;
   }
 });
 
@@ -477,24 +467,24 @@ $('#bloqueo-form').addEventListener('submit', async (ev) => {
   const profesional = $('#horario-profesional').value;
   if (!profesional) {
     caja.textContent = 'Elige un profesional.';
-    caja.classList.remove('oculto');
+    caja.hidden = false;
     return;
   }
   try {
     await api('/api/blocks', {
       method: 'POST',
-      body: JSON.stringify({
+      body: {
         staffId: profesional,
         startAt: new Date($('#bloqueo-inicio').value).toISOString(),
         endAt: new Date($('#bloqueo-fin').value).toISOString(),
         reason: $('#bloqueo-motivo').value || null,
-      }),
+      },
     });
     ev.target.reset();
-    await conAviso(refrescarHorarios);
+    await refrescarHorarios();
   } catch (e) {
     caja.textContent = e.message;
-    caja.classList.remove('oculto');
+    caja.hidden = false;
   }
 });
 
@@ -505,14 +495,14 @@ $('#horario-profesional').addEventListener('change', () => conAviso(refrescarHor
 async function guardarCita(evento) {
   evento.preventDefault();
   const caja = $('#c-error');
-  caja.classList.add('oculto');
+  caja.hidden = true;
 
   const fecha = $('#c-fecha').value;
   const servicio = $('#c-servicio').value;
   try {
     await api('/api/appointments', {
       method: 'POST',
-      body: JSON.stringify({
+      body: {
         customerId: $('#c-cliente').value || null,
         staffId: $('#c-profesional').value,
         startAt: new Date(`${fecha}T${$('#c-hora').value}:00`).toISOString(),
@@ -520,17 +510,16 @@ async function guardarCita(evento) {
         status: $('#c-estado').value,
         notes: $('#c-notas').value || null,
         services: servicio ? [{ serviceId: servicio, priceCents: Number($('#c-precio').value || 0) }] : [],
-      }),
+      },
     });
     $('#dlg').close();
     estado.fecha = fecha;
-    await cargarAgenda();
     await cargar();
   } catch (e) {
     // El 409 de solapamiento se muestra acá, pero la decisión ya la tomó el
     // servidor: si el navegador mintiera, la cita igual no se guarda.
     caja.textContent = e.message;
-    caja.classList.remove('oculto');
+    caja.hidden = false;
   }
 }
 
@@ -539,19 +528,20 @@ async function guardarCliente(evento) {
   try {
     await api('/api/customers', {
       method: 'POST',
-      body: JSON.stringify({
+      body: {
         name: $('#cli-nombre').value,
         phone: $('#cli-telefono').value || null,
         email: $('#cli-email').value || null,
         tags: $('#cli-tags').value || null,
-      }),
+      },
     });
     $('#dlg-cli').close();
     evento.target.reset();
     await cargarClientes();
+    avisar('Cliente creado');
   } catch (e) {
     $('#cli-error').textContent = e.message;
-    $('#cli-error').classList.remove('oculto');
+    $('#cli-error').hidden = false;
   }
 }
 
@@ -560,18 +550,19 @@ async function guardarServicio(evento) {
   try {
     await api('/api/services', {
       method: 'POST',
-      body: JSON.stringify({
+      body: {
         name: $('#srv-nombre').value,
         durationMin: Number($('#srv-duracion').value),
         priceCents: Number($('#srv-precio').value),
-      }),
+      },
     });
     $('#dlg-srv').close();
     evento.target.reset();
     await cargarServicios();
+    avisar('Servicio creado');
   } catch (e) {
     $('#srv-error').textContent = e.message;
-    $('#srv-error').classList.remove('oculto');
+    $('#srv-error').hidden = false;
   }
 }
 
@@ -580,76 +571,77 @@ async function guardarProfesional(evento) {
   try {
     await api('/api/staff', {
       method: 'POST',
-      body: JSON.stringify({
+      body: {
         name: $('#per-nombre').value,
         phone: $('#per-telefono').value || null,
         color: $('#per-color').value,
-      }),
+      },
     });
     $('#dlg-per').close();
     evento.target.reset();
     await cargarProfesionales();
+    avisar('Profesional creado');
   } catch (e) {
     $('#per-error').textContent = e.message;
-    $('#per-error').classList.remove('oculto');
+    $('#per-error').hidden = false;
   }
 }
 
-function cambiarVista(vista) {
-  estado.vista = vista;
-  for (const b of $$('#pestanas button')) b.classList.toggle('activo', b.dataset.vista === vista);
-  for (const s of $$('.vista')) s.classList.toggle('oculto', s.id !== `vista-${vista}`);
+// --- navegación -------------------------------------------------------------
 
-  const cargar = {
-    agenda: cargarAgenda,
-    clientes: cargarClientes,
-    servicios: cargarServicios,
-    profesionales: cargarProfesionales,
-    horarios: cargarHorarios,
-    avisos: cargarAvisos,
-    config: renderConfig,
-  }[vista];
-  conAviso(cargar);
+/** Las pestañas las lleva el shell compartido; acá solo qué pintar en cada una. */
+const PANELES = {
+  agenda: cargarAgenda,
+  clientes: cargarClientes,
+  servicios: cargarServicios,
+  profesionales: cargarProfesionales,
+  horarios: cargarHorarios,
+  avisos: cargarAvisos,
+  config: async () => renderConfig(),
+};
+
+function alEntrar(panel) {
+  const fn = PANELES[panel];
+  if (fn) conAviso(fn);
 }
 
 // --- arranque ---------------------------------------------------------------
-
-$('#pestanas').addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-vista]');
-  if (b) cambiarVista(b.dataset.vista);
-});
 
 $('#fecha').addEventListener('change', (e) => {
   estado.fecha = e.target.value;
   conAviso(cargarAgenda);
 });
 $('#buscar').addEventListener('input', renderAgenda);
-$('#buscar-cli').addEventListener('input', conAviso.bind(null, cargarClientes));
+$('#buscar-cli').addEventListener('input', () => conAviso(cargarClientes));
 
 $('#nueva').addEventListener('click', () => {
   llenarSelectores();
-  $('#c-error').classList.add('oculto');
+  $('#c-error').hidden = true;
   $('#dlg').showModal();
 });
 $('#c-cancelar').addEventListener('click', () => $('#dlg').close());
+$('#c-cerrar').addEventListener('click', () => $('#dlg').close());
 $('#form-cita').addEventListener('submit', guardarCita);
 
 $('#nuevo-cli').addEventListener('click', () => $('#dlg-cli').showModal());
 $('#cli-cancelar').addEventListener('click', () => $('#dlg-cli').close());
+$('#cli-cerrar').addEventListener('click', () => $('#dlg-cli').close());
 $('#form-cli').addEventListener('submit', guardarCliente);
 
 $('#nuevo-srv').addEventListener('click', () => $('#dlg-srv').showModal());
 $('#srv-cancelar').addEventListener('click', () => $('#dlg-srv').close());
+$('#srv-cerrar').addEventListener('click', () => $('#dlg-srv').close());
 $('#form-srv').addEventListener('submit', guardarServicio);
 
 $('#nuevo-per').addEventListener('click', () => $('#dlg-per').showModal());
 $('#per-cancelar').addEventListener('click', () => $('#dlg-per').close());
+$('#per-cerrar').addEventListener('click', () => $('#dlg-per').close());
 $('#form-per').addEventListener('submit', guardarProfesional);
 
-// La salida se resuelve contra el Core, no contra un logout local: este producto
-// no tiene sesión propia que cerrar.
-$('#salir').addEventListener('click', () => {
-  window.location.href = '/auth/logout';
+AMIGO.montar({
+  nombre: 'Citas',
+  paneles: ['agenda', 'clientes', 'servicios', 'profesionales', 'horarios', 'avisos', 'config'],
+  alEntrar,
 });
 
 conAviso(cargar);

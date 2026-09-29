@@ -4,179 +4,275 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Activos</title>
+<!--
+  Esta pagina no pide usuario ni contrasena: la sesion vive en el Core y este
+  documento solo se sirve si ya la hay. Todo lo que se ve sale de la API, que
+  filtra por organizacion; por eso aca no hay ningun dato de ninguna empresa.
+
+  La forma (tarjetas, botones, tablas, canal lateral) viene de /amigo.css, que
+  es la misma hoja en los nueve productos. Este archivo solo declara que
+  secciones tiene y con que color las pinta: /style.css.
+-->
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<!--
-  Esta página no pide usuario ni contraseña: la sesión vive en el Core y este
-  documento solo se sirve si ya la hay. Todo lo que se ve sale de la API, que
-  filtra por organización; por eso acá no hay ningún dato de ninguna empresa.
--->
-<header>
-  <h1>Activos</h1>
-  <nav id="tabs">
-    <button data-tab="tablero" class="activo">Tablero</button>
-    <button data-tab="activos">Activos</button>
-    <button data-tab="ajustes">Ajustes</button>
-  </nav>
-  <a id="salir" href="/auth/logout">Salir</a>
-</header>
 
-<main>
-  <section id="panel-tablero">
-    <div class="tarjetas" id="resumen"></div>
-    <h3>Ultimos activos registrados</h3>
-    <div id="recientes" class="lineas"></div>
-  </section>
+<div class="ui">
 
-  <section id="panel-activos" hidden>
-    <form id="activo-form">
-      <h3><span id="activo-form-titulo">Nuevo activo</span></h3>
-      <div class="fila">
-        <div>
-          <label for="activo-codigo">Codigo</label>
-          <!--
-            `name="code"` es lo que viaja a la API, y el boton de "proponer" pide
-            `/api/assets/next-code`: el codigo lo propone el servidor, no el
-            formulario, para que dos personas de la misma empresa no propongan
-            el mismo numero a la vez.
-          -->
-          <div class="fila compacta">
-            <input id="activo-codigo" name="code" required maxlength="40">
-            <button type="button" id="activo-proponer-codigo">Proponer</button>
+  <!-- ── el canal: igual en los nueve productos ─────────────────────── -->
+  <aside class="ui-canal">
+    <a class="ui-marca" href="/">
+      <span class="ui-logo" data-amigo="logo" aria-hidden="true">AC</span>
+      <span class="ui-marca__texto">
+        <span class="ui-marca__nombre">Activos</span>
+        <span class="ui-marca__empresa" data-amigo="empresa"></span>
+      </span>
+    </a>
+
+    <nav class="ui-nav" id="tabs" aria-label="Secciones de Activos">
+      <p class="ui-nav__titulo">Inventario</p>
+      <a href="?panel=tablero" data-tab="tablero">Tablero</a>
+      <a href="?panel=activos" data-tab="activos">Activos</a>
+      <p class="ui-nav__titulo">Configuración</p>
+      <a href="?panel=ajustes" data-tab="ajustes">Ajustes</a>
+
+      <p class="ui-nav__titulo" data-amigo="otras-titulo" hidden>Mis otras herramientas</p>
+      <div data-amigo="otras"></div>
+    </nav>
+
+    <div class="ui-pie">
+      <span class="ui-avatar" data-amigo="avatar" aria-hidden="true">–</span>
+      <span class="ui-pie__texto">
+        <span class="ui-pie__nombre" data-amigo="usuario"></span>
+        <span class="ui-pie__correo" data-amigo="correo"></span>
+      </span>
+      <a href="/auth/logout" title="Cerrar sesión">Salir</a>
+    </div>
+  </aside>
+
+  <!-- ── barra ──────────────────────────────────────────────────────── -->
+  <header class="ui-topbar">
+    <div class="ui-topbar__titulo">
+      <h1 data-amigo="titulo">Tablero</h1>
+    </div>
+    <div class="ui-topbar__acciones">
+      <button type="button" class="ui-btn" id="activo-nuevo">Nuevo activo</button>
+    </div>
+  </header>
+
+  <!-- ── contenido ──────────────────────────────────────────────────── -->
+  <main class="ui-main">
+    <div class="ui-envoltura">
+
+      <!-- TABLERO -->
+      <section class="ui-panel" data-panel="tablero">
+        <div class="ui-rejilla ui-rejilla--4" id="resumen"></div>
+
+        <div class="ui-tarjeta" style="margin-top:1rem">
+          <div class="ui-tarjeta__cab">
+            <h2>Últimos activos registrados</h2>
           </div>
+          <div id="recientes" class="ui-lista"></div>
         </div>
-        <div>
-          <label for="activo-nombre">Nombre</label>
-          <input id="activo-nombre" name="name" required maxlength="150">
+      </section>
+
+      <!-- ACTIVOS -->
+      <section class="ui-panel" data-panel="activos" hidden>
+        <div class="ui-tarjeta">
+          <div class="ui-form__fila ui-form__fila--3" style="margin-bottom:.85rem">
+            <div class="ui-campo">
+              <label for="activo-buscar">Buscar</label>
+              <input id="activo-buscar" maxlength="100" placeholder="Codigo, nombre, serie, quien lo tiene">
+            </div>
+            <div class="ui-campo">
+              <label for="activo-filtro">Estado</label>
+              <select id="activo-filtro">
+                <option value="">Todos</option>
+                <option value="active">En uso</option>
+                <option value="repair">En reparacion</option>
+                <option value="retired">Dado de baja</option>
+                <option value="lost">Perdido</option>
+              </select>
+            </div>
+          </div>
+          <div id="activos-lista"></div>
+        </div>
+      </section>
+
+      <!-- AJUSTES -->
+      <section class="ui-panel" data-panel="ajustes" hidden>
+        <form class="ui-tarjeta ui-form" id="config-form" style="max-width:34rem">
+          <div class="ui-tarjeta__cab">
+            <h2>Ajustes</h2>
+          </div>
+          <div class="ui-form__fila ui-form__fila--2">
+            <div class="ui-campo">
+              <label for="cfg-moneda">Moneda</label>
+              <input id="cfg-moneda" name="currency" maxlength="5">
+            </div>
+            <div class="ui-campo">
+              <label for="cfg-zona">Zona horaria</label>
+              <input id="cfg-zona" name="timezone" maxlength="64">
+            </div>
+          </div>
+          <div class="ui-form__pie">
+            <button type="submit" class="ui-btn">Guardar ajustes</button>
+          </div>
+        </form>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!--
+  El formulario del activo. Es un dialogo y no otra seccion porque se abre
+  encima del listado: se agrega o se corrige algo y se vuelve a lo que se
+  estaba viendo, sin perder la pagina ni el filtro.
+
+  El COSTO va en CENTAVOS y no en pesos a proposito: es la misma unidad en que
+  se guarda y en que viaja por la API, y por eso esta pantalla no multiplica ni
+  divide el monto para mandarlo. El texto de ayuda muestra como se va a ver.
+-->
+<dialog id="activo-dialog" class="ui-ancho">
+  <form class="ui-tarjeta ui-form" id="activo-form">
+    <div class="ui-cabecera-modal">
+      <h2 id="activo-form-titulo">Nuevo activo</h2>
+      <button type="button" class="ui-cerrar" id="activo-cerrar" aria-label="Cerrar">&times;</button>
+    </div>
+    <input type="hidden" id="activo-id">
+
+    <div class="ui-form__fila ui-form__fila--2">
+      <div class="ui-campo">
+        <label for="activo-codigo">Codigo</label>
+        <!--
+          `name="code"` es lo que viaja a la API, y el boton de "proponer" pide
+          `/api/assets/next-code`: el codigo lo propone el servidor, no el
+          formulario, para que dos personas de la misma empresa no propongan
+          el mismo numero a la vez.
+        -->
+        <div class="ui-fila">
+          <input id="activo-codigo" name="code" required maxlength="40" style="flex:1;min-width:8rem">
+          <button type="button" class="ui-btn ui-btn--chico" id="activo-proponer-codigo">Proponer</button>
         </div>
       </div>
+      <div class="ui-campo">
+        <label for="activo-nombre">Nombre</label>
+        <input id="activo-nombre" name="name" required maxlength="150">
+      </div>
+    </div>
+
+    <div class="ui-campo">
       <label for="activo-categoria">Categoria</label>
       <input id="activo-categoria" name="category" required maxlength="150" placeholder="herramienta, equipo de computo, vehiculo">
-      <div class="fila">
-        <div>
-          <label for="activo-marca">Marca</label>
-          <input id="activo-marca" name="brand" maxlength="80">
-        </div>
-        <div>
-          <label for="activo-modelo">Modelo</label>
-          <input id="activo-modelo" name="model" maxlength="80">
-        </div>
-        <div>
-          <label for="activo-serie">Numero de serie</label>
-          <input id="activo-serie" name="serial" maxlength="80">
-        </div>
-      </div>
-      <div class="fila">
-        <div>
-          <label for="activo-estado">Estado</label>
-          <select id="activo-estado" name="status">
-            <option value="active">En uso</option>
-            <option value="repair">En reparacion</option>
-            <option value="retired">Dado de baja</option>
-            <option value="lost">Perdido</option>
-          </select>
-        </div>
-        <div>
-          <label for="activo-ubicacion">Ubicacion</label>
-          <input id="activo-ubicacion" name="location" maxlength="150">
-        </div>
-      </div>
-      <div class="fila">
-        <div>
-          <label for="activo-responsable">Lo tiene</label>
-          <input id="activo-responsable" name="assignedTo" maxlength="120">
-        </div>
-        <div>
-          <label for="activo-compra">Comprado el</label>
-          <input id="activo-compra" name="purchaseDate" type="date">
-        </div>
-        <div>
-          <label for="activo-costo">Costo (centavos)</label>
-          <!--
-            El campo va en CENTAVOS y no en pesos a proposito: es la misma unidad
-            en que se guarda y en que viaja por la API, y por eso esta pantalla
-            no multiplica ni divide el monto para mandarlo. El texto de ayuda de
-            abajo muestra como se va a ver.
-          -->
-          <input id="activo-costo" name="costCents" type="number" min="0" step="1" value="0">
-          <small id="activo-costo-vista">$ 0</small>
-        </div>
-      </div>
-      <label for="activo-notas">Notas</label>
-      <input id="activo-notas" name="notes" maxlength="2000">
-      <input type="hidden" id="activo-id">
-      <div class="fila">
-        <button type="submit">Guardar</button>
-        <button type="button" id="activo-cancelar" hidden>Cancelar</button>
-      </div>
-    </form>
+    </div>
 
-    <div class="fila">
-      <div>
-        <label for="activo-buscar">Buscar</label>
-        <input id="activo-buscar" maxlength="100" placeholder="Codigo, nombre, serie, quien lo tiene">
+    <div class="ui-form__fila ui-form__fila--3">
+      <div class="ui-campo">
+        <label for="activo-marca">Marca</label>
+        <input id="activo-marca" name="brand" maxlength="80">
       </div>
-      <div>
-        <label for="activo-filtro">Estado</label>
-        <select id="activo-filtro">
-          <option value="">Todos</option>
+      <div class="ui-campo">
+        <label for="activo-modelo">Modelo</label>
+        <input id="activo-modelo" name="model" maxlength="80">
+      </div>
+      <div class="ui-campo">
+        <label for="activo-serie">Numero de serie</label>
+        <input id="activo-serie" name="serial" maxlength="80">
+      </div>
+    </div>
+
+    <div class="ui-form__fila ui-form__fila--2">
+      <div class="ui-campo">
+        <label for="activo-estado">Estado</label>
+        <select id="activo-estado" name="status">
           <option value="active">En uso</option>
           <option value="repair">En reparacion</option>
           <option value="retired">Dado de baja</option>
           <option value="lost">Perdido</option>
         </select>
       </div>
+      <div class="ui-campo">
+        <label for="activo-ubicacion">Ubicacion</label>
+        <input id="activo-ubicacion" name="location" maxlength="150">
+      </div>
     </div>
-    <div id="activos-lista"></div>
-  </section>
 
-  <section id="panel-ajustes" hidden>
-    <form id="config-form">
-      <h3>Ajustes</h3>
-      <label for="cfg-moneda">Moneda</label>
-      <input id="cfg-moneda" name="currency" maxlength="5">
-      <label for="cfg-zona">Zona horaria</label>
-      <input id="cfg-zona" name="timezone" maxlength="64">
-      <button type="submit">Guardar ajustes</button>
-    </form>
-  </section>
-</main>
+    <div class="ui-form__fila ui-form__fila--3">
+      <div class="ui-campo">
+        <label for="activo-responsable">Lo tiene</label>
+        <input id="activo-responsable" name="assignedTo" maxlength="120">
+      </div>
+      <div class="ui-campo">
+        <label for="activo-compra">Comprado el</label>
+        <input id="activo-compra" name="purchaseDate" type="date">
+      </div>
+      <div class="ui-campo">
+        <label for="activo-costo">Costo (centavos)</label>
+        <input id="activo-costo" name="costCents" type="number" min="0" step="1" value="0">
+        <span class="ui-pista" id="activo-costo-vista">se ve como $ 0</span>
+      </div>
+    </div>
+
+    <div class="ui-campo">
+      <label for="activo-notas">Notas</label>
+      <input id="activo-notas" name="notes" maxlength="2000">
+    </div>
+
+    <div class="ui-form__pie">
+      <button type="submit" class="ui-btn">Guardar</button>
+      <button type="button" class="ui-btn ui-btn--fantasma" id="activo-cancelar">Cancelar</button>
+    </div>
+  </form>
+</dialog>
 
 <!--
   La ficha de un activo. Es un dialogo y no otra seccion porque se abre encima de
   la lista: el historial se mira y se vuelve al listado, sin perder la pagina.
 -->
-<dialog id="ficha-dialog">
-  <div id="ficha"></div>
-
-  <form id="movimiento-form">
-    <h4>Registrar un movimiento</h4>
-    <label for="movimiento-tipo">Que paso</label>
-    <select id="movimiento-tipo" name="kind">
-      <option value="checkout">Salio (checkout)</option>
-      <option value="checkin">Volvio (checkin)</option>
-      <option value="maintenance">A reparacion (maintenance)</option>
-      <option value="loss">Se perdio (loss)</option>
-    </select>
-    <!--
-      El responsable solo se pide cuando el tipo es `checkout`, y el servidor lo
-      exige tambien: la pantalla esconde el campo, la API lo valida. Ninguna de
-      las dos se fía de la otra.
-    -->
-    <label for="movimiento-responsable">A quien se entrega (solo en checkout)</label>
-    <input id="movimiento-responsable" name="assignedTo" maxlength="120">
-    <label for="movimiento-nota">Nota</label>
-    <input id="movimiento-nota" name="note" maxlength="2000">
-    <button type="submit">Registrar movimiento</button>
-  </form>
-
-  <div class="fila">
-    <button type="button" id="ficha-cerrar">Cerrar</button>
+<dialog id="ficha-dialog" class="ui-ancho">
+  <div class="ui-tarjeta">
+    <div id="ficha"></div>
   </div>
+
+  <form class="ui-tarjeta ui-form" id="movimiento-form" style="margin-top:1rem">
+    <div class="ui-tarjeta__cab">
+      <h2>Registrar un movimiento</h2>
+    </div>
+    <div class="ui-form__fila ui-form__fila--2">
+      <div class="ui-campo">
+        <label for="movimiento-tipo">Que pasó</label>
+        <select id="movimiento-tipo" name="kind">
+          <option value="checkout">Salio (checkout)</option>
+          <option value="checkin">Volvio (checkin)</option>
+          <option value="maintenance">A reparacion (maintenance)</option>
+          <option value="loss">Se perdio (loss)</option>
+        </select>
+      </div>
+      <!--
+        El responsable solo se pide cuando el tipo es `checkout`, y el servidor lo
+        exige tambien: la pantalla esconde el campo, la API lo valida. Ninguna de
+        las dos se fia de la otra.
+      -->
+      <div class="ui-campo">
+        <label for="movimiento-responsable">A quien se entrega (solo en checkout)</label>
+        <input id="movimiento-responsable" name="assignedTo" maxlength="120">
+      </div>
+    </div>
+    <div class="ui-campo">
+      <label for="movimiento-nota">Nota</label>
+      <input id="movimiento-nota" name="note" maxlength="2000">
+    </div>
+    <div class="ui-form__pie">
+      <button type="submit" class="ui-btn">Registrar movimiento</button>
+      <button type="button" class="ui-btn ui-btn--fantasma" id="ficha-cerrar">Cerrar</button>
+    </div>
+  </form>
 </dialog>
 
-<div id="aviso" hidden></div>
+<div id="aviso" class="ui-aviso" hidden></div>
+<script src="/amigo-ui.js"></script>
+<script src="/amigo.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

@@ -32,78 +32,53 @@
  *
  *   6. Un punto respondido es un hecho. De una corrida no se quita nada: editar
  *      la plantilla cambia lo que vendra, no lo que ya paso.
+ *
+ * Lo unico que este producto pone de su cuenta son las dos listas de puntos
+ * (`ck-` en su `style.css`). Las tablas, etiquetas, tarjetas y botones vienen de
+ * `AMIGO_UI`, igual que en los otros ocho.
  */
 
-const $ = (sel) => document.querySelector(sel);
+const $ = AMIGO_UI.$;
+const api = AMIGO_UI.api;
+const avisar = AMIGO_UI.avisar;
 
 const RESPUESTAS = ['ok', 'fail', 'na'];
 
-const estado = {
-  plantillas: [],
-  /** La estructura de la plantilla abierta en el editor (`/estructura`). */
-  estructura: { template: null, sections: [] },
-  /** El punto que se esta editando en el editor, para saber a donde mandar el PATCH. */
-  puntoEditando: null,
-  corridas: [],
-  cfg: { currency: '$', timezone: 'America/Santiago' },
-  /** La corrida abierta en la ficha, para reescribirla al responder un punto. */
-  corridaId: null,
+const RUNS = {
+  in_progress: { texto: 'En curso', tono: 'acento' },
+  done: { texto: 'Completada', tono: 'ok' },
+  canceled: { texto: 'Cancelada', tono: 'neutro' },
 };
 
-async function api(ruta, opciones = {}) {
-  const res = await fetch(ruta, {
-    headers: { 'content-type': 'application/json' },
-    ...opciones,
-    body: opciones.body ? JSON.stringify(opciones.body) : undefined,
-  });
-  const datos = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const err = new Error(datos.error ?? 'No se pudo completar la operacion');
-    err.status = res.status;
-    err.detalle = datos;
-    throw err;
-  }
-  return datos;
-}
-
-function avisar(mensaje, malo = false) {
-  const caja = $('#aviso');
-  caja.textContent = mensaje;
-  caja.classList.toggle('malo', malo);
-  caja.hidden = false;
-  clearTimeout(caja.t);
-  caja.t = setTimeout(() => { caja.hidden = true; }, 5000);
-}
-
-function escapar(texto) {
-  return String(texto ?? '').replace(/[&<>"']/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
-  );
-}
-
-const ETIQUETA_RUN = {
-  in_progress: 'En curso',
-  done: 'Completada',
-  canceled: 'Cancelada',
+const RESULTADO = {
+  ok: { texto: 'Cumple', tono: 'ok' },
+  fail: { texto: 'No cumple', tono: 'malo' },
+  na: { texto: 'No aplica', tono: 'aviso' },
 };
 
-const ETIQUETA_RESULTADO = {
-  ok: 'Cumple',
-  fail: 'No cumple',
-  na: 'No aplica',
-};
-
-const ETIQUETA_TIPO = {
+const TIPOS = {
   yes_no: 'Si / No',
   text: 'Texto',
   number: 'Numero',
   select: 'Seleccion',
 };
 
-const ETIQUETA_RESULTADO_GLOBAL = {
+const VEREDICTO = {
   approved: 'Aprobado',
   observed: 'Observado',
   rejected: 'Rechazado',
+};
+
+const estado = {
+  plantillas: [],
+  /** La estructura de la plantilla abierta en el editor (`/estructura`). */
+  estructura: { template: null, sections: [] },
+  /** La plantilla abierta en el editor de puntos, para saber a donde mandar. */
+  plantillaId: null,
+  corridas: [],
+  cfg: { currency: '$', timezone: 'America/Santiago' },
+  /** La corrida abierta en la ficha, para reescribirla al responder un punto. */
+  corridaId: null,
 };
 
 /**
@@ -148,6 +123,9 @@ function porcentaje(valor) {
   return valor === null || valor === undefined ? '—' : `${valor}%`;
 }
 
+/** Una etiqueta que no depende de un mapa: para metadatos, no para estados. */
+const nota = (texto) => AMIGO_UI.etiqueta(texto, 'neutro');
+
 // ─────────────────────────────────────────────────────────────── carga de datos
 
 async function cargar() {
@@ -163,46 +141,54 @@ async function cargar() {
   pintarSelectores();
 }
 
-function tarjeta(numero, texto) {
-  return `<div class="tarjeta"><strong>${escapar(numero)}</strong><span>${escapar(texto)}</span></div>`;
-}
-
 // ─────────────────────────────────────────────────────────────────────── tablero
 
 async function pintarTablero() {
   const tablero = await api('/api/dashboard');
 
-  $('#resumen').innerHTML = [
-    tarjeta(tablero.total, 'Corridas'),
-    tarjeta(tablero.porStatus.in_progress, 'En curso'),
-    tarjeta(tablero.porStatus.done, 'Completadas'),
-    tarjeta(tablero.porStatus.canceled, 'Canceladas'),
-    tarjeta(tablero.porResultado.approved, 'Aprobadas'),
-    tarjeta(tablero.porResultado.observed, 'Observadas'),
-    tarjeta(tablero.porResultado.rejected, 'Rechazadas'),
-    tarjeta(tablero.porResultado.sin, 'Sin veredicto'),
-    tarjeta(porcentaje(tablero.cumplimientoPromedioPct), 'Cumplimiento promedio'),
-  ].join('');
+  AMIGO_UI.kpis($('#resumen'), [
+    [tablero.total, 'Corridas', true],
+    [tablero.porStatus.in_progress, 'En curso'],
+    [tablero.porStatus.done, 'Completadas'],
+    [tablero.porStatus.canceled, 'Canceladas'],
+    [tablero.porResultado.approved, 'Aprobadas'],
+    [tablero.porResultado.observed, 'Observadas'],
+    [tablero.porResultado.rejected, 'Rechazadas'],
+    [tablero.porResultado.sin, 'Sin veredicto'],
+    [porcentaje(tablero.cumplimientoPromedioPct), 'Cumplimiento promedio'],
+  ]);
 
   // El tablero arma la lista de fallas con el nombre de la corrida pegado a cada
   // punto. El servidor se lo manda junto: el punto sin saber de donde salio obliga
   // a abrir diez fichas para encontrarlo.
-  $('#fallos').innerHTML =
-    tablero.fallos
-      .map(
-        (f) =>
-          '<div class="linea"><span><strong>' +
-          escapar(f.position + '. ' + f.label) +
-          '</strong>' +
-          (f.note ? '<br><small>' + escapar(f.note) + '</small>' : '') +
-          '</span><span class="estado">' +
-          escapar(f.templateName) +
-          (f.location ? ' &middot; ' + escapar(f.location) : '') +
-          ' &middot; ' +
-          escapar(instanteCorto(f.startedAt)) +
-          '</span></div>',
-      )
-      .join('') || '<div class="ficha vacia">No hay puntos fallados en las ultimas corridas</div>';
+  const caja = $('#fallos');
+  if (tablero.fallos.length === 0) {
+    AMIGO_UI.vacio(caja, 'No hay puntos fallados en las ultimas corridas');
+    return;
+  }
+  caja.replaceChildren(
+    ...tablero.fallos.map((f) => {
+      const ficha = document.createElement('div');
+      ficha.className = 'ui-ficha';
+      const cuerpo = document.createElement('div');
+      cuerpo.className = 'ui-ficha__cuerpo';
+      const titulo = document.createElement('span');
+      titulo.className = 'ui-ficha__titulo';
+      titulo.textContent = `${f.position}. ${f.label}`;
+      cuerpo.append(titulo);
+      if (f.note) {
+        const extra = document.createElement('span');
+        extra.className = 'ui-ficha__nota';
+        extra.textContent = f.note;
+        cuerpo.append(extra);
+      }
+      const acciones = document.createElement('div');
+      acciones.className = 'ui-ficha__acciones';
+      acciones.append(nota([f.templateName, f.location, instanteCorto(f.startedAt)].filter(Boolean).join(' · ')));
+      ficha.append(cuerpo, acciones);
+      return ficha;
+    }),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────── plantillas
@@ -218,56 +204,91 @@ function pintarPlantillas() {
     return [t.name, t.description].some((v) => String(v ?? '').toLowerCase().includes(busqueda));
   });
 
-  $('#plantillas-lista').innerHTML = lista.length
-    ? '<table><thead><tr><th>Nombre</th><th>Descripcion</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>' +
-      lista
-        .map(
-          (t) =>
-            '<tr><td>' +
-            escapar(t.name) +
-            '</td><td>' +
-            escapar(t.description ?? '—') +
-            '</td><td>' +
-            (t.active ? 'Activa' : 'Inactiva') +
-            '</td><td>' +
-            '<button type="button" data-puntos="' +
-            t.id +
-            '">Puntos</button> ' +
-            '<button type="button" data-editar="' +
-            t.id +
-            '">Editar</button> ' +
-            '<button type="button" data-toggle="' +
-            t.id +
-            '">' +
-            (t.active ? 'Desactivar' : 'Activar') +
-            '</button> ' +
-            '<button type="button" data-duplicar="' +
-            t.id +
-            '">Duplicar</button> ' +
-            '<button type="button" data-borrar="' +
-            t.id +
-            '">Borrar</button>' +
-            '</td></tr>',
-        )
-        .join('') +
-      '</tbody></table>'
-    : '<div class="ficha vacia">No hay plantillas que coincidan</div>';
+  const tabla = AMIGO_UI.tabla(['Nombre', 'Descripcion', 'Estado', '']);
+  const cuerpo = AMIGO_UI.cuerpoDe(tabla);
+
+  if (lista.length === 0) {
+    cuerpo.append(AMIGO_UI.filaVacia(4, 'No hay plantillas que coincidan'));
+  } else {
+    for (const t of lista) {
+      cuerpo.append(
+        AMIGO_UI.fila(
+          [
+            t.name,
+            t.description ?? '—',
+            t.active ? nota('Activa') : nota('Inactiva'),
+            AMIGO_UI.celda(
+              AMIGO_UI.boton('Puntos', () => abrirEditor(t.id)),
+              AMIGO_UI.boton('Editar', () => abrirPlantilla(t)),
+              AMIGO_UI.boton(
+                t.active ? 'Desactivar' : 'Activar',
+                async () => {
+                  try {
+                    await api(`/api/templates/${t.id}`, { method: 'PATCH', body: { active: !t.active } });
+                    await recargar();
+                    avisar(t.active ? 'Plantilla desactivada' : 'Plantilla activada');
+                  } catch (e) {
+                    avisar(e.message, true);
+                  }
+                },
+              ),
+              AMIGO_UI.boton(
+                'Duplicar',
+                async () => {
+                  try {
+                    await api(`/api/templates/${t.id}/duplicar`, { method: 'POST', body: {} });
+                    await recargar();
+                    avisar('Plantilla duplicada');
+                  } catch (e) {
+                    avisar(e.message, true);
+                  }
+                },
+              ),
+              AMIGO_UI.boton(
+                'Borrar',
+                async () => {
+                  if (!confirm('Borrar la plantilla y sus puntos?')) return;
+                  try {
+                    await api(`/api/templates/${t.id}`, { method: 'DELETE' });
+                    if (estado.plantillaId === t.id) estado.plantillaId = null;
+                    await recargar();
+                    avisar('Plantilla borrada');
+                  } catch (e) {
+                    avisar(e.message, true);
+                  }
+                },
+                'ui-btn ui-btn--chico ui-btn--fantasma ui-btn--peligro',
+              ),
+            ),
+          ],
+          { className: 'acciones' },
+        ),
+      );
+    }
+  }
+
+  $('#plantillas-lista').replaceChildren(AMIGO_UI.cajaTabla(tabla));
 }
 
 /** Los dos selectores de plantillas (empezar corrida y filtrar corridas). */
 function pintarSelectores() {
-  const opcion = (t) => `<option value="${escapar(t.id)}">${escapar(t.name)}</option>`;
   // Solo las activas alcanzan al selector de "empezar corrida": una plantilla
   // desactivada existe, pero elegirla a proposito se hace con el filtro de la
   // lista, no por accidente desde el formulario.
   const activas = estado.plantillas.filter((t) => t.active);
 
-  $('#corrida-plantilla').innerHTML =
-    '<option value="">Corrida libre (sin plantilla)</option>' + activas.map(opcion).join('');
+  $('#corrida-plantilla').replaceChildren(
+    new Option('Corrida libre (sin plantilla)', ''),
+    ...activas.map((t) => new Option(t.name, t.id)),
+  );
 
+  // El filtro se rearma pero se le devuelve lo que habia: recargar la pantalla
+  // despues de guardar algo no puede cambiar el filtro que alguien eligio.
   const elegido = $('#corrida-plantilla-filtro').value;
-  $('#corrida-plantilla-filtro').innerHTML =
-    '<option value="">Todas</option>' + estado.plantillas.map(opcion).join('');
+  $('#corrida-plantilla-filtro').replaceChildren(
+    new Option('Todas', ''),
+    ...estado.plantillas.map((t) => new Option(t.name, t.id)),
+  );
   $('#corrida-plantilla-filtro').value = elegido;
 }
 
@@ -277,112 +298,19 @@ function abrirPlantilla(plantilla) {
   $('#plantilla-cancelar').hidden = !plantilla;
   $('#plantilla-nombre').value = plantilla?.name ?? '';
   $('#plantilla-descripcion').value = plantilla?.description ?? '';
-  // Al editar NO se tocan los puntos que ya estan: se editan en el editor de
-  // abajo, por seccion y uno por uno, con sus propios endpoints. Volver a mandar
-  // el textarea sobreescribiria la lista de la plantilla con lo que la pantalla
-  // recuerda, y en cuanto alguien abriera la misma plantilla en otra pestania se
-  // perderian los puntos que agrego.
+  // Al editar NO se tocan los puntos que ya estan: se editan en el editor, por
+  // seccion y uno por uno, con sus propios endpoints. Volver a mandar el textarea
+  // sobreescribiria la lista de la plantilla con lo que la pantalla recuerda, y
+  // en cuanto alguien abriera la misma plantilla en otra pestania se perderian
+  // los puntos que agrego.
   $('#plantilla-items').value = '';
   $('#plantilla-items').disabled = Boolean(plantilla);
-  $('#plantilla-editor').hidden = !plantilla;
-  estado.puntoEditando = null;
-  if (plantilla) {
-    $('#plantilla-seleccionada').textContent = plantilla.name;
-    abrirPuntos(plantilla.id);
-  }
+  if (!$('#plantilla-dialog').open) $('#plantilla-dialog').showModal();
 }
 
-async function abrirPuntos(plantillaId) {
-  const datos = await api(`/api/templates/${plantillaId}/estructura`);
-  estado.estructura = datos;
-  $('#plantilla-seleccionada').textContent =
-    estado.plantillas.find((t) => t.id === plantillaId)?.name ?? datos.template.name ?? '';
-  pintarEditor();
-}
-
-/**
- * Pinta el editor completo: la lista de secciones con sus puntos, el selector de
- * seccion del form de agregar y los forms de edicion (que quedan ocultos).
- *
- * Los `position` que se muestran son los de la API: las secciones ya vienen
- * 1..N y los puntos de cada seccion 1..N, renumerados por el servidor.
- */
-function pintarEditor() {
-  const { sections } = estado.estructura;
-
-  // El selector de seccion del form de agregar un punto.
-  const elegida = $('#punto-seccion').value;
-  $('#punto-seccion').innerHTML = sections
-    .map((s, i) => `<option value="${escapar(s.id)}">${i + 1}. ${escapar(s.name)}</option>`)
-    .join('');
-  if (!sections.some((s) => s.id === elegida)) {
-    $('#punto-seccion').value = sections[0]?.id ?? '';
-  } else {
-    $('#punto-seccion').value = elegida;
-  }
-
-  $('#plantilla-secciones-lista').innerHTML = sections.length
-    ? sections
-        .map((s, i) => {
-          const puntos = s.items.length
-            ? s.items
-                .map(
-                  (p) =>
-                    '<div class="linea"><span><strong>' +
-                    p.position +
-                    '.</strong> ' +
-                    escapar(p.label) +
-                    ' <small>(' +
-                    escapar(ETIQUETA_TIPO[p.type] ?? p.type) +
-                    ' · ' +
-                    (p.required ? 'obligatorio' : 'opcional') +
-                    ')</small></span><span class="estado">' +
-                    '<button type="button" data-editar-item="' +
-                    p.id +
-                    '">Editar</button> ' +
-                    '<button type="button" data-quitar="' +
-                    p.id +
-                    '">Quitar</button></span></div>',
-                )
-                .join('')
-            : '<div class="ficha vacia">Esta seccion no tiene puntos todavia</div>';
-          return (
-            '<section class="seccion"><div class="seccion-cabecera"><strong>' +
-            (i + 1) +
-            '.</strong>' +
-            '<span class="seccion-nombre">' +
-            escapar(s.name) +
-            '</span><span class="estado">' +
-            '<button type="button" data-seccion-subir="' +
-            s.id +
-            '">Subir</button> ' +
-            '<button type="button" data-seccion-bajar="' +
-            s.id +
-            '">Bajar</button> ' +
-            '<button type="button" data-seccion-renombrar="' +
-            s.id +
-            '">Renombrar</button> ' +
-            '<button type="button" data-seccion-borrar="' +
-            s.id +
-            '">Borrar seccion</button></span></div>' +
-            '<div class="seccion-puntos">' +
-            puntos +
-            '</div></section>'
-          );
-        })
-        .join('')
-    : '<div class="ficha vacia">Esta plantilla no tiene secciones todavia. Agrega una abajo o empieza por los puntos.</div>';
-
-  // Los forms de edicion arrancan siempre ocultos; se abren al pulsar Editar.
-  estado.puntoEditando = null;
-  $('#punto-editar-form').hidden = true;
-}
-
-$('#plantilla-cancelar').addEventListener('click', () => {
-  abrirPlantilla(null);
-  $('#plantilla-editor').hidden = true;
-});
-
+$('#plantilla-cancelar').addEventListener('click', () => $('#plantilla-dialog').close());
+$('#plantilla-cerrar').addEventListener('click', () => $('#plantilla-dialog').close());
+$('#plantilla-nueva').addEventListener('click', () => abrirPlantilla(null));
 $('#plantilla-buscar').addEventListener('input', pintarPlantillas);
 $('#plantilla-filtro').addEventListener('change', pintarPlantillas);
 
@@ -403,14 +331,141 @@ $('#plantilla-form').addEventListener('submit', async (e) => {
       const items = puntosDesdeTexto($('#plantilla-items').value);
       await api('/api/templates', { method: 'POST', body: { ...cuerpo, items } });
     }
-    abrirPlantilla(null);
-    $('#plantilla-editor').hidden = true;
+    $('#plantilla-dialog').close();
     await recargar();
     avisar(id ? 'Plantilla actualizada' : 'Plantilla creada');
   } catch (err) {
     avisar(err.message, true);
   }
 });
+
+// ────────────────────────────────────────────────────────────────────── editor
+
+/** Abre el editor de puntos de una plantilla. */
+async function abrirEditor(plantillaId) {
+  estado.plantillaId = plantillaId;
+  await abrirPuntos(plantillaId);
+  $('#plantilla-editor').hidden = false;
+  $('#plantilla-editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function abrirPuntos(plantillaId) {
+  const datos = await api(`/api/templates/${plantillaId}/estructura`);
+  estado.estructura = datos;
+  estado.plantillaId = plantillaId;
+  $('#plantilla-seleccionada').textContent =
+    estado.plantillas.find((t) => t.id === plantillaId)?.name ?? datos.template.name ?? '';
+  pintarEditor();
+}
+
+/** Un punto dentro del editor: su numero, su texto, su tipo y sus botones. */
+function pintarItem(p) {
+  const fila = document.createElement('div');
+  fila.className = 'ck-item';
+  const texto = document.createElement('div');
+  texto.className = 'ck-item__texto';
+  const fuerte = document.createElement('strong');
+  fuerte.textContent = `${p.position}. ${p.label}`;
+  const meta = document.createElement('div');
+  meta.className = 'ck-item__meta';
+  meta.textContent = `${TIPOS[p.type] ?? p.type} · ${p.required ? 'obligatorio' : 'opcional'}`;
+  texto.append(fuerte, meta);
+  const acciones = document.createElement('div');
+  acciones.className = 'ck-item__acciones';
+  acciones.append(
+    AMIGO_UI.boton('Editar', () => abrirEditarPunto(p.id)),
+    AMIGO_UI.boton(
+      'Quitar',
+      () => quitarPunto(p.id),
+      'ui-btn ui-btn--chico ui-btn--fantasma ui-btn--peligro',
+    ),
+  );
+  fila.append(texto, acciones);
+  return fila;
+}
+
+function abrirEditarPunto(itemId) {
+  const punto = estado.estructura.sections.flatMap((s) => s.items).find((p) => p.id === itemId);
+  if (!punto) return;
+  $('#punto-editar-id').value = punto.id;
+  $('#punto-editar-label').value = punto.label;
+  $('#punto-editar-tipo').value = punto.type;
+  $('#punto-editar-required').checked = Boolean(punto.required);
+  $('#punto-editar-opciones').value = (punto.options ?? []).join('\n');
+  $('#punto-editar-opciones-caja').hidden = punto.type !== 'select';
+  $('#punto-editar-form').hidden = false;
+  $('#punto-editar-label').focus();
+}
+
+/**
+ * Pinta el editor completo: la lista de secciones con sus puntos y el selector de
+ * seccion del form de agregar.
+ *
+ * Los `position` que se muestran son los de la API: las secciones ya vienen
+ * 1..N y los puntos de cada seccion 1..N, renumerados por el servidor.
+ */
+function pintarEditor() {
+  const { sections } = estado.estructura;
+
+  // El selector de seccion del form de agregar un punto.
+  const elegida = $('#punto-seccion').value;
+  $('#punto-seccion').replaceChildren(
+    ...sections.map((s, i) => new Option(`${i + 1}. ${s.name}`, s.id)),
+  );
+  $('#punto-seccion').value = sections.some((s) => s.id === elegida) ? elegida : sections[0]?.id ?? '';
+
+  const caja = $('#plantilla-secciones-lista');
+  if (sections.length === 0) {
+    AMIGO_UI.vacio(
+      caja,
+      'Esta plantilla no tiene secciones todavia. Agrega una abajo o empieza por los puntos.',
+    );
+    return;
+  }
+
+  caja.replaceChildren(
+    ...sections.map((s, i) => {
+      const seccion = document.createElement('div');
+      seccion.className = 'ck-seccion';
+
+      const cab = document.createElement('div');
+      cab.className = 'ck-seccion__cab';
+      const num = document.createElement('span');
+      num.className = 'ck-seccion__num';
+      num.textContent = String(i + 1);
+      const nombre = document.createElement('span');
+      nombre.className = 'ck-seccion__nombre';
+      nombre.textContent = s.name;
+      const acciones = document.createElement('div');
+      acciones.className = 'ck-seccion__acciones';
+      acciones.append(
+        AMIGO_UI.boton('Subir', () => moverSeccion(s.id, -1)),
+        AMIGO_UI.boton('Bajar', () => moverSeccion(s.id, 1)),
+        AMIGO_UI.boton('Renombrar', () => abrirRenombrarSeccion(s)),
+        AMIGO_UI.boton(
+          'Borrar sección',
+          () => borrarSeccion(s.id),
+          'ui-btn ui-btn--chico ui-btn--fantasma ui-btn--peligro',
+        ),
+      );
+      cab.append(num, nombre, acciones);
+
+      const puntos = document.createElement('div');
+      puntos.className = 'ck-seccion__puntos';
+      if (s.items.length === 0) {
+        AMIGO_UI.vacio(puntos, 'Esta seccion no tiene puntos todavia');
+      } else {
+        puntos.replaceChildren(...s.items.map(pintarItem));
+      }
+
+      seccion.append(cab, puntos);
+      return seccion;
+    }),
+  );
+
+  // Los forms de edicion arrancan siempre ocultos; se abren al pulsar Editar.
+  $('#punto-editar-form').hidden = true;
+}
 
 /**
  * Mueve una seccion una posicion, mandando el orden NUEVO entero a la API.
@@ -424,14 +479,14 @@ async function moverSeccion(seccionId, delta) {
   const destino = indice + delta;
   if (indice < 0 || destino < 0 || destino >= orden.length) return;
   [orden[indice], orden[destino]] = [orden[destino], orden[indice]];
-  const plantillaId = $('#plantilla-id').value;
+  const plantillaId = estado.plantillaId;
   try {
     await api(`/api/templates/${plantillaId}/sections/ordenar`, { method: 'POST', body: { order: orden } });
     await abrirPuntos(plantillaId);
     await recargar();
     avisar('Seccion movida');
-  } catch (err) {
-    avisar(err.message, true);
+  } catch (e) {
+    avisar(e.message, true);
   }
 }
 
@@ -443,17 +498,43 @@ function abrirRenombrarSeccion(seccion) {
   $('#seccion-renombrar-nombre').focus();
 }
 
+async function borrarSeccion(seccionId) {
+  // Borrar una seccion borra SUS PUNTOS con ella; las corriadas ya hechas no
+  // se tocan, que es lo que dice el aviso.
+  if (!confirm('Se borran la seccion y sus puntos de la plantilla. Las corridas quedan con su copia.')) return;
+  try {
+    await api(`/api/templates/${estado.plantillaId}/sections/${seccionId}`, { method: 'DELETE' });
+    await abrirPuntos(estado.plantillaId);
+    await recargar();
+    avisar('Seccion borrada y renumerada');
+  } catch (e) {
+    avisar(e.message, true);
+  }
+}
+
+async function quitarPunto(itemId) {
+  try {
+    // El servidor renumera lo que queda a 1..N y devuelve la lista nueva: por eso
+    // esta pantalla repinta con la respuesta en vez de tapar el numero en local.
+    await api(`/api/templates/${estado.plantillaId}/items/${itemId}`, { method: 'DELETE' });
+    await abrirPuntos(estado.plantillaId);
+    await recargar();
+    avisar('Punto quitado y renumerado');
+  } catch (e) {
+    avisar(e.message, true);
+  }
+}
+
 $('#seccion-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const plantillaId = $('#plantilla-id').value;
-  if (!plantillaId) return;
+  if (!estado.plantillaId) return;
   try {
-    await api(`/api/templates/${plantillaId}/sections`, {
+    await api(`/api/templates/${estado.plantillaId}/sections`, {
       method: 'POST',
       body: { name: $('#seccion-nombre').value },
     });
     $('#seccion-nombre').value = '';
-    await abrirPuntos(plantillaId);
+    await abrirPuntos(estado.plantillaId);
     await recargar();
     avisar('Seccion agregada');
   } catch (err) {
@@ -463,14 +544,13 @@ $('#seccion-form').addEventListener('submit', async (e) => {
 
 $('#seccion-renombrar-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const plantillaId = $('#plantilla-id').value;
   try {
-    await api(
-      `/api/templates/${plantillaId}/sections/${$('#seccion-renombrar-id').value}`,
-      { method: 'PATCH', body: { name: $('#seccion-renombrar-nombre').value } },
-    );
+    await api(`/api/templates/${estado.plantillaId}/sections/${$('#seccion-renombrar-id').value}`, {
+      method: 'PATCH',
+      body: { name: $('#seccion-renombrar-nombre').value },
+    });
     $('#seccion-renombrar-form').hidden = true;
-    await abrirPuntos(plantillaId);
+    await abrirPuntos(estado.plantillaId);
     await recargar();
     avisar('Seccion renombrada');
   } catch (err) {
@@ -480,55 +560,6 @@ $('#seccion-renombrar-form').addEventListener('submit', async (e) => {
 
 $('#seccion-renombrar-cancelar').addEventListener('click', () => {
   $('#seccion-renombrar-form').hidden = true;
-});
-
-// El editor de secciones delega todo (clic en botones, envio de forms): los
-// controles viven adentro de la lista y cambian con cada repintado.
-$('#plantilla-secciones-lista').addEventListener('click', async (e) => {
-  const boton = e.target.closest('button');
-  if (!boton) return;
-  const plantillaId = $('#plantilla-id').value;
-  try {
-    if (boton.dataset.seccionSubir) {
-      await moverSeccion(boton.dataset.seccionSubir, -1);
-    } else if (boton.dataset.seccionBajar) {
-      await moverSeccion(boton.dataset.seccionBajar, 1);
-    } else if (boton.dataset.seccionRenombrar) {
-      const seccion = estado.estructura.sections.find((s) => s.id === boton.dataset.seccionRenombrar);
-      if (seccion) abrirRenombrarSeccion(seccion);
-    } else if (boton.dataset.seccionBorrar) {
-      // Borrar una seccion borra SUS PUNTOS con ella; las corriadas ya hechas no
-      // se tocan, que es lo que dice el aviso.
-      if (!confirm('Se borran la seccion y sus puntos de la plantilla. Las corridas quedan con su copia.')) return;
-      await api(`/api/templates/${plantillaId}/sections/${boton.dataset.seccionBorrar}`, { method: 'DELETE' });
-      await abrirPuntos(plantillaId);
-      await recargar();
-      avisar('Seccion borrada y renumerada');
-    } else if (boton.dataset.quitar) {
-      // El servidor renumera lo que queda a 1..N y devuelve la lista nueva: por eso
-      // esta pantalla repinta con la respuesta en vez de tapar el numero en local.
-      await api(`/api/templates/${plantillaId}/items/${boton.dataset.quitar}`, { method: 'DELETE' });
-      await abrirPuntos(plantillaId);
-      await recargar();
-      avisar('Punto quitado y renumerado');
-    } else if (boton.dataset.editarItem) {
-      const punto = estado.estructura.sections
-        .flatMap((s) => s.items)
-        .find((p) => p.id === boton.dataset.editarItem);
-      if (!punto) return;
-      estado.puntoEditando = punto.id;
-      $('#punto-editar-id').value = punto.id;
-      $('#punto-editar-label').value = punto.label;
-      $('#punto-editar-tipo').value = punto.type;
-      $('#punto-editar-required').checked = Boolean(punto.required);
-      $('#punto-editar-opciones').value = (punto.options ?? []).join('\n');
-      $('#punto-editar-opciones-caja').hidden = punto.type !== 'select';
-      $('#punto-editar-form').hidden = false;
-      $('#punto-editar-label').focus();
-    }
-  } catch (err) {
-    avisar(err.message, true);
-  }
 });
 
 // Las opciones solo significan para un punto de seleccion: el campo aparece y
@@ -543,8 +574,7 @@ $('#punto-editar-tipo').addEventListener('change', () => {
 
 $('#punto-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const plantillaId = $('#plantilla-id').value;
-  if (!plantillaId) return;
+  if (!estado.plantillaId) return;
   const tipo = $('#punto-tipo').value;
   const cuerpo = {
     label: $('#punto-label').value,
@@ -554,10 +584,10 @@ $('#punto-form').addEventListener('submit', async (e) => {
   };
   if (tipo === 'select') cuerpo.options = opcionesDesdeTexto($('#punto-opciones').value);
   try {
-    await api(`/api/templates/${plantillaId}/items`, { method: 'POST', body: cuerpo });
+    await api(`/api/templates/${estado.plantillaId}/items`, { method: 'POST', body: cuerpo });
     $('#punto-label').value = '';
     $('#punto-opciones').value = '';
-    await abrirPuntos(plantillaId);
+    await abrirPuntos(estado.plantillaId);
     await recargar();
     avisar('Punto agregado');
   } catch (err) {
@@ -567,8 +597,6 @@ $('#punto-form').addEventListener('submit', async (e) => {
 
 $('#punto-editar-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const plantillaId = $('#plantilla-id').value;
-  const itemId = $('#punto-editar-id').value;
   const tipo = $('#punto-editar-tipo').value;
   const cuerpo = {
     label: $('#punto-editar-label').value,
@@ -577,10 +605,12 @@ $('#punto-editar-form').addEventListener('submit', async (e) => {
   };
   if (tipo === 'select') cuerpo.options = opcionesDesdeTexto($('#punto-editar-opciones').value);
   try {
-    await api(`/api/templates/${plantillaId}/items/${itemId}`, { method: 'PATCH', body: cuerpo });
+    await api(`/api/templates/${estado.plantillaId}/items/${$('#punto-editar-id').value}`, {
+      method: 'PATCH',
+      body: cuerpo,
+    });
     $('#punto-editar-form').hidden = true;
-    estado.puntoEditando = null;
-    await abrirPuntos(plantillaId);
+    await abrirPuntos(estado.plantillaId);
     await recargar();
     avisar('Punto actualizado');
   } catch (err) {
@@ -590,7 +620,6 @@ $('#punto-editar-form').addEventListener('submit', async (e) => {
 
 $('#punto-editar-cancelar').addEventListener('click', () => {
   $('#punto-editar-form').hidden = true;
-  estado.puntoEditando = null;
 });
 
 // ─────────────────────────────────────────────────────────────────────── corridas
@@ -609,38 +638,51 @@ function pintarCorridas() {
     return [r.templateName, r.location].some((v) => String(v ?? '').toLowerCase().includes(busqueda));
   });
 
-  $('#corridas-lista').innerHTML = lista.length
-    ? '<table><thead><tr><th>Plantilla</th><th>Lugar</th><th>Estado</th><th>Responsable</th><th>Veredicto</th><th>Empezo</th><th>Cerrada</th><th>Acciones</th></tr></thead><tbody>' +
-      lista
-        .map(
-          (r) =>
-            '<tr><td>' +
-            escapar(r.templateName) +
-            (r.templateId ? '' : ' <small>(plantilla borrada)</small>') +
-            '</td><td>' +
-            escapar(r.location ?? '—') +
-            '</td><td>' +
-            escapar(ETIQUETA_RUN[r.status] ?? r.status) +
-            '</td><td>' +
-            escapar(r.performedBy ?? '—') +
-            '</td><td>' +
-            escapar(r.result ? ETIQUETA_RESULTADO_GLOBAL[r.result] ?? r.result : '—') +
-            '</td><td>' +
-            escapar(instanteCorto(r.startedAt)) +
-            '</td><td>' +
-            escapar(instanteCorto(r.completedAt) || '—') +
-            '</td><td>' +
-            '<button type="button" data-ficha="' +
-            r.id +
-            '">Ficha</button> ' +
-            (r.status === 'in_progress'
-              ? '<button type="button" data-completar="' + r.id + '">Completar</button> '
-              : '') +
-            '</td></tr>',
-        )
-        .join('') +
-      '</tbody></table>'
-    : '<div class="ficha vacia">No hay corridas que coincidan</div>';
+  const tabla = AMIGO_UI.tabla(['Plantilla', 'Lugar', 'Estado', 'Responsable', 'Veredicto', 'Empezo', 'Cerrada', '']);
+  const cuerpo = AMIGO_UI.cuerpoDe(tabla);
+
+  if (lista.length === 0) {
+    cuerpo.append(AMIGO_UI.filaVacia(8, 'No hay corridas que coincidan'));
+  } else {
+    for (const r of lista) {
+      // "Sin plantilla" se avisa en la celda y no con un signo de interrogacion:
+      // una corrida sin plantilla es normal, y tiene que poder leerse sola.
+      const plantilla = document.createElement('div');
+      const fuerte = document.createElement('div');
+      fuerte.className = 'ui-ficha__titulo';
+      fuerte.textContent = r.templateName;
+      plantilla.append(fuerte);
+      if (!r.templateId) {
+        const aviso = document.createElement('div');
+        aviso.className = 'ui-ficha__nota';
+        aviso.textContent = 'plantilla borrada';
+        plantilla.append(aviso);
+      }
+
+      const botones = [AMIGO_UI.boton('Ficha', () => abrirFicha(r.id).catch((e) => avisar(e.message, true)))];
+      if (r.status === 'in_progress') {
+        botones.push(AMIGO_UI.boton('Completar', () => completar(r.id)));
+      }
+
+      cuerpo.append(
+        AMIGO_UI.fila(
+          [
+            plantilla,
+            r.location ?? '—',
+            AMIGO_UI.estadoDe(r.status, RUNS),
+            r.performedBy ?? '—',
+            r.result ? nota(VEREDICTO[r.result] ?? r.result) : '—',
+            instanteCorto(r.startedAt),
+            instanteCorto(r.completedAt) || '—',
+            AMIGO_UI.celda(...botones),
+          ],
+          { className: 'acciones' },
+        ),
+      );
+    }
+  }
+
+  $('#corridas-lista').replaceChildren(AMIGO_UI.cajaTabla(tabla));
 }
 
 $('#corrida-buscar').addEventListener('input', pintarCorridas);
@@ -678,20 +720,6 @@ $('#corrida-form').addEventListener('submit', async (e) => {
   }
 });
 
-$('#corridas-lista').addEventListener('click', async (e) => {
-  const boton = e.target.closest('button');
-  if (!boton) return;
-  try {
-    if (boton.dataset.ficha) {
-      await abrirFicha(boton.dataset.ficha);
-    } else if (boton.dataset.completar) {
-      await completar(boton.dataset.completar);
-    }
-  } catch (err) {
-    avisar(err.message, true);
-  }
-});
-
 // ────────────────────────────────────────────────────────────────────────── ficha
 
 /**
@@ -702,87 +730,101 @@ $('#corridas-lista').addEventListener('click', async (e) => {
  * esta cerrada, en vez de controles se muestra la respuesta tal como quedo.
  */
 function controlPunto(p, editable) {
-  if (editable) {
-    if (p.type === 'yes_no') {
-      return (
-        '<span class="acciones">' +
-        RESPUESTAS.map(
-          (resultado) =>
-            '<button type="button" data-marcar="' +
-            p.position +
-            '" data-resultado="' +
-            resultado +
-            '"' +
-            (p.result === resultado ? ' class="activo"' : '') +
-            '>' +
-            escapar(ETIQUETA_RESULTADO[resultado]) +
-            '</button>',
-        ).join('') +
-        '</span>'
-      );
-    }
-    const opciones = p.options ?? [];
-    const campo =
-      p.type === 'select'
-        ? '<select id="item-valor-' +
-          p.position +
-          '"><option value="">Elegir…</option>' +
-          opciones
-            .map((o) => '<option value="' + escapar(o) + '">' + escapar(o) + '</option>')
-            .join('') +
-          '</select>'
-        : '<input id="item-valor-' +
-          p.position +
-          '" type="' +
-          (p.type === 'number' ? 'number' : 'text') +
-          '" maxlength="4000">';
-    return (
-      '<span class="acciones">' +
-      campo +
-      '<button type="button" data-guardar-valor="' +
-      p.position +
-      '">Guardar</button></span>'
-    );
+  if (!editable) {
+    const texto = p.type === 'yes_no' ? (p.result ? RESULTADO[p.result]?.texto ?? p.result : '—') : p.valueText || '—';
+    const celda = document.createElement('span');
+    celda.className = 'ui-ficha__nota';
+    celda.textContent = texto;
+    return celda;
   }
+
+  const caja = document.createElement('div');
+  caja.className = 'ck-punto__control';
+
   if (p.type === 'yes_no') {
-    return '<span class="respuesta">' + (p.result ? escapar(ETIQUETA_RESULTADO[p.result]) : '—') + '</span>';
+    for (const resultado of RESPUESTAS) {
+      // El boton que esta elegido queda marcado, y con `aria-pressed` para que no
+      // sea solo un color: el que se responde "no cumple" tiene que poder saberse
+      // sin distinguir tonos.
+      const b = AMIGO_UI.boton(
+        RESULTADO[resultado].texto,
+        () => responder(p.position, { result: resultado }),
+        p.result === resultado ? 'ui-btn ui-btn--chico ui-btn--suave' : 'ui-btn ui-btn--chico ui-btn--fantasma',
+      );
+      b.setAttribute('aria-pressed', String(p.result === resultado));
+      caja.append(b);
+    }
+    return caja;
   }
-  return '<span class="respuesta">' + (p.valueText ? escapar(p.valueText) : '—') + '</span>';
+
+  const opciones = p.options ?? [];
+  if (p.type === 'select') {
+    const select = document.createElement('select');
+    select.id = `item-valor-${p.position}`;
+    select.replaceChildren(new Option('Elegir…', ''), ...opciones.map((o) => new Option(o, o)));
+    // El valor se pone aca y no como atributo: un `<select>` no se deja
+    // preseleccionar con `value` en el HTML.
+    select.value = p.valueText ?? '';
+    caja.append(select);
+  } else {
+    const input = document.createElement('input');
+    input.id = `item-valor-${p.position}`;
+    input.type = p.type === 'number' ? 'number' : 'text';
+    input.maxLength = 4000;
+    input.value = p.valueText ?? '';
+    caja.append(input);
+  }
+  caja.append(AMIGO_UI.boton('Guardar', () => responder(p.position, { valueText: null }), 'ui-btn ui-btn--chico'));
+  return caja;
 }
 
-/** Una linea de la ficha: el punto con bos controles y su nota. */
-function puntoHtml(p, editable) {
-  return (
-    '<div class="punto ' +
-    escapar(p.result ?? 'sin') +
-    '"><span class="numero">' +
-    p.position +
-    '.</span><span class="texto"><strong>' +
-    escapar(p.label) +
-    '</strong> <small>(' +
-    escapar(ETIQUETA_TIPO[p.type] ?? p.type) +
-    ' · ' +
-    (p.required ? 'obligatorio' : 'opcional') +
-    ')</small>' +
-    (p.answeredAt ? '<br><small>respondido ' + escapar(instanteCorto(p.answeredAt)) + '</small>' : '') +
-    '</span>' +
-    controlPunto(p, editable) +
-    (editable
-      ? '<input class="nota" id="item-nota-' +
-        p.position +
-        '" maxlength="2000" placeholder="Nota del punto" value="' +
-        escapar(p.note ?? '') +
-        '">'
-      : p.note
-        ? '<span class="nota-texto">' + escapar(p.note) + '</span>'
-        : '') +
-    '</div>'
-  );
+/** Un punto de la corrida: su numero, su texto, su control y su nota. */
+function pintarPunto(p, editable) {
+  const fila = document.createElement('div');
+  fila.className = `ck-punto ck-punto--${p.result ?? 'sin'}`;
+
+  const num = document.createElement('span');
+  num.className = 'ck-punto__num';
+  num.textContent = String(p.position);
+
+  const texto = document.createElement('div');
+  texto.className = 'ck-punto__texto';
+  const fuerte = document.createElement('strong');
+  fuerte.textContent = p.label;
+  const meta = document.createElement('div');
+  meta.className = 'ck-punto__nota';
+  meta.textContent = `${TIPOS[p.type] ?? p.type} · ${p.required ? 'obligatorio' : 'opcional'}`;
+  texto.append(fuerte, meta);
+  if (p.answeredAt) {
+    const cuando = document.createElement('div');
+    cuando.className = 'ck-punto__nota';
+    cuando.textContent = `respondido ${instanteCorto(p.answeredAt)}`;
+    texto.append(cuando);
+  }
+
+  fila.append(num, texto, controlPunto(p, editable));
+
+  if (editable) {
+    const campoNota = document.createElement('input');
+    campoNota.className = 'ck-punto__nota-campo';
+    campoNota.id = `item-nota-${p.position}`;
+    campoNota.maxLength = 2000;
+    campoNota.placeholder = 'Nota del punto';
+    campoNota.value = p.note ?? '';
+    fila.append(campoNota);
+  } else if (p.note) {
+    const textoNota = document.createElement('div');
+    textoNota.className = 'ck-punto__nota ck-punto__nota-campo';
+    textoNota.textContent = p.note;
+    fila.append(textoNota);
+  }
+
+  return fila;
 }
 
 /**
  * La ficha de una corrida: sus datos, el resumen, sus puntos agrupados por la
- * seccion del SNAPSHOT, el veredicto global y sus adjuntos.
+ * seccion del SNAPSHOT y sus adjuntos.
  *
  * Los puntos que se pintan son los de `run_items`, es decir los que el servidor
  * copio de la plantilla al empezar. La plantilla no se vuelve a pedir nunca, y esa
@@ -794,16 +836,48 @@ async function abrirFicha(runId) {
   const r = ficha.run;
   const resumen = ficha.resumen;
   estado.corridaId = runId;
-
   const editable = r.status === 'in_progress';
+  const caja = $('#ficha');
+  caja.replaceChildren();
+
+  const titulo = document.createElement('h2');
+  titulo.textContent = r.templateName;
+
+  const linea = document.createElement('div');
+  linea.className = 'ui-fila';
+  linea.append(AMIGO_UI.estadoDe(r.status, RUNS));
+  if (r.result) linea.append(AMIGO_UI.etiqueta(`Veredicto: ${VEREDICTO[r.result] ?? r.result}`, 'neutro'));
+  for (const meta of [r.location, r.performedBy && `responsable: ${r.performedBy}`]) {
+    if (meta) linea.append(nota(meta));
+  }
+
+  const datos = document.createElement('dl');
+  datos.className = 'ui-datos';
+  datos.append(...par('Empezo', instanteCorto(r.startedAt)));
+  if (r.completedAt) datos.append(...par('Cerrada', instanteCorto(r.completedAt)));
+  datos.append(
+    ...par('Cumplimiento', porcentaje(resumen.cumplimientoPct)),
+    ...par('Puntos', `${resumen.ok} cumple · ${resumen.fail} no cumple · ${resumen.na} no aplica`),
+  );
+
+  // "Faltan N obligatorios" es lo unico de la ficha que avisa de un problema, y va
+  // con color y no como una nota más: es el motivo por el que "Completar" va a
+  // fallar, y conviene verlo antes de intentarlo.
+  if (resumen.pendientesRequeridos) {
+    const faltan = document.createElement('p');
+    faltan.className = 'ui-aviso ui-aviso--aviso';
+    faltan.textContent = `Faltan ${resumen.pendientesRequeridos} punto(s) obligatorio(s) por responder`;
+    caja.append(titulo, linea, datos, faltan);
+  } else {
+    caja.append(titulo, linea, datos);
+  }
+  if (r.notes) caja.append(notas('Notas', r.notes));
 
   // La seccion de cada punto sale del snapshot de la corrida, y los puntos se
   // agrupan con ella: un punto nunca se muestra bajo la seccion equivocada por
   // mas que la plantilla haya cambiado de nombre despues.
   const seccionDe = {};
-  ficha.snapshot.items.forEach((p) => {
-    seccionDe[p.position] = p.section ?? null;
-  });
+  for (const p of ficha.snapshot.items) seccionDe[p.position] = p.section ?? null;
   const grupos = [];
   for (const p of ficha.items) {
     const seccion = seccionDe[p.position] ?? null;
@@ -811,89 +885,79 @@ async function abrirFicha(runId) {
     if (!ultimo || ultimo.nombre !== seccion) grupos.push({ nombre: seccion, items: [] });
     grupos[grupos.length - 1].items.push(p);
   }
-  const puntoscHtml = grupos
-    .map(
-      (g) =>
-        (g.nombre ? '<h4>' + escapar(g.nombre) + '</h4>' : '') +
-        g.items.map((p) => puntoHtml(p, editable)).join(''),
-    )
-    .join('');
 
-  const adjuntosHtml =
-    '<h4>Adjuntos</h4>' +
-    (ficha.attachments.length
-      ? '<div class="adjuntos">' +
-        ficha.attachments
-          .map(
-            (a) =>
-              '<div class="adjunto"><a href="' +
-              a.url +
-              '" download="' +
-              escapar(a.filename) +
-              '">' +
-              escapar(a.filename) +
-              '</a> <small>' +
-              tamanoCorto(a.sizeBytes) +
-              (a.createdAt ? ' &middot; ' + escapar(instanteCorto(a.createdAt)) : '') +
-              '</small>' +
-              (editable
-                ? ' <button type="button" data-adjunto-borrar="' + a.id + '">Quitar</button>'
-                : '') +
-              '</div>',
-          )
-          .join('')
-      : '<div class="ficha vacia">Sin adjuntos</div>') +
-    (editable
-      ? '<form id="adjunto-form"><div class="fila"><input type="file" id="adjunto-archivo" accept="image/*,video/*,application/pdf,application/*"><button type="submit">Adjuntar archivo</button></div></form>'
-      : '');
-
-  $('#ficha').innerHTML =
-    '<h3>' +
-    escapar(r.templateName) +
-    '</h3>' +
-    '<p class="meta">' +
-    escapar(ETIQUETA_RUN[r.status] ?? r.status) +
-    (r.location ? ' &middot; ' + escapar(r.location) : '') +
-    (r.performedBy ? ' &middot; responsable: ' + escapar(r.performedBy) : '') +
-    ' &middot; empezo ' +
-    escapar(instanteCorto(r.startedAt)) +
-    (r.completedAt ? ' &middot; cerrada ' + escapar(instanteCorto(r.completedAt)) : '') +
-    '</p>' +
-    '<p class="meta">' +
-    (r.result
-      ? 'Veredicto: <strong>' + escapar(ETIQUETA_RESULTADO_GLOBAL[r.result] ?? r.result) + '</strong>'
-      : r.status === 'done'
-        ? 'Veredicto: —'
-        : '') +
-    '</p>' +
-    '<p class="meta">Cumplimiento ' +
-    escapar(porcentaje(resumen.cumplimientoPct)) +
-    ' &middot; ' +
-    resumen.ok +
-    ' cumple &middot; ' +
-    resumen.fail +
-    ' no cumple &middot; ' +
-    resumen.na +
-    ' no aplica' +
-    (resumen.pendientesRequeridos
-      ? ' &middot; <strong>faltan ' + resumen.pendientesRequeridos + ' obligatorio(s)</strong>'
-      : '') +
-    '</p>' +
-    (r.notes ? '<dl><dt>Notas</dt><dd>' + escapar(r.notes) + '</dd></dl>' : '') +
-    '<h4>Puntos de esta corrida</h4>' +
-    '<div class="puntos">' +
-    (puntoscHtml || '<div class="ficha vacia">No hay puntos que revisar</div>') +
-    '</div>' +
-    adjuntosHtml;
-
-  // Los campos de respuesta de texto, numero y seleccion se rellenan despues del
-  // innerHTML: un `<select>` no se deja preseleccionado con el atributo value.
-  if (editable) {
-    for (const p of ficha.items) {
-      if (p.type === 'yes_no') continue;
-      const campo = document.getElementById('item-valor-' + p.position);
-      if (campo) campo.value = p.valueText ?? '';
+  const enc = document.createElement('h3');
+  enc.className = 'ui-tarjeta__cab';
+  enc.textContent = 'Puntos de esta corrida';
+  caja.append(enc);
+  if (grupos.length === 0) {
+    // Un parrafo de "no hay nada" pegado a la caja, y NO `AMIGO_UI.vacio`: esa
+    // funcion vacia el contenedor que recibe, y acá el contenedor es la ficha
+    // entera, con el titulo y el resumen ya escritos arriba.
+    const sinPuntos = document.createElement('p');
+    sinPuntos.className = 'ui-vacio';
+    sinPuntos.textContent = 'No hay puntos que revisar';
+    caja.append(sinPuntos);
+  } else {
+    for (const g of grupos) {
+      if (g.nombre) {
+        const h = document.createElement('h4');
+        h.textContent = g.nombre;
+        caja.append(h);
+      }
+      caja.append(...g.items.map((p) => pintarPunto(p, editable)));
     }
+  }
+
+  const encAdj = document.createElement('h3');
+  encAdj.className = 'ui-tarjeta__cab';
+  encAdj.textContent = 'Adjuntos';
+  caja.append(encAdj);
+  $('#adjunto-form').hidden = !editable;
+  if (ficha.attachments.length === 0) {
+    const vacio = document.createElement('p');
+    vacio.className = 'ui-vacio';
+    vacio.textContent = 'Sin adjuntos';
+    caja.append(vacio);
+  } else {
+    const lista = document.createElement('div');
+    lista.className = 'ck-adjuntos';
+    for (const a of ficha.attachments) {
+      const fila = document.createElement('div');
+      fila.className = 'ck-adjunto';
+      const enlace = document.createElement('a');
+      enlace.href = a.url;
+      enlace.download = a.filename;
+      enlace.textContent = a.filename;
+      const meta = document.createElement('span');
+      meta.className = 'ck-adjunto__meta';
+      meta.textContent = [tamanoCorto(a.sizeBytes), a.createdAt && instanteCorto(a.createdAt)]
+        .filter(Boolean)
+        .join(' · ');
+      fila.append(enlace, meta);
+      if (editable) {
+        const acciones = document.createElement('div');
+        acciones.className = 'ck-adjunto__acciones';
+        acciones.append(
+          AMIGO_UI.boton(
+            'Quitar',
+            async () => {
+              try {
+                await api(`/api/runs/${estado.corridaId}/attachments/${a.id}`, { method: 'DELETE' });
+                await abrirFicha(estado.corridaId);
+                avisar('Adjunto quitado');
+              } catch (e) {
+                avisar(e.message, true);
+              }
+            },
+            'ui-btn ui-btn--chico ui-btn--fantasma ui-btn--peligro',
+          ),
+        );
+        fila.append(acciones);
+      }
+      lista.append(fila);
+    }
+    caja.append(lista);
   }
 
   $('#corrida-editar-lugar').value = r.location ?? '';
@@ -910,61 +974,46 @@ async function abrirFicha(runId) {
   $('#ficha-dialog').showModal();
 }
 
-/**
- * Responder un punto de la ficha.
- *
- * Hay dos clases de clic: los botones de Si/No (marcar) y el Guardar de texto,
- * numero y seleccion. Los dos mandan por la POSICION del punto y con la nota del
- * campo de la fila; la diferencia es que los primeros mandan `result` y los
- * segundos `valueText`.
- */
-$('#ficha').addEventListener('click', async (e) => {
-  const boton = e.target.closest('button');
-  if (!boton) return;
-  const notaEl = document.getElementById(`item-nota-${boton.dataset.marcar ?? boton.dataset.guardarValor}`);
-  const nota = notaEl ? notaEl.value || null : null;
+/** Un par etiqueta/valor. */
+function par(termino, valor) {
+  const dt = document.createElement('dt');
+  dt.textContent = termino;
+  const dd = document.createElement('dd');
+  dd.textContent = valor;
+  return [dt, dd];
+}
+
+/** Un par con texto largo, como las notas de la corrida. */
+function notas(termino, valor) {
+  const dl = document.createElement('dl');
+  dl.className = 'ui-datos';
+  dl.append(...par(termino, valor));
+  return dl;
+}
+
+/** Responder un punto: con veredicto (Si/No) o con el valor escrito. */
+async function responder(posicion, cuerpo) {
+  const notaEl = document.getElementById(`item-nota-${posicion}`);
+  const payload = { ...cuerpo, note: notaEl ? notaEl.value || null : null };
+  if ('valueText' in cuerpo) {
+    const valorEl = document.getElementById(`item-valor-${posicion}`);
+    payload.valueText = valorEl ? valorEl.value : null;
+  }
   try {
-    if (boton.dataset.marcar) {
-      await api(`/api/runs/${estado.corridaId}/items/${boton.dataset.marcar}`, {
-        method: 'POST',
-        body: { result: boton.dataset.resultado, note: nota },
-      });
-    } else if (boton.dataset.guardarValor) {
-      const valorEl = document.getElementById(`item-valor-${boton.dataset.guardarValor}`);
-      await api(`/api/runs/${estado.corridaId}/items/${boton.dataset.guardarValor}`, {
-        method: 'POST',
-        body: { valueText: valorEl ? valorEl.value : null, note: nota },
-      });
-    } else if (boton.dataset.adjuntoBorrar) {
-      await api(`/api/runs/${estado.corridaId}/attachments/${boton.dataset.adjuntoBorrar}`, {
-        method: 'DELETE',
-      });
-      await abrirFicha(estado.corridaId);
-      avisar('Adjunto quitado');
-      return;
-    } else {
-      return;
-    }
+    await api(`/api/runs/${estado.corridaId}/items/${posicion}`, { method: 'POST', body: payload });
     await abrirFicha(estado.corridaId);
     avisar('Respuesta registrada');
-  } catch (err) {
-    avisar(err.message, true);
+  } catch (e) {
+    avisar(e.message, true);
   }
-});
+}
 
 /** Subir un adjunto: el navegador lo convierte a base64 y la API lo guarda. */
-$('#ficha').addEventListener('submit', async (e) => {
-  if (!e.target.matches('#adjunto-form')) return;
+$('#adjunto-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const archivo = document.getElementById('adjunto-archivo').files[0];
-  if (!archivo) {
-    avisar('Elige un archivo primero', true);
-    return;
-  }
-  if (archivo.size > 750_000) {
-    avisar('El archivo no puede superar 750 KB', true);
-    return;
-  }
+  const archivo = $('#adjunto-archivo').files[0];
+  if (!archivo) return avisar('Elige un archivo primero', true);
+  if (archivo.size > 750_000) return avisar('El archivo no puede superar 750 KB', true);
   try {
     const data = await new Promise((resolver, rechazar) => {
       const lector = new FileReader();
@@ -983,8 +1032,8 @@ $('#ficha').addEventListener('submit', async (e) => {
     });
     await abrirFicha(estado.corridaId);
     avisar('Archivo adjuntado');
-  } catch (err) {
-    avisar(err.message, true);
+  } catch (e) {
+    avisar(e.message, true);
   }
 });
 
@@ -1024,8 +1073,8 @@ async function completar(runId) {
     await recargar();
     await abrirFicha(runId);
     avisar('Corrida completada y sellada');
-  } catch (err) {
-    avisar(err.message, true);
+  } catch (e) {
+    avisar(e.message, true);
   }
 }
 
@@ -1037,8 +1086,8 @@ $('#ficha-cancelar').addEventListener('click', async () => {
     await recargar();
     await abrirFicha(estado.corridaId);
     avisar('Corrida cancelada');
-  } catch (err) {
-    avisar(err.message, true);
+  } catch (e) {
+    avisar(e.message, true);
   }
 });
 
@@ -1048,8 +1097,8 @@ $('#ficha-reabrir').addEventListener('click', async () => {
     await recargar();
     await abrirFicha(estado.corridaId);
     avisar('Corrida reabierta');
-  } catch (err) {
-    avisar(err.message, true);
+  } catch (e) {
+    avisar(e.message, true);
   }
 });
 
@@ -1060,8 +1109,8 @@ $('#ficha-borrar').addEventListener('click', async () => {
     $('#ficha-dialog').close();
     await recargar();
     avisar('Corrida borrada');
-  } catch (err) {
-    avisar(err.message, true);
+  } catch (e) {
+    avisar(e.message, true);
   }
 });
 
@@ -1069,44 +1118,48 @@ $('#ficha-cerrar').addEventListener('click', () => $('#ficha-dialog').close());
 
 // ─────────────────────────────────────────────────────────────────── navegación
 
-const PANELES = {
-  tablero: pintarTablero,
-  plantillas: pintarPlantillas,
-  corridas: pintarCorridas,
-};
-
-for (const boton of document.querySelectorAll('#tabs button')) {
-  boton.addEventListener('click', async () => {
-    document.querySelectorAll('#tabs button').forEach((b) => b.classList.remove('activo'));
-    boton.classList.add('activo');
-    for (const [nombre, seccion] of Object.entries({
-      tablero: '#panel-tablero',
-      plantillas: '#panel-plantillas',
-      corridas: '#panel-corridas',
-      ajustes: '#panel-ajustes',
-    })) {
-      $(seccion).hidden = nombre !== boton.dataset.tab;
-    }
-    try {
-      if (PANELES[boton.dataset.tab]) await PANELES[boton.dataset.tab]();
-    } catch (err) {
-      avisar(err.message, true);
-    }
-  });
+/**
+ * Llena el form de ajustes.
+ *
+ * Se recorre `form.elements` y se usa el `name` de cada input como clave del
+ * ajuste, en vez de buscarlos por id uno por uno. Es lo que permite agregar un
+ * ajuste nuevo poniendo un `<input name="...">` en el HTML, sin tocar este JS.
+ */
+function renderConfig() {
+  const form = $('#config-form');
+  const c = estado.cfg;
+  for (const el of form.elements) {
+    if (!el.name || c[el.name] === undefined) continue;
+    el.value = c[el.name];
+  }
 }
 
-/** Vuelve a pedir todo y reagrupa. Se llama despues de cada escritura. */
+/**
+ * Pinta la sección que está a la vista.
+ *
+ * Se pregunta al shell y no a este archivo, porque la sección activa vive en la
+ * URL y la elige el shell. El editor de puntos, en cambio, NO se cierra al salir
+ * de la sección: se pierde la estructura a medio armar y volver a pedirla sería
+ * una ida y vuelta por cada punto que se agrega.
+ */
+function repintar() {
+  const activo = document.querySelector('[data-tab][aria-current="page"]')?.dataset.tab ?? 'tablero';
+  if (activo === 'plantillas') return pintarPlantillas();
+  if (activo === 'corridas') return pintarCorridas();
+  if (activo === 'tablero') return pintarTablero();
+  return undefined;
+}
+
+/** Vuelve a pedir todo y vuelve a pintar lo que se está viendo. */
 async function recargar() {
   await cargar();
-  pintarPlantillas();
-  pintarCorridas();
+  await repintar();
 }
 
 $('#config-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const form = e.target;
   const cuerpo = {};
-  for (const el of form.elements) {
+  for (const el of e.target.elements) {
     if (!el.name) continue;
     cuerpo[el.name] = el.value;
   }
@@ -1120,24 +1173,19 @@ $('#config-form').addEventListener('submit', async (e) => {
   }
 });
 
-/**
- * Llena el form de ajustes.
- *
- * Se recorre `form.elements` y se usa el `name` de cada input como clave del
- * ajuste, en vez de buscarlos por id uno por uno. Es lo que permite agregar un
- * ajuste nuevo poniendo un `<input name="...">` en el HTML, sin tocar este JS.
- *
- * OJO: el panel se llama `data-tab="ajustes"`, no `id="config"`. Por eso esto no
- * puede hacer `$$('#config input')`: ese selector no matchea nada y el panel
- * aparece vacio.
- */
-function renderConfig() {
-  const form = $('#config-form');
-  const c = estado.cfg;
-  for (const el of form.elements) {
-    if (!el.name || c[el.name] === undefined) continue;
-    el.value = c[el.name];
+AMIGO.montar({
+  nombre: 'Checklists',
+  paneles: ['tablero', 'plantillas', 'corridas', 'ajustes'],
+  alEntrar: conAviso(repintar),
+});
+
+/** Corre una parte de la pantalla y avisa si falla, en vez de dejarla a medias. */
+async function conAviso(fn) {
+  try {
+    await fn();
+  } catch (e) {
+    avisar(e.message, true);
   }
 }
 
-cargar().then(pintarTablero);
+cargar().then(repintar).catch((e) => avisar(e.message, true));

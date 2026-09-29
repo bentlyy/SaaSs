@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { loadProductConfig, type ProductConfig } from './config.js';
 import { openProductDb, type OpenOptions, type ProductDb, type ProductSchema } from './db.js';
 import { mountAmgProductAuth, type MountAuthOptions } from './auth.js';
@@ -41,6 +42,19 @@ export interface BuiltProduct {
   config: ProductConfig;
   db: ProductDb;
 }
+
+/**
+ * Donde vive la hoja de estilo compartida de los nueve productos.
+ *
+ * Va en el runtime y no en el `public` de cada producto por una razon concreta:
+ * si cada uno trae su propia copia, nueve archivos se van a diferenciar en nueve
+ * commits y un token nuevo llega a seis de nueve. Al montarlo desde aqui, el
+ * producto lo pide por URL (`/amigo.css`) y todos toman el mismo archivo.
+ *
+ * Se resuelve desde este archivo con `import.meta.url`, asi que funciona igual
+ * desde `src` con tsx que desde `dist`: no hay dos rutas que mantener.
+ */
+const sharedAssetsDir = fileURLToPath(new URL('../public', import.meta.url));
 
 /**
  * Levanta una aplicacion AMG completa.
@@ -124,6 +138,9 @@ export function createProductApp(def: ProductDefinition, env: NodeJS.ProcessEnv 
   }
 
   // 4. La UI, que tambien pide sesion: sin ella no hay ni el HTML.
+  // La hoja compartida va antes que el `public` del producto: mismo nombre en
+  // los dos, gana la de la plataforma para que el estilo no se pueda bifurcar.
+  app.use(express.static(sharedAssetsDir, { index: false, fallthrough: true, maxAge: config.isProd ? '1h' : 0 }));
   if (app.locals.staticDir) {
     const dir = app.locals.staticDir as string;
     app.use(express.static(dir, { index: false }));

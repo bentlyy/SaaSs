@@ -130,7 +130,7 @@ describe('la interfaz', () => {
     // Mismo contrato que el resto de los productos: agregar un ajuste es agregar
     // un <input name="..."> en el HTML, no tocar el JS.
     const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
-    expect(html.text).toMatch(/<form id="config-form">/);
+    expect(html.text).toMatch(/<form[^>]*\bid="config-form"/);
 
     const js = (await tp.as({ orgId: TEST_ORG_A }).get('/app.js')).text;
     const fn = js.match(/function renderConfig\(\)\s*\{[\s\S]*?\n\}/);

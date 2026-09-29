@@ -13,9 +13,15 @@
  *      fecha del que esta mirando la pantalla, que no es necesariamente la del
  *      negocio. Por eso se pinta lo que llega en `tablero.hoy` y no lo que dice
  *      `new Date()`.
+ *
+ * Lo que se ve -tarjetas, tablas, botones, etiquetas- viene de `AMIGO_UI`, el
+ * modulo compartido: las nueve herramientas dibujan sus tablas con el mismo
+ * codigo, y lo unico que escribe este archivo es que columnas tiene cada una.
  */
 
-const $ = (sel) => document.querySelector(sel);
+const $ = AMIGO_UI.$;
+const api = AMIGO_UI.api;
+const avisar = AMIGO_UI.avisar;
 
 const estado = {
   clientes: [],
@@ -26,37 +32,6 @@ const estado = {
   hoy: null,
 };
 
-async function api(ruta, opciones = {}) {
-  const res = await fetch(ruta, {
-    headers: { 'content-type': 'application/json' },
-    ...opciones,
-    body: opciones.body ? JSON.stringify(opciones.body) : undefined,
-  });
-  const datos = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const err = new Error(datos.error ?? 'No se pudo completar la operacion');
-    err.status = res.status;
-    err.detalle = datos;
-    throw err;
-  }
-  return datos;
-}
-
-function avisar(mensaje, malo = false) {
-  const caja = $('#aviso');
-  caja.textContent = mensaje;
-  caja.classList.toggle('malo', malo);
-  caja.hidden = false;
-  clearTimeout(caja.t);
-  caja.t = setTimeout(() => { caja.hidden = true; }, 5000);
-}
-
-function escapar(texto) {
-  return String(texto ?? '').replace(/[&<>"']/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
-  );
-}
-
 // ─────────────────────────────────────────────────────────────── carga de datos
 
 async function cargar() {
@@ -64,23 +39,28 @@ async function cargar() {
   estado.clientes = clientes.items;
   estado.cfg = cfg.settings;
   renderConfig();
-  const selector = opciones(estado.clientes, 'Todos');
-  $('#tablero-cliente').innerHTML = selector;
-  $('#seguimiento-cliente').innerHTML = opciones(estado.clientes, 'Elegí un cliente');
-  $('#contacto-cliente').innerHTML = opciones(estado.clientes, 'Elegí un cliente');
+  llenarSelect('#tablero-cliente', estado.clientes, 'Todos los clientes');
+  llenarSelect('#seguimiento-cliente', estado.clientes, 'Elegí un cliente');
+  llenarSelect('#contacto-cliente', estado.clientes, 'Elegí un cliente');
 }
 
-function opciones(lista, vacio) {
-  return (
-    `<option value="">${escapar(vacio)}</option>` +
-    lista.map((x) => `<option value="${x.id}">${escapar(x.name)}</option>`).join('')
-  );
+/**
+ * Llena un `<select>` de clientes.
+ *
+ * Va con nodos y no con `innerHTML` por una razon que ya se pago una vez: un
+ * cliente se llama como se llame, y `innerHTML` con el nombre pegado es una
+ * forma de que un nombre con `<` rompa la pagina.
+ */
+function llenarSelect(sel, lista, vacio) {
+  const el = $(sel);
+  el.replaceChildren(new Option(vacio, ''));
+  for (const c of lista) el.append(new Option(c.name, c.id));
 }
 
 const ETIQUETA_ESTADO = {
-  pending: 'Pendiente',
-  done: 'Hecho',
-  canceled: 'Cancelado',
+  pending: { texto: 'Pendiente', tono: 'aviso' },
+  done: { texto: 'Hecho', tono: 'ok' },
+  canceled: { texto: 'Cancelado', tono: 'neutro' },
 };
 
 const ETIQUETA_CONTACTO = {
@@ -97,21 +77,32 @@ function fechaCorta(fecha) {
   return `${dia}/${mes}`;
 }
 
-const instanteCorto = (iso) => (iso ? new Date(iso).toLocaleString('es-CL') : '');
+const instanteCorto = (iso) => (iso ? AMIGO_UI.fecha(iso, true) : '');
 
 // ─────────────────────────────────────────────────────────────────────── tablero
 
-function tarjeta(numero, texto) {
-  return `<div class="tarjeta"><strong>${escapar(numero)}</strong><span>${escapar(texto)}</span></div>`;
+/** Un seguimiento en la lista del tablero. */
+function fichaSeguimiento(seg) {
+  const div = document.createElement('div');
+  div.className = 'ui-ficha';
+  div.dataset.cliente = seg.customerId;
+  const cuerpo = document.createElement('div');
+  cuerpo.className = 'ui-ficha__cuerpo';
+  const titulo = document.createElement('span');
+  titulo.className = 'ui-ficha__titulo';
+  titulo.textContent = seg.title;
+  const nota = document.createElement('span');
+  nota.className = 'ui-ficha__nota';
+  nota.textContent = [seg.customerName ?? '', seg.dueDate ? fechaCorta(seg.dueDate) : '']
+    .filter(Boolean)
+    .join(' · ');
+  cuerpo.append(titulo, nota);
+  div.append(cuerpo);
+  return div;
 }
 
-function tarjetaSeguimiento(seg) {
-  return (
-    `<div class="tarjeta-seguimiento" data-cliente="${seg.customerId}">` +
-    `<strong>${escapar(seg.title)}</strong>` +
-    `<span>${escapar(seg.customerName ?? '')}${seg.dueDate ? ' · ' + escapar(fechaCorta(seg.dueDate)) : ''}</span>` +
-    '</div>'
-  );
+function pintarVacio(contenedor, texto) {
+  contenedor.replaceChildren(AMIGO_UI.vacio(document.createElement('div'), texto));
 }
 
 async function pintarTablero() {
@@ -124,38 +115,70 @@ async function pintarTablero() {
   // servidor con la zona horaria de la empresa, y no el de esta maquina.
   estado.hoy = tablero.hoy;
 
-  $('#resumen').innerHTML = [
-    tarjeta(resumen.activos, 'Clientes activos'),
-    tarjeta(resumen.archivados, 'Archivados'),
-    tarjeta(resumen.seguimientos.porEstado.pending, 'Pendientes'),
-    tarjeta(resumen.seguimientos.vencidos, 'Vencidos'),
-    tarjeta(resumen.seguimientos.paraHoy, 'Para hoy'),
-    tarjeta(resumen.contactos30d, 'Contactos (30 días)'),
-  ].join('');
+  AMIGO_UI.kpis($('#resumen'), [
+    [resumen.activos, 'Clientes activos', true],
+    [resumen.archivados, 'Archivados'],
+    [resumen.seguimientos.porEstado.pending, 'Pendientes'],
+    [resumen.seguimientos.vencidos, 'Vencidos'],
+    [resumen.seguimientos.paraHoy, 'Para hoy'],
+    [resumen.contactos30d, 'Contactos (30 días)'],
+  ]);
 
-  const vacio = '<div class="ficha vacia">Nada por acá</div>';
-  $('#seguimiento-vencidos').innerHTML = tablero.seguimientos.vencidos.map(tarjetaSeguimiento).join('') || vacio;
-  $('#seguimiento-hoy').innerHTML = tablero.seguimientos.hoy.map(tarjetaSeguimiento).join('') || vacio;
-  $('#seguimiento-proximos').innerHTML = tablero.seguimientos.proximos.map(tarjetaSeguimiento).join('') || vacio;
+  const nada = 'Nada por acá';
+  const tres = [
+    ['#seguimiento-vencidos', tablero.seguimientos.vencidos],
+    ['#seguimiento-hoy', tablero.seguimientos.hoy],
+    ['#seguimiento-proximos', tablero.seguimientos.proximos],
+  ];
+  for (const [sel, lista] of tres) {
+    const caja = $(sel);
+    if (lista.length === 0) pintarVacio(caja, nada);
+    else caja.replaceChildren(...lista.map(fichaSeguimiento));
+  }
 
-  $('#cumpleanos').innerHTML = tablero.cumpleanos
-    .map((c) => `<div class="ficha"><strong>${escapar(c.name)}</strong><span>${escapar(fechaCorta(c.birthday))}</span></div>`)
-    .join('') || vacio;
+  const cumpleanos = tablero.cumpleanos;
+  if (cumpleanos.length === 0) pintarVacio($('#cumpleanos'), nada);
+  else {
+    $('#cumpleanos').replaceChildren(
+      ...cumpleanos.map((c) => {
+        const div = document.createElement('div');
+        div.className = 'ui-ficha';
+        const cuerpo = document.createElement('div');
+        cuerpo.className = 'ui-ficha__cuerpo';
+        const titulo = document.createElement('span');
+        titulo.className = 'ui-ficha__titulo';
+        titulo.textContent = c.name;
+        const nota = document.createElement('span');
+        nota.className = 'ui-ficha__nota';
+        nota.textContent = fechaCorta(c.birthday);
+        cuerpo.append(titulo, nota);
+        div.append(cuerpo);
+        return div;
+      }),
+    );
+  }
 
-  $('#contactos-recientes').innerHTML = tablero.contactos
-    .map(
-      (c) =>
-        '<div class="ficha"><strong>' +
-        escapar(c.customerName ?? '') +
-        '</strong><span>' +
-        escapar(ETIQUETA_CONTACTO[c.kind] ?? c.kind) +
-        ': ' +
-        escapar(c.summary) +
-        ' · ' +
-        escapar(instanteCorto(c.happenedAt)) +
-        '</span></div>',
-    )
-    .join('') || vacio;
+  const recientes = tablero.contactos;
+  if (recientes.length === 0) pintarVacio($('#contactos-recientes'), nada);
+  else {
+    $('#contactos-recientes').replaceChildren(
+      ...recientes.map((c) => {
+        const div = document.createElement('div');
+        div.className = 'ui-ficha';
+        const cuerpo = document.createElement('div');
+        cuerpo.className = 'ui-ficha__cuerpo';
+        const titulo = document.createElement('span');
+        titulo.className = 'ui-ficha__titulo';
+        titulo.textContent = c.customerName ?? '';
+        const nota = document.createElement('span');
+        nota.className = 'ui-ficha__nota';
+        nota.textContent = `${ETIQUETA_CONTACTO[c.kind] ?? c.kind}: ${c.summary} · ${instanteCorto(c.happenedAt)}`;
+        cuerpo.append(titulo, nota);
+        div.append(cuerpo);
+        return div;
+      }),
+    );
+  }
 }
 
 // ───────────────────────────────────────────────────────────────────── clientes
@@ -170,37 +193,50 @@ function pintarClientes() {
       )
     : estado.clientes;
 
-  $('#clientes-lista').innerHTML = lista.length
-    ? '<table><thead><tr><th>Nombre</th><th>Tipo</th><th>Teléfono</th><th>Correo</th><th>Ciudad</th><th>Acciones</th></tr></thead><tbody>' +
-      lista
-        .map(
-          (c) =>
-            '<tr><td>' +
-            escapar(c.name) +
-            (c.taxId ? '<br><small>' + escapar(c.taxId) + '</small>' : '') +
-            '</td><td>' +
-            escapar(c.kind) +
-            '</td><td>' +
-            escapar(c.phone ?? '—') +
-            '</td><td>' +
-            escapar(c.email ?? '—') +
-            '</td><td>' +
-            escapar(c.city ?? '—') +
-            '</td><td>' +
-            '<button type="button" data-ficha="' +
-            c.id +
-            '">Ficha</button> ' +
-            '<button type="button" data-editar="' +
-            c.id +
-            '">Editar</button> ' +
-            '<button type="button" data-archivar="' +
-            c.id +
-            '">Archivar</button>' +
-            '</td></tr>',
-        )
-        .join('') +
-      '</tbody></table>'
-    : '<div class="ficha vacia">No hay clientes que coincidan</div>';
+  const tabla = AMIGO_UI.tabla(['Nombre', 'Tipo', 'Teléfono', 'Correo', 'Ciudad', 'Acciones']);
+  const cuerpo = AMIGO_UI.cuerpoDe(tabla);
+
+  if (lista.length === 0) {
+    cuerpo.append(AMIGO_UI.filaVacia(6, 'No hay clientes que coincidan'));
+  } else {
+    for (const c of lista) {
+      // El documento va debajo del nombre y no en su propia columna: es un dato
+      // secundario de la misma persona, y darle columna propia le roba ancho al
+      // teléfono, que es lo que se lee de verdad.
+      const nombre = AMIGO_UI.celda(c.name, c.taxId ? document.createElement('br') : null, c.taxId || '');
+      cuerpo.append(
+        AMIGO_UI.fila(
+          [
+            nombre,
+            c.kind === 'empresa' ? 'Empresa' : 'Persona',
+            c.phone ?? '—',
+            c.email ?? '—',
+            c.city ?? '—',
+            AMIGO_UI.celda(
+              AMIGO_UI.boton('Ficha', () => abrirFicha(c.id).catch((e) => avisar(e.message, true))),
+              AMIGO_UI.boton('Editar', () => abrirCliente(c)),
+              AMIGO_UI.boton(
+                'Archivar',
+                async () => {
+                  try {
+                    await api(`/api/customers/${c.id}`, { method: 'DELETE' });
+                    await recargar();
+                    avisar('Cliente archivado');
+                  } catch (err) {
+                    avisar(err.message, true);
+                  }
+                },
+                'ui-btn ui-btn--chico ui-btn--fantasma',
+              ),
+            ),
+          ],
+          { className: 'acciones' },
+        ),
+      );
+    }
+  }
+
+  $('#clientes-lista').replaceChildren(AMIGO_UI.cajaTabla(tabla));
 }
 
 function abrirCliente(cliente) {
@@ -255,86 +291,112 @@ $('#cliente-form').addEventListener('submit', async (e) => {
 
 $('#cliente-buscar').addEventListener('input', pintarClientes);
 
-$('#clientes-lista').addEventListener('click', async (e) => {
-  const boton = e.target.closest('button');
-  if (!boton) return;
-  try {
-    if (boton.dataset.editar) {
-      abrirCliente(estado.clientes.find((c) => c.id === boton.dataset.editar));
-    } else if (boton.dataset.ficha) {
-      await abrirFicha(boton.dataset.ficha);
-    } else if (boton.dataset.archivar) {
-      await api(`/api/customers/${boton.dataset.archivar}`, { method: 'DELETE' });
-      await recargar();
-      avisar('Cliente archivado');
-    }
-  } catch (err) {
-    avisar(err.message, true);
-  }
-});
-
 // ──────────────────────────────────────────────────────────────────────── ficha
 
+/**
+ * La ficha completa de un cliente, en una ventana.
+ *
+ * Se arma con nodos porque son datos de una persona: el nombre lo eligio el
+ * cliente. Pegarlos con `innerHTML` seria confiar en que nadie se llamar
+ * "<script>".
+ */
 async function abrirFicha(idCliente) {
   const ficha = await api(`/api/customers/${idCliente}/ficha`);
   const c = ficha.customer;
-  $('#ficha').innerHTML =
-    '<h3>' +
-    escapar(c.name) +
-    '</h3>' +
-    '<p class="meta">' +
-    escapar(c.kind === 'empresa' ? 'Empresa' : 'Persona') +
-    (c.company ? ' · ' + escapar(c.company) : '') +
-    (c.taxId ? ' · ' + escapar(c.taxId) : '') +
-    '</p>' +
-    '<dl>' +
-    '<dt>Teléfono</dt><dd>' +
-    escapar(c.phone ?? 'Sin teléfono') +
-    '</dd>' +
-    '<dt>Correo</dt><dd>' +
-    escapar(c.email ?? 'Sin correo') +
-    '</dd>' +
-    (c.birthday ? '<dt>Cumpleaños</dt><dd>' + escapar(fechaCorta(c.birthday)) + '</dd>' : '') +
-    (c.address ? '<dt>Dirección</dt><dd>' + escapar(c.address) + '</dd>' : '') +
-    (c.city ? '<dt>Ciudad</dt><dd>' + escapar(c.city) + '</dd>' : '') +
-    (c.tags ? '<dt>Etiquetas</dt><dd>' + escapar(c.tags) + '</dd>' : '') +
-    (c.notes ? '<dt>Notas</dt><dd>' + escapar(c.notes) + '</dd>' : '') +
-    '</dl>' +
-    '<p class="meta">' +
-    ficha.resumen.seguimientosAbiertos +
-    ' pendiente(s), ' +
-    ficha.resumen.seguimientosVencidos +
-    ' vencido(s), ' +
-    ficha.resumen.contactos +
-    ' contacto(s)</p>' +
-    '<h4>Seguimientos</h4><div class="lineas">' +
-    (ficha.followups
-      .map(
-        (f) =>
-          '<div class="linea"><span>' +
-          escapar(f.title) +
-          '</span><span class="estado">' +
-          escapar(ETIQUETA_ESTADO[f.status] ?? f.status) +
-          (f.dueDate ? ' · ' + escapar(fechaCorta(f.dueDate)) : '') +
-          '</span></div>',
-      )
-      .join('') || '<div class="ficha vacia">Sin seguimientos</div>') +
-    '</div>' +
-    '<h4>Historial de contacto</h4><div class="lineas">' +
-    (ficha.interactions
-      .map(
-        (i) =>
-          '<div class="linea"><span>' +
-          escapar(i.summary) +
-          '</span><span class="estado">' +
-          escapar(ETIQUETA_CONTACTO[i.kind] ?? i.kind) +
-          ' · ' +
-          escapar(instanteCorto(i.happenedAt)) +
-          '</span></div>',
-      )
-      .join('') || '<div class="ficha vacia">Sin contactos registrados</div>') +
-    '</div>';
+  const caja = document.createElement('div');
+
+  const datos = document.createElement('dl');
+  datos.className = 'ui-datos';
+  const par = (etiqueta, valor) => {
+    if (!valor) return;
+    const dt = document.createElement('dt');
+    dt.textContent = etiqueta;
+    const dd = document.createElement('dd');
+    dd.textContent = valor;
+    datos.append(dt, dd);
+  };
+  par('Teléfono', c.phone ?? 'Sin teléfono');
+  par('Correo', c.email ?? 'Sin correo');
+  par('Cumpleaños', c.birthday ? fechaCorta(c.birthday) : '');
+  par('Dirección', c.address);
+  par('Ciudad', c.city);
+  par('Etiquetas', c.tags);
+  par('Notas', c.notes);
+  caja.append(datos);
+
+  const resumen = document.createElement('p');
+  resumen.className = 'tenue pequeno';
+  resumen.style.marginTop = '.75rem';
+  resumen.textContent =
+    `${ficha.resumen.seguimientosAbiertos} pendiente(s), ` +
+    `${ficha.resumen.seguimientosVencidos} vencido(s), ` +
+    `${ficha.resumen.contactos} contacto(s)`;
+  caja.append(resumen);
+
+  caja.append(seccionSeguimientos(ficha.followups));
+  caja.append(seccionContactos(ficha.interactions));
+
+  $('#ficha').replaceChildren(caja);
   $('#ficha-dialog').showModal();
+}
+
+/** Un bloque de la ficha: encabezado + lista, o la vacía. */
+function seccionSeguimientos(followups) {
+  const caja = document.createElement('div');
+  caja.style.marginTop = '1rem';
+  const h = document.createElement('h4');
+  h.textContent = 'Seguimientos';
+  const lista = document.createElement('div');
+  lista.className = 'ui-lista';
+  if (followups.length === 0) lista.append(AMIGO_UI.vacio(document.createElement('div'), 'Sin seguimientos'));
+  else {
+    for (const f of followups) {
+      const fila = document.createElement('div');
+      fila.className = 'ui-ficha';
+      const titulo = document.createElement('span');
+      titulo.className = 'ui-ficha__titulo';
+      titulo.textContent = f.title;
+      const nota = document.createElement('span');
+      nota.className = 'ui-ficha__nota';
+      nota.textContent = [
+        (ETIQUETA_ESTADO[f.status] ?? { texto: f.status }).texto,
+        f.dueDate ? fechaCorta(f.dueDate) : '',
+      ]
+        .filter(Boolean)
+        .join(' · ');
+      fila.append(titulo, nota);
+      lista.append(fila);
+    }
+  }
+  caja.append(h, lista);
+  return caja;
+}
+
+function seccionContactos(interactions) {
+  const caja = document.createElement('div');
+  caja.style.marginTop = '1rem';
+  const h = document.createElement('h4');
+  h.textContent = 'Historial de contacto';
+  const lista = document.createElement('div');
+  lista.className = 'ui-lista';
+  if (interactions.length === 0) {
+    lista.append(AMIGO_UI.vacio(document.createElement('div'), 'Sin contactos registrados'));
+  } else {
+    for (const i of interactions) {
+      const fila = document.createElement('div');
+      fila.className = 'ui-ficha';
+      const titulo = document.createElement('span');
+      titulo.className = 'ui-ficha__titulo';
+      titulo.textContent = i.summary;
+      const nota = document.createElement('span');
+      nota.className = 'ui-ficha__nota';
+      nota.textContent = `${ETIQUETA_CONTACTO[i.kind] ?? i.kind} · ${instanteCorto(i.happenedAt)}`;
+      fila.append(titulo, nota);
+      lista.append(fila);
+    }
+  }
+  caja.append(h, lista);
+  return caja;
 }
 
 $('#ficha-cerrar').addEventListener('click', () => $('#ficha-dialog').close());
@@ -349,33 +411,45 @@ async function pintarSeguimientos() {
   estado.seguimientos = datos.followups;
   const nombreDe = (id) => estado.clientes.find((c) => c.id === id)?.name ?? '—';
 
-  $('#seguimientos-lista').innerHTML = estado.seguimientos.length
-    ? '<table><thead><tr><th>Cliente</th><th>Qué hay que hacer</th><th>Para el día</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>' +
-      estado.seguimientos
-        .map(
-          (f) =>
-            '<tr><td>' +
-            escapar(nombreDe(f.customerId)) +
-            '</td><td>' +
-            escapar(f.title) +
-            (f.body ? '<br><small>' + escapar(f.body) + '</small>' : '') +
-            '</td><td>' +
-            escapar(fechaCorta(f.dueDate) || '—') +
-            '</td><td>' +
-            escapar(ETIQUETA_ESTADO[f.status] ?? f.status) +
-            '</td><td>' +
-            '<button type="button" data-seg-editar="' +
-            f.id +
-            '">Editar</button> ' +
-            '<button type="button" data-seg-estado="' +
-            f.id +
-            '">' +
-            (f.status === 'done' ? 'Reabrir' : 'Marcar hecho') +
-            '</button></td></tr>',
-        )
-        .join('') +
-      '</tbody></table>'
-    : '<div class="ficha vacia">No hay seguimientos</div>';
+  const tabla = AMIGO_UI.tabla(['Cliente', 'Qué hay que hacer', 'Para el día', 'Estado', 'Acciones']);
+  const cuerpo = AMIGO_UI.cuerpoDe(tabla);
+
+  if (estado.seguimientos.length === 0) {
+    cuerpo.append(AMIGO_UI.filaVacia(5, 'No hay seguimientos'));
+  } else {
+    for (const f of estado.seguimientos) {
+      cuerpo.append(
+        AMIGO_UI.fila(
+          [
+            nombreDe(f.customerId),
+            AMIGO_UI.celda(f.title, f.body ? document.createElement('br') : null, f.body || ''),
+            fechaCorta(f.dueDate) || '—',
+            AMIGO_UI.estadoDe(f.status, ETIQUETA_ESTADO),
+            AMIGO_UI.celda(
+              AMIGO_UI.boton('Editar', () => abrirSeguimiento(f)),
+              AMIGO_UI.boton(f.status === 'done' ? 'Reabrir' : 'Marcar hecho', async () => {
+                try {
+                  // Solo se manda el estado: la fecha de completado la pone el
+                  // servidor, porque "se terminó ahora" es un hecho, no algo que
+                  // se escriba a mano.
+                  await api(`/api/followups/${f.id}`, {
+                    method: 'PATCH',
+                    body: { status: f.status === 'done' ? 'pending' : 'done' },
+                  });
+                  await recargar();
+                } catch (err) {
+                  avisar(err.message, true);
+                }
+              }, 'ui-btn ui-btn--chico ui-btn--suave'),
+            ),
+          ],
+          { className: 'acciones' },
+        ),
+      );
+    }
+  }
+
+  $('#seguimientos-lista').replaceChildren(AMIGO_UI.cajaTabla(tabla));
 }
 
 function abrirSeguimiento(seg) {
@@ -413,27 +487,6 @@ $('#seguimiento-form').addEventListener('submit', async (e) => {
   }
 });
 
-$('#seguimientos-lista').addEventListener('click', async (e) => {
-  const boton = e.target.closest('button');
-  if (!boton) return;
-  try {
-    if (boton.dataset.segEditar) {
-      abrirSeguimiento(estado.seguimientos.find((f) => f.id === boton.dataset.segEditar));
-    } else if (boton.dataset.segEstado) {
-      const seg = estado.seguimientos.find((f) => f.id === boton.dataset.segEstado);
-      // Solo se manda el estado: la fecha de completado la pone el servidor,
-      // porque "se terminó ahora" es un hecho, no algo que se escriba a mano.
-      await api(`/api/followups/${seg.id}`, {
-        method: 'PATCH',
-        body: { status: seg.status === 'done' ? 'pending' : 'done' },
-      });
-      await recargar();
-    }
-  } catch (err) {
-    avisar(err.message, true);
-  }
-});
-
 // ──────────────────────────────────────────────────────────────────── contactos
 
 async function pintarContactos() {
@@ -441,24 +494,20 @@ async function pintarContactos() {
   estado.contactos = datos.interactions;
   const nombreDe = (id) => estado.clientes.find((c) => c.id === id)?.name ?? '—';
 
-  $('#contactos-lista').innerHTML = estado.contactos.length
-    ? '<table><thead><tr><th>Cliente</th><th>Tipo</th><th>Qué pasó</th><th>Cuándo</th></tr></thead><tbody>' +
-      estado.contactos
-        .map(
-          (i) =>
-            '<tr><td>' +
-            escapar(nombreDe(i.customerId)) +
-            '</td><td>' +
-            escapar(ETIQUETA_CONTACTO[i.kind] ?? i.kind) +
-            '</td><td>' +
-            escapar(i.summary) +
-            '</td><td>' +
-            escapar(instanteCorto(i.happenedAt)) +
-            '</td></tr>',
-        )
-        .join('') +
-      '</tbody></table>'
-    : '<div class="ficha vacia">No hay contactos registrados</div>';
+  const tabla = AMIGO_UI.tabla(['Cliente', 'Tipo', 'Qué pasó', 'Cuándo']);
+  const cuerpo = AMIGO_UI.cuerpoDe(tabla);
+
+  if (estado.contactos.length === 0) {
+    cuerpo.append(AMIGO_UI.filaVacia(4, 'No hay contactos registrados'));
+  } else {
+    for (const i of estado.contactos) {
+      cuerpo.append(
+        AMIGO_UI.fila([nombreDe(i.customerId), ETIQUETA_CONTACTO[i.kind] ?? i.kind, i.summary, instanteCorto(i.happenedAt)]),
+      );
+    }
+  }
+
+  $('#contactos-lista').replaceChildren(AMIGO_UI.cajaTabla(tabla));
 }
 
 $('#contacto-form').addEventListener('submit', async (e) => {
@@ -484,6 +533,11 @@ $('#contacto-form').addEventListener('submit', async (e) => {
 
 // ───────────────────────────────────────────────────────────────── navegación
 
+/**
+ * Las pestañas las lleva el shell compartido (`/amigo.js`): el canal marca la
+ * activa, la URL guarda en cuál se está y el botón "atrás" del navegador
+ * funciona. Acá solo se dice qué pintar cuando se entra a cada una.
+ */
 const PANELES = {
   tablero: pintarTablero,
   clientes: () => pintarClientes(),
@@ -491,31 +545,14 @@ const PANELES = {
   contactos: pintarContactos,
 };
 
-for (const boton of document.querySelectorAll('#tabs button')) {
-  boton.addEventListener('click', async () => {
-    document.querySelectorAll('#tabs button').forEach((b) => b.classList.remove('activo'));
-    boton.classList.add('activo');
-    for (const [nombre, seccion] of Object.entries({
-      tablero: '#panel-tablero',
-      clientes: '#panel-clientes',
-      seguimientos: '#panel-seguimientos',
-      contactos: '#panel-contactos',
-      ajustes: '#panel-ajustes',
-    })) {
-      $(seccion).hidden = nombre !== boton.dataset.tab;
-    }
-    try {
-      if (PANELES[boton.dataset.tab]) await PANELES[boton.dataset.tab]();
-    } catch (err) {
-      avisar(err.message, true);
-    }
-  });
+function alEntrar(panel) {
+  if (PANELES[panel]) PANELES[panel]().catch((e) => avisar(e.message, true));
 }
 
 /** Vuelve a pedir todo y reagrupa. Se llama después de cada escritura. */
 async function recargar() {
   await cargar();
-  const activo = document.querySelector('#tabs button.activo')?.dataset.tab ?? 'tablero';
+  const activo = document.querySelector('[data-tab][aria-current="page"]')?.dataset.tab ?? 'tablero';
   if (activo === 'tablero') await pintarTablero();
   else if (PANELES[activo]) await PANELES[activo]();
 }
@@ -544,10 +581,6 @@ $('#config-form').addEventListener('submit', async (e) => {
  * Se recorre `form.elements` y se usa el `name` de cada input como clave del
  * ajuste, en vez de buscarlos por id uno por uno. Es lo que permite agregar un
  * ajuste nuevo poniendo un `<input name="...">` en el HTML, sin tocar este JS.
- *
- * OJO: el panel se llama `data-tab="ajustes"`, no `id="config"`. Por eso esto no
- * puede hacer `$$('#config input')`: ese selector no matchea nada y el panel
- * aparece vacío.
  */
 function renderConfig() {
   const form = $('#config-form');
@@ -558,14 +591,19 @@ function renderConfig() {
   }
 }
 
-$('#tablero-cliente').addEventListener('change', async () => {
-  try {
-    await pintarTablero();
-  } catch (err) {
-    avisar(err.message, true);
-  }
+$('#tablero-cliente').addEventListener('change', () => pintarTablero().catch((e) => avisar(e.message, true)));
+
+$('#seguimiento-cliente').addEventListener('change', () => pintarSeguimientos().catch((e) => avisar(e.message, true)));
+
+$('#nuevo-cliente').addEventListener('click', () => {
+  abrirCliente(null);
+  AMIGO.mostrar('clientes');
 });
 
-$('#seguimiento-cliente').addEventListener('change', pintarSeguimientos);
+AMIGO.montar({
+  nombre: 'Clientes',
+  paneles: ['tablero', 'clientes', 'seguimientos', 'contactos', 'ajustes'],
+  alEntrar,
+});
 
-cargar().then(pintarTablero);
+cargar().then(pintarTablero).catch((e) => avisar(e.message, true));

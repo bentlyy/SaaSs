@@ -1,0 +1,821 @@
+/* ==========================================================================
+   AMIGO · hoja de estilo compartida de los 9 SaaS
+   --------------------------------------------------------------------------
+   Un solo lugar donde vive la forma. Los productos no redefinen nada: pintan
+   sus datos en este esqueleto y cambian el color.
+
+   LAS TRES CAPAS
+   --------------
+   1. tokens      valores, aqui esta el 90% de las decisiones
+   2. componentes .ui-*, formas que se repiten en los nueve productos
+   3. producto    cada SaaS sobrescribe SOLO --acento y --acento-*
+
+   Si un producto necesita una forma nueva, se anade aqui como .ui-* y la
+   heredan los nueve. Si necesita un color, lo cambia en su tema. La regla de
+   oro: nada de esto se escribe dos veces.
+
+   SIN DEPENDENCIAS. Ni framework, ni fuentes externas, ni Tailwind por CDN. El
+   token de color es la unica cosa que se mueve entre productos.
+   ========================================================================== */
+
+:root {
+  /* ── superficies ─────────────────────────────────────────────────────── */
+  --fondo: #f7f6f3;
+  --superficie: #ffffff;
+  --superficie-baja: #f1efeb;
+  --superficie-alta: #e7e4de;
+  --superficie-maxima: #dedbd4;
+
+  /* ── tinta ───────────────────────────────────────────────────────────── */
+  --tinta: #1c1b19;
+  --tinta-suave: #4a4844;
+  --tinta-tenue: #78756e;
+
+  /* ── lineas ──────────────────────────────────────────────────────────── */
+  --linea: #e3e0da;
+  --linea-suave: #edebe6;
+
+  /* ── el color: lo unico que cambia por producto ──────────────────────── */
+  --acento: #0d6b5c;
+  --acento-fuerte: #0a5449;
+  --acento-tenue: #e3f1ee;
+  --acento-borde: #b9dcd6;
+  --sobre-acento: #ffffff;
+
+  /* ── estado ──────────────────────────────────────────────────────────── */
+  --ok: #0f7b3f;
+  --ok-fondo: #e6f4ec;
+  --ok-borde: #b6dfc6;
+  --aviso: #8a5a00;
+  --aviso-fondo: #fdf2da;
+  --aviso-borde: #ecd8a3;
+  --malo: #b3261e;
+  --malo-fondo: #fdecea;
+  --malo-borde: #f2c2be;
+
+  /* ── forma ───────────────────────────────────────────────────────────── */
+  --radio: 12px;
+  --radio-grande: 16px;
+  --radio-full: 999px;
+  --sombra: 0 12px 30px -18px rgba(40, 34, 24, 0.4);
+  --sombra-alta: 0 2px 6px rgba(40, 34, 24, 0.06), 0 20px 44px -18px rgba(40, 34, 24, 0.28);
+
+  /* ── texto ───────────────────────────────────────────────────────────── */
+  --fuente: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --tam: 15px;
+  --linea-alto: 1.6;
+
+  /* ── medidas ─────────────────────────────────────────────────────────── */
+  --canal: 260px;
+  --topbar: 58px;
+  --margen: 1.25rem;
+  --limite: 76rem;
+}
+
+@media (min-width: 768px) {
+  :root { --margen: 1.75rem; }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/**
+ * `hidden` tiene que ganarle a cualquier `display` de componente.
+ *
+ * Sin esto, ocultar un panel o un aviso no hace nada: `.ui-aviso { display:
+ * flex }` le gana al `[hidden] { display: none }` del navegador porque el
+ * estilo del autor siempre pasa arriba. El sintoma es un aviso que se queda
+ * pegado en pantalla y un botón de "cancelar" que nunca se va.
+ */
+[hidden] { display: none !important; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--fuente);
+  font-size: var(--tam);
+  line-height: var(--linea-alto);
+  color: var(--tinta);
+  background: var(--fondo);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 { margin: 0; letter-spacing: -0.02em; line-height: 1.22; font-weight: 700; }
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.22rem; }
+h3 { font-size: 1rem; }
+h4 { font-size: 0.92rem; }
+p { margin: 0; }
+
+a { color: var(--acento); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.mono { font-family: var(--mono); font-size: 12px; letter-spacing: 0.02em; }
+.tenue { color: var(--tinta-tenue); }
+.suave { color: var(--tinta-suave); }
+.pequeno { font-size: 13px; }
+.solo-lectores {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ==========================================================================
+   ESTRUCTURA
+   La pantalla es siempre la misma: un canal fijo a la izquierda, una barra
+   arriba y el contenido a la derecha. Ningun producto inventa otra.
+   ========================================================================== */
+
+.ui {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-areas: "topbar" "main";
+  min-height: 100vh;
+}
+
+@media (min-width: 900px) {
+  .ui {
+    grid-template-columns: var(--canal) 1fr;
+    grid-template-areas: "canal topbar" "canal main";
+  }
+}
+
+/* ── el canal ─────────────────────────────────────────────────────────── */
+
+.ui-canal {
+  grid-area: canal;
+  display: flex;
+  flex-direction: column;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--linea);
+}
+
+@media (min-width: 900px) {
+  .ui-canal {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    border-bottom: 0;
+    border-right: 1px solid var(--linea);
+  }
+}
+
+.ui-marca {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: var(--topbar);
+  padding: 0 var(--margen);
+  border-bottom: 1px solid var(--linea);
+  color: var(--tinta);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.ui-marca:hover { text-decoration: none; }
+
+.ui-logo {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 9px;
+  background: var(--acento);
+  color: var(--sobre-acento);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.ui-marca__texto { display: grid; min-width: 0; }
+.ui-marca__nombre { font-size: 0.95rem; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-marca__empresa { font-size: 11.5px; font-weight: 500; color: var(--tinta-tenue); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ui-nav { padding: 0.85rem 0.7rem; overflow-y: auto; flex: 1; }
+@media (min-width: 900px) { .ui-nav { padding-top: 1rem; } }
+
+.ui-nav__titulo {
+  margin: 0 0 0.4rem;
+  padding: 0 0.55rem;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--tinta-tenue);
+}
+
+.ui-nav a {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.55rem;
+  border-radius: var(--radio);
+  color: var(--tinta-suave);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.ui-nav a:hover { background: var(--superficie-baja); color: var(--tinta); text-decoration: none; }
+
+.ui-nav a[aria-current="page"] {
+  background: var(--acento-tenue);
+  color: var(--acento-fuerte);
+  font-weight: 650;
+}
+
+.ui-nav__punto {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--acento);
+  opacity: 0.34;
+}
+
+.ui-nav a[aria-current="page"] .ui-nav__punto { opacity: 1; }
+
+.ui-nav__nombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Una herramienta sin URL conocida: se nombra, pero no se finge que hay enlace. */
+.ui-nav__inactivo { display: block; padding: 0.5rem 0.55rem; font-size: 0.9rem; color: var(--tinta-tenue); }
+
+.ui-pie {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem var(--margen);
+  border-top: 1px solid var(--linea);
+  font-size: 0.82rem;
+  color: var(--tinta-tenue);
+  min-width: 0;
+}
+
+.ui-pie__texto { display: grid; min-width: 0; }
+.ui-pie__nombre { color: var(--tinta); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-pie__correo { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ui-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--superficie-alta);
+  color: var(--tinta-suave);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.ui-pie a { color: inherit; margin-left: auto; }
+.ui-pie a:hover { color: var(--acento); text-decoration: none; }
+
+/* ── barra superior ───────────────────────────────────────────────────── */
+
+.ui-topbar {
+  grid-area: topbar;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: var(--topbar);
+  padding: 0 var(--margen);
+  background: color-mix(in srgb, var(--fondo) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--linea);
+}
+
+.ui-topbar__titulo { display: grid; min-width: 0; }
+.ui-topbar h1 { font-size: 1.12rem; line-height: 1.25; }
+.ui-topbar__sub { font-size: 12.5px; color: var(--tinta-tenue); }
+
+.ui-topbar__acciones { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
+
+/* ── contenido ────────────────────────────────────────────────────────── */
+
+.ui-main { grid-area: main; min-width: 0; }
+
+.ui-envoltura {
+  width: 100%;
+  max-width: var(--limite);
+  margin: 0 auto;
+  padding: 1.5rem var(--margen) 4rem;
+}
+
+.ui-cabecera { margin-bottom: 1.4rem; }
+.ui-cabecera p { margin-top: 0.3rem; color: var(--tinta-suave); max-width: 52ch; }
+
+.ui-rejilla { display: grid; gap: 0.875rem; }
+@media (min-width: 640px) { .ui-rejilla--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1000px) { .ui-rejilla--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/*
+ * Las cuatro tarjetas de arriba son una tira, no cuatro cajas con sombra.
+ *
+ * Se leen de un vistazo y, sobre todo, dejan de competir con la tabla que
+ * tienen debajo: en un panel cuyo trabajo es mostrar una lista, cuatro
+ * rectángulos flotando le roban la primera mirada a lo que importa.
+ *
+ * `1 1 9rem` en vez de `1 1 0` porque con base cero las cuatro se aplastan
+ * juntas en un teléfono y quedan ilegibles; así bajan de a dos y luego de a
+ * una, que es como se leen.
+ */
+.ui-rejilla--4 { display: flex; flex-wrap: wrap; gap: 0.625rem; }
+.ui-rejilla--4 > * { flex: 1 1 9rem; }
+
+/*
+ * La lista manda y el formulario es una tarea aparte, no la mitad de la
+ * pantalla. Puesto a dos columnas, el formulario se come un tercio del ancho
+ * en cada panel de apoyo y la tabla queda en un hueco: a una columna, la
+ * tabla usa todo el ancho y el formulario baja debajo, a lo ancho.
+ */
+@media (min-width: 1100px) { .ui-rejilla--principal { grid-template-columns: 1fr; align-items: start; } }
+
+.ui-pila { display: grid; gap: 1rem; }
+.ui-fila { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.ui-fila--entre { justify-content: space-between; }
+.ui-crece { flex: 1; min-width: 0; }
+
+/* ==========================================================================
+   PIEZAS
+   ========================================================================== */
+
+.ui-tarjeta {
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-grande);
+  box-shadow: var(--sombra);
+  padding: 1.15rem 1.25rem;
+  min-width: 0;
+}
+
+.ui-tarjeta--plana { box-shadow: none; }
+
+/*
+ * Una tarjeta dentro de otra tarjeta.
+ *
+ * Sin esto, un formulario que va dentro de una tarjeta se dibuja como un
+ * rectángulo más: queda un borde dentro de un borde y dos sombras, y la pantalla
+ * se ve como si tuviera una tarjeta de más. Acá se hunde: mismo fondo, sin
+ * sombra, y solo la línea que lo separa del papel de arriba.
+ */
+.ui-tarjeta--anidada {
+  background: var(--superficie-baja);
+  border-color: var(--linea-suave);
+  box-shadow: none;
+}
+
+.ui-tarjeta__cab { display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.9rem; flex-wrap: wrap; }
+.ui-tarjeta__cab h2, .ui-tarjeta__cab h3 { margin: 0; }
+.ui-tarjeta__cab .ui-fila { margin-left: auto; }
+
+/* ── cifras ───────────────────────────────────────────────────────────── */
+
+.ui-kpi {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.75rem 1rem;
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-grande);
+}
+
+.ui-kpi__cifra {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.ui-kpi__cifra--acento { color: var(--acento-fuerte); }
+.ui-kpi__etiqueta { font-size: 12.5px; color: var(--tinta-tenue); }
+.ui-kpi__nota { font-size: 12px; color: var(--tinta-tenue); }
+
+/* ── botones ──────────────────────────────────────────────────────────── */
+
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.95rem;
+  border: 1px solid transparent;
+  border-radius: var(--radio);
+  background: var(--acento);
+  color: var(--sobre-acento);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.25;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.15s ease, transform 0.05s ease, background 0.15s ease;
+}
+
+.ui-btn:hover { filter: brightness(1.08); text-decoration: none; }
+.ui-btn:active { transform: translateY(1px); }
+.ui-btn[disabled], .ui-btn[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; filter: none; }
+
+.ui-btn--fantasma {
+  background: var(--superficie);
+  color: var(--tinta);
+  border-color: var(--superficie-maxima);
+}
+.ui-btn--fantasma:hover { background: var(--superficie-baja); filter: none; }
+
+.ui-btn--suave { background: var(--acento-tenue); color: var(--acento-fuerte); }
+.ui-btn--suave:hover { background: var(--acento-borde); filter: none; }
+
+.ui-btn--peligro { background: var(--malo); }
+.ui-btn--chico { padding: 0.3rem 0.6rem; font-size: 0.8rem; border-radius: 8px; }
+.ui-btn--bloque { width: 100%; }
+
+/* ── formulario ───────────────────────────────────────────────────────── */
+
+.ui-campo { display: grid; gap: 0.3rem; min-width: 0; }
+
+.ui-campo > label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--tinta-suave);
+}
+
+.ui-campo .ui-pista { font-size: 12px; color: var(--tinta-tenue); }
+.ui-campo .ui-error { font-size: 12px; color: var(--malo); }
+.ui-campo .ui-error:empty { display: none; }
+
+input, select, textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 0.5rem 0.65rem;
+  font: inherit;
+  font-size: 0.92rem;
+  color: var(--tinta);
+  background: var(--superficie);
+  border: 1px solid var(--superficie-maxima);
+  border-radius: var(--radio);
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid var(--acento);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+input:disabled, select:disabled, textarea:disabled { background: var(--superficie-baja); color: var(--tinta-tenue); }
+input::placeholder, textarea::placeholder { color: var(--tinta-tenue); }
+
+.ui-campo--error input, .ui-campo--error select, .ui-campo--error textarea { border-color: var(--malo); }
+
+.ui-form { display: grid; gap: 0.85rem; }
+.ui-form__fila { display: grid; gap: 0.85rem; }
+@media (min-width: 560px) { .ui-form__fila--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 560px) { .ui-form__fila--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/*
+ * La fila de cuatro existe para los formularios de "agregar un punto a una
+ * plantilla": sección, texto, tipo y obligatoriedad. Con tres columnas el tipo de
+ * respuesta se iba a la segunda fila y el formulario quedaba con la mitad de su
+ * altura vacía.
+ */
+@media (min-width: 900px) { .ui-form__fila--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+.ui-form__pie { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; padding-top: 0.15rem; }
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--tinta-suave);
+  cursor: pointer;
+}
+.check input { width: auto; min-width: 0; accent-color: var(--acento); }
+
+/* ── etiquetas de estado ───────────────────────────────────────────────── */
+
+.ui-etiqueta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-full);
+  background: var(--superficie-baja);
+  color: var(--tinta-suave);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ui-etiqueta--ok { background: var(--ok-fondo); border-color: var(--ok-borde); color: var(--ok); }
+.ui-etiqueta--aviso { background: var(--aviso-fondo); border-color: var(--aviso-borde); color: var(--aviso); }
+.ui-etiqueta--malo { background: var(--malo-fondo); border-color: var(--malo-borde); color: var(--malo); }
+.ui-etiqueta--acento { background: var(--acento-tenue); border-color: var(--acento-borde); color: var(--acento-fuerte); }
+
+.ui-punto { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+
+/* ── tablas ───────────────────────────────────────────────────────────── */
+
+.ui-tabla-caja {
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-grande);
+  box-shadow: var(--sombra);
+  overflow: hidden;
+}
+
+.ui-tabla-scroll { overflow-x: auto; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.89rem; }
+
+th, td {
+  text-align: left;
+  padding: 0.62rem 0.85rem;
+  border-bottom: 1px solid var(--linea-suave);
+  vertical-align: middle;
+}
+
+thead th {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--tinta-tenue);
+  background: var(--superficie-baja);
+  white-space: nowrap;
+}
+
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: var(--superficie-baja); }
+
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.acciones { text-align: right; white-space: nowrap; }
+td.acciones > * + * { margin-left: 0.3rem; }
+
+/**
+ * Tabla de agenda: la primera columna es la hora y funciona como eje.
+ *
+ * Se estrecha al ancho de su contenido, no se reparte el ancho con el resto, y
+ * queda separada por una línea. Así el ojo la lee como la columna de tiempos de
+ * un calendario en vez de como "la primera celda de una fila".
+ *
+ * Va en una clase y no como `td:first-child` a secas porque en las tablas de
+ * clientes o extras la primera columna no es un tiempo: ahí la regla no
+ * significaría nada y ensuciaría tablas donde nunca se pidió.
+ */
+.ui-tabla-caja--eje th:first-child,
+.ui-tabla-caja--eje td:first-child {
+  width: 1%;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  border-right: 1px solid var(--linea);
+}
+
+.ui-tabla-caja--eje tbody tr { height: 2.9rem; }
+
+.ui-vacio {
+  padding: 2.2rem 1.25rem;
+  text-align: center;
+  color: var(--tinta-tenue);
+  font-size: 0.9rem;
+}
+
+.ui-vacio strong { display: block; color: var(--tinta-suave); font-size: 1rem; margin-bottom: 0.25rem; }
+
+/* ── lista de valores ─────────────────────────────────────────────────── */
+
+.ui-lista { display: grid; }
+.ui-lista > * + * { border-top: 1px solid var(--linea); }
+
+.ui-ficha {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.8rem 0;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.ui-ficha__cuerpo { display: grid; gap: 0.1rem; min-width: 0; flex: 1; }
+.ui-ficha__titulo { font-weight: 600; }
+.ui-ficha__nota { font-size: 12.5px; color: var(--tinta-tenue); }
+.ui-ficha__acciones { display: flex; align-items: center; gap: 0.35rem; margin-left: auto; }
+
+/*
+ * La ficha de un registro: pares etiqueta/valor, uno encima del otro.
+ *
+ * Es la pieza de la ficha del cliente y de cualquier detalle que se abre en una
+ * ventana. Va como lista de dos columnas y no como una tabla porque no tiene
+ * encabezado: son datos de un solo sujeto, no filas que comparar entre sí.
+ */
+.ui-datos {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.4rem 1rem;
+  margin: 0;
+}
+
+.ui-datos dt { font-size: 12.5px; color: var(--tinta-tenue); }
+.ui-datos dd { margin: 0; }
+
+/* ── hilo de una solicitud ─────────────────────────────────────────────── */
+
+/*
+ * El hilo de un ticket: lo que se escribió, en orden, con quién y cuándo.
+ *
+ * Va como lista y no como tabla porque no tiene filas que comparar: son
+ * momentos de una misma conversación, y separarlos con líneas horizontales los
+ * hace legibles como una línea de tiempo en vez de como un registro plano.
+ */
+.ui-comentario { padding: 0.7rem 0; }
+.ui-comentario + .ui-comentario { border-top: 1px solid var(--linea-suave); }
+
+.ui-comentario__cabeza {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.15rem;
+}
+
+.ui-comentario__autor { font-weight: 600; font-size: 0.88rem; }
+.ui-comentario__fecha { font-size: 12px; color: var(--tinta-tenue); }
+
+/*
+ * `pre-wrap` y no `pre`: un comentario con salto de línea tiene que mostrarlo,
+ * pero uno largo tiene que poder partirse igual que el resto del texto. Con
+ * `pre` solo, un párrafo sin saltos se sale de la ventana.
+ */
+.ui-comentario__texto { white-space: pre-wrap; }
+
+.ui-evento { padding: 0.55rem 0; font-size: 0.87rem; }
+.ui-evento + .ui-evento { border-top: 1px solid var(--linea-suave); }
+.ui-evento__cambio { font-weight: 600; }
+.ui-evento__meta { color: var(--tinta-tenue); font-size: 12px; }
+
+/* ── avisos ───────────────────────────────────────────────────────────── */
+
+.ui-aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid transparent;
+  border-radius: var(--radio);
+  font-size: 0.87rem;
+}
+
+.ui-aviso--ok { background: var(--ok-fondo); border-color: var(--ok-borde); color: var(--ok); }
+.ui-aviso--aviso { background: var(--aviso-fondo); border-color: var(--aviso-borde); color: var(--aviso); }
+.ui-aviso--malo { background: var(--malo-fondo); border-color: var(--malo-borde); color: var(--malo); }
+.ui-aviso--info { background: var(--superficie); border-color: var(--linea); color: var(--tinta-suave); }
+
+/* ── pestañas ─────────────────────────────────────────────────────────── */
+
+.ui-tabs {
+  display: flex;
+  gap: 0.15rem;
+  padding: 0.22rem;
+  background: var(--superficie-baja);
+  border-radius: var(--radio-full);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ui-tabs::-webkit-scrollbar { display: none; }
+
+.ui-tabs button {
+  flex: none;
+  padding: 0.42rem 0.85rem;
+  border: 0;
+  border-radius: var(--radio-full);
+  background: transparent;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--tinta-suave);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ui-tabs button:hover { color: var(--tinta); }
+.ui-tabs button[aria-selected="true"] { background: var(--superficie); color: var(--tinta); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.09); }
+
+.ui-panel:focus { outline: none; }
+.ui-panel[hidden] { display: none; }
+
+/* ── carga ────────────────────────────────────────────────────────────── */
+
+.ui-cargando {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--tinta-tenue);
+  font-size: 0.87rem;
+}
+
+.ui-spinner {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--superficie-maxima);
+  border-top-color: var(--acento);
+  animation: ui-gira 0.7s linear infinite;
+}
+
+.ui-btn--fantasma .ui-spinner, .ui-spinner--claro { border-color: rgba(255, 255, 255, 0.4); border-top-color: #fff; }
+
+@keyframes ui-gira { to { transform: rotate(360deg); } }
+
+.ui-esqueleto {
+  background: linear-gradient(90deg, var(--superficie-baja) 25%, var(--superficie-alta) 50%, var(--superficie-baja) 75%);
+  background-size: 200% 100%;
+  animation: ui-brillo 1.2s ease infinite;
+  border-radius: var(--radio);
+  height: 1rem;
+}
+
+@keyframes ui-brillo { to { background-position: -200% 0; } }
+
+/* ── dados ────────────────────────────────────────────────────────────── */
+
+.ui-franjas { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+
+.ui-franja {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--linea);
+  border-radius: 8px;
+  background: var(--superficie);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--tinta-suave);
+  cursor: pointer;
+}
+
+.ui-franja:hover { border-color: var(--acento); color: var(--acento-fuerte); }
+.ui-franja[aria-pressed="true"] { background: var(--acento); border-color: var(--acento); color: var(--sobre-acento); }
+.ui-franja[disabled] { opacity: 0.42; cursor: not-allowed; text-decoration: line-through; }
+
+dialog {
+  width: min(30rem, calc(100vw - 2rem));
+  padding: 0;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-grande);
+  background: var(--superficie);
+  color: var(--tinta);
+  box-shadow: var(--sombra-alta);
+}
+
+dialog::backdrop { background: rgba(30, 26, 18, 0.4); }
+dialog .ui-tarjeta { border: 0; box-shadow: none; border-radius: 0; }
+
+/*
+ * Una ventana con un formulario largo (abrir un ticket, ver un cliente).
+ *
+ * La ventana angosta de arriba mide bien un formulario de cuatro campos, pero
+ * con veinte el alto se sale de la pantalla y el botón de guardar queda
+ * debajo del pliegue, sin forma de alcanzarlo. Esta variante es mas ancha y
+ * lleva su propio scroll, así que el contenido largo no empuja el botón fuera
+ * de la ventana.
+ */
+dialog.ui-ancho {
+  width: min(46rem, calc(100vw - 2rem));
+  max-height: min(88vh, 60rem);
+  overflow: auto;
+}
+
+.ui-cabecera-modal { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+.ui-cabecera-modal h2 { flex: 1; }
+.ui-cabecera-modal .ui-cerrar {
+  border: 0; background: transparent; cursor: pointer; color: var(--tinta-tenue);
+  font-size: 1.3rem; line-height: 1; padding: 0.2rem 0.4rem; border-radius: 6px;
+}
+.ui-cabecera-modal .ui-cerrar:hover { background: var(--superficie-baja); color: var(--tinta); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+@media (prefers-contrast: more) {
+  :root { --linea: #b8b4ac; --tinta-tenue: #55524c; }
+}

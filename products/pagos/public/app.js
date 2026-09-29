@@ -26,10 +26,14 @@
  *      respuesta. Se pide aparte con `/api/charges/saldos`, que lo calcula con un
  *      solo GROUP BY: pedir la ficha de cada cargo para pintar la lista serian 200
  *      idas a la base por cada carga de pantalla.
+ *
+ * La tabla, las etiquetas y los botones vienen de `AMIGO_UI`; lo de mas abajo
+ * es de esta herramienta.
  */
 
-const $ = (sel) => document.querySelector(sel);
-const miles = new Intl.NumberFormat('es-CL');
+const $ = AMIGO_UI.$;
+const api = AMIGO_UI.api;
+const avisar = AMIGO_UI.avisar;
 
 const estado = {
   cargos: [],
@@ -41,66 +45,33 @@ const estado = {
   fichaId: null,
 };
 
-async function api(ruta, opciones = {}) {
-  const res = await fetch(ruta, {
-    headers: { 'content-type': 'application/json' },
-    ...opciones,
-    body: opciones.body ? JSON.stringify(opciones.body) : undefined,
-  });
-  const datos = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const err = new Error(datos.error ?? 'No se pudo completar la operacion');
-    err.status = res.status;
-    err.detalle = datos;
-    throw err;
-  }
-  return datos;
-}
-
-function avisar(mensaje, malo = false) {
-  const caja = $('#aviso');
-  caja.textContent = mensaje;
-  caja.classList.toggle('malo', malo);
-  caja.hidden = false;
-  clearTimeout(caja.t);
-  caja.t = setTimeout(() => { caja.hidden = true; }, 5000);
-}
-
-function escapar(texto) {
-  return String(texto ?? '').replace(/[&<>"']/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
-  );
-}
-
-/**
- * Centavos a texto legible.
- *
- * `Math.trunc(c / 100)` y `c % 100` son exactos para enteros, asi que el centavo
- * se ve siempre: un saldo de $45,01 no se muestra como $45. Y la division es la
- * UNICA operacion de dinero de esta pantalla, porque el numero que llega de la
- * API ya esta en la unidad en que se guarda.
- */
-function monto(centavos) {
-  const simbolo = estado.cfg?.currency ?? '$';
-  const n = Math.trunc(Number(centavos ?? 0));
-  const signo = n < 0 ? '-' : '';
-  const abs = Math.abs(n);
-  return `${signo}${simbolo} ${miles.format(Math.trunc(abs / 100))},${String(abs % 100).padStart(2, '0')}`;
-}
-
-const ETIQUETA_ESTADO = {
-  pending: 'Pendiente',
-  partial: 'Parcial',
-  paid: 'Pagado',
-  canceled: 'Cancelado',
+const ESTADOS = {
+  pending: { texto: 'Pendiente', tono: 'aviso' },
+  partial: { texto: 'Parcial', tono: 'acento' },
+  paid: { texto: 'Pagado', tono: 'ok' },
+  canceled: { texto: 'Cancelado', tono: 'neutro' },
 };
 
-const ETIQUETA_METODO = {
+const METODOS = {
   cash: 'Efectivo',
   card: 'Tarjeta',
   transfer: 'Transferencia',
   other: 'Otro',
 };
+
+/**
+ * Centavos a texto legible, con el centavo SIEMPRE a la vista.
+ *
+ * No se usa `AMIGO_UI.dinero` a proposito: ese redondea al peso, y una cartera
+ * por cobrar redondeada no es una cartera por cobrar. Un saldo de $45,01
+ * mostrado como $45 hace desaparecer deuda. La division por 100 es la UNICA
+ * operacion de dinero de esta pantalla, porque el numero que llega de la API ya
+ * esta en la unidad en que se guarda.
+ */
+const fmtMonto = new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function monto(centavos) {
+  return `${estado.cfg?.currency ?? '$'} ${fmtMonto.format(Math.trunc(Number(centavos ?? 0)) / 100)}`;
+}
 
 /** `AAAA-MM-DD` a `DD/MM`: como lo lee una persona, sin cambiar el dato. */
 function fechaCorta(fecha) {
@@ -110,6 +81,8 @@ function fechaCorta(fecha) {
 }
 
 const instanteCorto = (iso) => (iso ? new Date(iso).toLocaleString('es-CL') : '');
+
+const saldoDe = (id) => estado.saldos[id] ?? 0;
 
 // ─────────────────────────────────────────────────────────────── carga de datos
 
@@ -129,46 +102,50 @@ async function cargar() {
   pintarMontos();
 }
 
-function tarjeta(numero, texto) {
-  return `<div class="tarjeta"><strong>${escapar(numero)}</strong><span>${escapar(texto)}</span></div>`;
-}
-
-const saldoDe = (id) => estado.saldos[id] ?? 0;
-
 // ─────────────────────────────────────────────────────────────────────── tablero
 
 async function pintarTablero() {
   const tablero = await api('/api/dashboard');
   const porStatus = tablero.porStatus;
 
-  $('#resumen').innerHTML = [
-    tarjeta(monto(tablero.cobradoMesCents), 'Cobrado este mes'),
-    tarjeta(monto(tablero.pendienteCents), 'Por cobrar'),
-    tarjeta(monto(tablero.vencidoCents), 'Vencido'),
-    tarjeta(porStatus.pending, 'Cargos pendientes'),
-    tarjeta(porStatus.partial, 'Cargos parciales'),
-    tarjeta(porStatus.paid, 'Cargos pagados'),
-    tarjeta(porStatus.canceled, 'Cargos cancelados'),
-  ].join('');
+  AMIGO_UI.kpis($('#resumen'), [
+    [monto(tablero.cobradoMesCents), 'Cobrado este mes', true],
+    [monto(tablero.pendienteCents), 'Por cobrar'],
+    [monto(tablero.vencidoCents), 'Vencido'],
+    [porStatus.pending, 'Cargos pendientes'],
+    [porStatus.partial, 'Cargos parciales'],
+    [porStatus.paid, 'Cargos pagados'],
+    [porStatus.canceled, 'Cargos cancelados'],
+  ]);
 
-  const vacio = '<div class="ficha vacia">Todavia no hay cargos emitidos</div>';
-  $('#recientes').innerHTML =
-    tablero.recientes
-      .map(
-        (c) =>
-          '<div class="ficha"><strong>' +
-          escapar(c.number) +
-          ' &middot; ' +
-          escapar(c.customerName) +
-          '</strong><span>' +
-          escapar(c.concept) +
-          ' &middot; ' +
-          escapar(ETIQUETA_ESTADO[c.status] ?? c.status) +
-          ' &middot; saldo ' +
-          escapar(monto(c.saldoCents)) +
-          '</span></div>',
-      )
-      .join('') || vacio;
+  const caja = $('#recientes');
+  if (tablero.recientes.length === 0) {
+    AMIGO_UI.vacio(caja, 'Todavia no hay cargos emitidos');
+    return;
+  }
+  caja.replaceChildren(
+    ...tablero.recientes.map((c) => {
+      const ficha = document.createElement('div');
+      ficha.className = 'ui-ficha';
+      const cuerpo = document.createElement('div');
+      cuerpo.className = 'ui-ficha__cuerpo';
+      const titulo = document.createElement('span');
+      titulo.className = 'ui-ficha__titulo';
+      titulo.textContent = `${c.number} · ${c.customerName}`;
+      const nota = document.createElement('span');
+      nota.className = 'ui-ficha__nota';
+      nota.textContent = `${c.concept} · saldo ${monto(c.saldoCents)}`;
+      cuerpo.append(titulo, nota);
+      const acciones = document.createElement('div');
+      acciones.className = 'ui-ficha__acciones';
+      acciones.append(
+        AMIGO_UI.estadoDe(c.status, ESTADOS),
+        AMIGO_UI.boton('Ficha', () => abrirFicha(c.id).catch((e) => avisar(e.message, true))),
+      );
+      ficha.append(cuerpo, acciones);
+      return ficha;
+    }),
+  );
 }
 
 // ──────────────────────────────────────────────────────────────────────── cobros
@@ -192,51 +169,86 @@ function pintarCobros() {
   // Borrar un cargo se lleva sus abonos, asi que no es de cualquiera: se ofrece
   // solo a quien puede. El rol viene de `/api/me`, no de un campo en el HTML.
   const puedeBorrar = estado.rol === 'admin' || estado.rol === 'owner';
-  const saldo = saldoDe(c.id);
 
-  $('#cobros-lista').innerHTML = lista.length
-    ? '<table><thead><tr><th>Folio</th><th>Cliente</th><th>Concepto</th><th>Emitido</th><th>Vence</th><th>Total</th><th>Saldo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>' +
-      lista
-        .map(
-          (c) =>
-            '<tr><td>' +
-            escapar(c.number) +
-            '</td><td>' +
-            escapar(c.customerName) +
-            (c.customerEmail ? '<br><small>' + escapar(c.customerEmail) + '</small>' : '') +
-            '</td><td>' +
-            escapar(c.concept) +
-            '</td><td>' +
-            escapar(fechaCorta(c.issuedDate) || '—') +
-            '</td><td>' +
-            escapar(fechaCorta(c.dueDate) || '—') +
-            '</td><td>' +
-            escapar(monto(c.amountCents)) +
-            '</td><td>' +
-            escapar(monto(saldo)) +
-            '</td><td>' +
-            escapar(ETIQUETA_ESTADO[c.status] ?? c.status) +
-            '</td><td>' +
-            '<button type="button" data-ficha="' +
-            c.id +
-            '">Ficha</button> ' +
-            '<button type="button" data-editar="' +
-            c.id +
-            '">Editar</button> ' +
-            (puedeBorrar
-              ? '<button type="button" data-borrar="' + c.id + '">Borrar</button>'
-              : '') +
-            '</td></tr>',
-        )
-        .join('') +
-      '</tbody></table>'
-    : '<div class="ficha vacia">No hay cargos que coincidan</div>';
+  const tabla = AMIGO_UI.tabla(
+    ['Folio', 'Cliente', 'Concepto', 'Emitido', 'Vence', 'Total', 'Saldo', 'Estado', ''],
+    { num: [5, 6] },
+  );
+  const cuerpo = AMIGO_UI.cuerpoDe(tabla);
+
+  if (lista.length === 0) {
+    cuerpo.append(AMIGO_UI.filaVacia(9, 'No hay cargos que coincidan'));
+  } else {
+    for (const c of lista) {
+      // El correo va debajo del cliente y no en su propia columna: es el mismo
+      // dato duplicado, y darle columna propia empujaba las de dinero fuera de
+      // la pantalla en cualquier laptop.
+      const cliente = document.createElement('div');
+      const fuerte = document.createElement('div');
+      fuerte.className = 'ui-ficha__titulo';
+      fuerte.textContent = c.customerName;
+      cliente.append(fuerte);
+      if (c.customerEmail) {
+        const correo = document.createElement('div');
+        correo.className = 'ui-ficha__nota';
+        correo.textContent = c.customerEmail;
+        cliente.append(correo);
+      }
+
+      // El saldo va con color: en una cartera, ver de un vistazo cuanto se le
+      // debe a cada uno es el trabajo de esta pantalla, y si hay que leer la
+      // cifra para saber si es rojo, no se hizo el trabajo.
+      const saldo = saldoDe(c.id);
+      const celdaSaldo =
+        saldo > 0 ? AMIGO_UI.etiqueta(monto(saldo), 'malo') : AMIGO_UI.etiqueta(monto(saldo), 'ok');
+
+      const botones = [
+        AMIGO_UI.boton('Ficha', () => abrirFicha(c.id).catch((e) => avisar(e.message, true))),
+        AMIGO_UI.boton('Editar', () => abrirCargo(c)),
+      ];
+      if (puedeBorrar) {
+        botones.push(
+          AMIGO_UI.boton(
+            'Borrar',
+            async () => {
+              try {
+                await api(`/api/charges/${c.id}`, { method: 'DELETE' });
+                await recargar();
+                avisar('Cargo borrado, con sus abonos');
+              } catch (err) {
+                avisar(err.message, true);
+              }
+            },
+            'ui-btn ui-btn--chico ui-btn--fantasma ui-btn--peligro',
+          ),
+        );
+      }
+
+      cuerpo.append(
+        AMIGO_UI.fila(
+          [
+            c.number,
+            cliente,
+            c.concept,
+            fechaCorta(c.issuedDate) || '—',
+            fechaCorta(c.dueDate) || '—',
+            monto(c.amountCents),
+            celdaSaldo,
+            AMIGO_UI.estadoDe(c.status, ESTADOS),
+            AMIGO_UI.celda(...botones),
+          ],
+          { num: [5], className: 'acciones' },
+        ),
+      );
+    }
+  }
+
+  $('#cobros-lista').replaceChildren(AMIGO_UI.cajaTabla(tabla));
 }
 
 function abrirCargo(cargo) {
   $('#cargo-id').value = cargo?.id ?? '';
   $('#cargo-form-titulo').textContent = cargo ? 'Editar cargo' : 'Nuevo cargo';
-  $('#cargo-cancelar').hidden = !cargo;
   $('#cargo-numero').value = cargo?.number ?? '';
   $('#cargo-concepto').value = cargo?.concept ?? '';
   $('#cargo-cliente-nombre').value = cargo?.customerName ?? '';
@@ -247,6 +259,7 @@ function abrirCargo(cargo) {
   $('#cargo-vencimiento').value = cargo?.dueDate ?? '';
   $('#cargo-notas').value = cargo?.notes ?? '';
   pintarMontos();
+  if (!$('#cargo-dialog').open) $('#cargo-dialog').showModal();
 }
 
 /** Los montos en centavos, mostrados como se van a ver. Nunca se convierten para mandarlos. */
@@ -275,7 +288,9 @@ $('#cargo-proponer-numero').addEventListener('click', async () => {
   }
 });
 
-$('#cargo-cancelar').addEventListener('click', () => abrirCargo(null));
+$('#cargo-cancelar').addEventListener('click', () => $('#cargo-dialog').close());
+$('#cargo-cerrar').addEventListener('click', () => $('#cargo-dialog').close());
+$('#cargo-nuevo').addEventListener('click', () => abrirCargo(null));
 
 $('#cargo-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -303,7 +318,7 @@ $('#cargo-form').addEventListener('submit', async (e) => {
       method: id ? 'PATCH' : 'POST',
       body: cuerpo,
     });
-    abrirCargo(null);
+    $('#cargo-dialog').close();
     await recargar();
     avisar(id ? 'Cargo actualizado' : 'Cargo creado');
   } catch (err) {
@@ -316,71 +331,79 @@ $('#cargo-form').addEventListener('submit', async (e) => {
 $('#cargo-buscar').addEventListener('input', pintarCobros);
 $('#cargo-filtro').addEventListener('change', pintarCobros);
 
-$('#cobros-lista').addEventListener('click', async (e) => {
-  const boton = e.target.closest('button');
-  if (!boton) return;
-  try {
-    if (boton.dataset.editar) {
-      abrirCargo(estado.cargos.find((c) => c.id === boton.dataset.editar));
-    } else if (boton.dataset.ficha) {
-      await abrirFicha(boton.dataset.ficha);
-    } else if (boton.dataset.borrar) {
-      await api(`/api/charges/${boton.dataset.borrar}`, { method: 'DELETE' });
-      await recargar();
-      avisar('Cargo borrado, con sus abonos');
-    }
-  } catch (err) {
-    avisar(err.message, true);
-  }
-});
-
 // ──────────────────────────────────────────────────────────────────────── ficha
+
+/** Un par etiqueta/valor. La ficha es una lista de datos, no filas que comparar. */
+function dato(termino, valor) {
+  const dt = document.createElement('dt');
+  dt.textContent = termino;
+  const dd = document.createElement('dd');
+  dd.textContent = valor;
+  return [dt, dd];
+}
 
 async function abrirFicha(idCargo) {
   const ficha = await api(`/api/charges/${idCargo}/ficha`);
   estado.fichaId = idCargo;
   const c = ficha.charge;
+  const caja = $('#ficha');
+  caja.replaceChildren();
 
-  $('#ficha').innerHTML =
-    '<h3>' +
-    escapar(c.number) +
-    ' &middot; ' +
-    escapar(c.customerName) +
-    '</h3>' +
-    '<p class="meta">' +
-    escapar(ETIQUETA_ESTADO[c.status] ?? c.status) +
-    ' &middot; ' +
-    escapar(c.concept) +
-    (c.dueDate ? ' &middot; vence ' + escapar(fechaCorta(c.dueDate)) : '') +
-    '</p>' +
-    '<dl>' +
-    '<dt>Total</dt><dd>' +
-    escapar(monto(ficha.charge.amountCents)) +
-    '</dd>' +
-    '<dt>Cobrado</dt><dd>' +
-    escapar(monto(ficha.pagadoCents)) +
-    '</dd>' +
-    '<dt>Saldo</dt><dd>' +
-    escapar(monto(ficha.saldoCents)) +
-    '</dd>' +
-    (c.customerEmail ? '<dt>Correo</dt><dd>' + escapar(c.customerEmail) + '</dd>' : '') +
-    (c.notes ? '<dt>Notas</dt><dd>' + escapar(c.notes) + '</dd>' : '') +
-    '</dl>' +
-    '<h4>Abonos</h4><div class="lineas">' +
-    (ficha.payments
-      .map(
-        (p) =>
-          '<div class="linea"><span>' +
-          escapar(monto(p.amountCents)) +
-          ' &middot; ' +
-          escapar(ETIQUETA_METODO[p.method] ?? p.method) +
-          (p.reference ? ' &middot; ' + escapar(p.reference) : '') +
-          '</span><span class="estado">' +
-          escapar(instanteCorto(p.receivedAt)) +
-          '</span></div>',
-      )
-      .join('') || '<div class="ficha vacia">Sin abonos registrados</div>') +
-    '</div>';
+  const titulo = document.createElement('h2');
+  titulo.textContent = `${c.number} · ${c.customerName}`;
+
+  const linea = document.createElement('div');
+  linea.className = 'ui-fila';
+  linea.append(AMIGO_UI.estadoDe(c.status, ESTADOS));
+  if (c.dueDate) linea.append(AMIGO_UI.etiqueta(`Vence ${fechaCorta(c.dueDate)}`, 'neutro'));
+
+  const datos = document.createElement('dl');
+  datos.className = 'ui-datos';
+  datos.append(
+    ...dato('Concepto', c.concept),
+    ...dato('Total', monto(ficha.charge.amountCents)),
+    ...dato('Cobrado', monto(ficha.pagadoCents)),
+    ...dato('Saldo', monto(ficha.saldoCents)),
+  );
+  if (c.customerEmail) datos.append(...dato('Correo', c.customerEmail));
+  if (c.notes) datos.append(...dato('Notas', c.notes));
+
+  const abonos = document.createElement('h3');
+  abonos.className = 'ui-tarjeta__cab';
+  abonos.textContent = 'Abonos';
+  const lista = document.createElement('div');
+  lista.className = 'ui-lista';
+
+  if (ficha.payments.length === 0) {
+    AMIGO_UI.vacio(lista, 'Sin abonos registrados');
+  } else {
+    for (const p of ficha.payments) {
+      const fila = document.createElement('div');
+      fila.className = 'ui-ficha';
+      const cuerpo = document.createElement('div');
+      cuerpo.className = 'ui-ficha__cuerpo';
+      const tit = document.createElement('span');
+      tit.className = 'ui-ficha__titulo';
+      tit.textContent = METODOS[p.method] ?? p.method;
+      cuerpo.append(tit);
+      if (p.reference) {
+        const nota = document.createElement('span');
+        nota.className = 'ui-ficha__nota';
+        nota.textContent = p.reference;
+        cuerpo.append(nota);
+      }
+      const cuando = document.createElement('div');
+      cuando.className = 'ui-ficha__acciones';
+      cuando.append(
+        AMIGO_UI.etiqueta(instanteCorto(p.receivedAt), 'neutro'),
+        AMIGO_UI.etiqueta(monto(p.amountCents), 'ok'),
+      );
+      fila.append(cuerpo, cuando);
+      lista.append(fila);
+    }
+  }
+
+  caja.append(titulo, linea, datos, abonos, lista);
 
   // El boton de cobrar y el de cancelar se esconden segun el estado, y no para
   // que la API los rechace: la API los rechaza igual (409), pero un boton que
@@ -434,6 +457,8 @@ $('#ficha-cancelar-cargo').addEventListener('click', async () => {
   }
 });
 
+$('#reporte-filtrar').addEventListener('click', () => conAviso(pintarReporte));
+
 // ─────────────────────────────────────────────────────────────────────── reporte
 
 async function pintarReporte() {
@@ -444,78 +469,64 @@ async function pintarReporte() {
   if (hasta) params.set('to', hasta);
 
   const reporte = await api(`/api/reporte?${params.toString()}`);
+
   // Los cuatro tramos se pintan siempre, aunque uno de cero: una fila que aparece
   // y desaparece segun los datos hace que la pantalla "salte".
-  $('#reporte-tabla').innerHTML =
-    '<table><thead><tr><th>Dias de atraso</th><th>Cargos</th><th>Saldo</th></tr></thead><tbody>' +
-    Object.entries(reporte.buckets)
-      .map(
-        ([clave, b]) =>
-          '<tr><td>' +
-          escapar(clave) +
-          '</td><td>' +
-          escapar(b.cargos) +
-          '</td><td>' +
-          escapar(monto(b.saldoCents)) +
-          '</td></tr>',
-      )
-      .join('') +
-    '</tbody></table>';
+  const tabla = AMIGO_UI.tabla(['Dias de atraso', 'Cargos', 'Saldo'], { num: [1, 2] });
+  const cuerpo = AMIGO_UI.cuerpoDe(tabla);
+  for (const [clave, b] of Object.entries(reporte.buckets)) {
+    cuerpo.append(AMIGO_UI.fila([clave, b.cargos, monto(b.saldoCents)], { num: [1, 2] }));
+  }
+  $('#reporte-tabla').replaceChildren(AMIGO_UI.cajaTabla(tabla));
 
   $('#reporte-total').textContent =
     `${reporte.totalCargos} cargo(s) con saldo al ${reporte.referencia}: ` +
     `${monto(reporte.totalPendienteCents)} pendientes.`;
 }
 
-$('#reporte-filtrar').addEventListener('click', async () => {
-  try {
-    await pintarReporte();
-  } catch (err) {
-    avisar(err.message, true);
-  }
-});
-
 // ─────────────────────────────────────────────────────────────────── navegación
 
-const PANELES = {
-  tablero: pintarTablero,
-  cobros: () => pintarCobros(),
-  reporte: () => pintarReporte(),
-};
-
-for (const boton of document.querySelectorAll('#tabs button')) {
-  boton.addEventListener('click', async () => {
-    document.querySelectorAll('#tabs button').forEach((b) => b.classList.remove('activo'));
-    boton.classList.add('activo');
-    for (const [nombre, seccion] of Object.entries({
-      tablero: '#panel-tablero',
-      cobros: '#panel-cobros',
-      reporte: '#panel-reporte',
-      ajustes: '#panel-ajustes',
-    })) {
-      $(seccion).hidden = nombre !== boton.dataset.tab;
-    }
-    try {
-      if (PANELES[boton.dataset.tab]) await PANELES[boton.dataset.tab]();
-    } catch (err) {
-      avisar(err.message, true);
-    }
-  });
+/**
+ * Llena el form de ajustes.
+ *
+ * Se recorre `form.elements` y se usa el `name` de cada input como clave del
+ * ajuste, en vez de buscarlos por id uno por uno. Es lo que permite agregar un
+ * ajuste nuevo poniendo un `<input name="...">` en el HTML, sin tocar este JS.
+ */
+function renderConfig() {
+  const form = $('#config-form');
+  const c = estado.cfg;
+  for (const el of form.elements) {
+    if (!el.name || c[el.name] === undefined) continue;
+    el.value = c[el.name];
+  }
 }
 
-/** Vuelve a pedir todo y reagrupa. Se llama después de cada escritura. */
+/**
+ * Pinta la sección que está a la vista.
+ *
+ * Se pregunta al shell y no a este archivo, porque la sección activa vive en la
+ * URL y la elige el shell. Así, cobrar y volver a pintar no manda a nadie de
+ * vuelta al tablero: quien está en la cartera se queda en la cartera.
+ */
+function repintar() {
+  const activo = document.querySelector('[data-tab][aria-current="page"]')?.dataset.tab ?? 'tablero';
+  if (activo === 'cobros') return pintarCobros();
+  if (activo === 'reporte') return pintarReporte();
+  if (activo === 'tablero') return pintarTablero();
+  return undefined;
+}
+
+/** Vuelve a pedir todo y vuelve a pintar lo que se está viendo. */
 async function recargar() {
   await cargar();
-  const activo = document.querySelector('#tabs button.activo')?.dataset.tab ?? 'tablero';
-  if (activo === 'tablero') await pintarTablero();
-  else if (PANELES[activo]) await PANELES[activo]();
+  await repintar();
 }
 
 $('#config-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const form = e.target;
   const cuerpo = {};
-  for (const el of form.elements) {
+  for (const el of e.target.elements) {
     if (!el.name) continue;
     cuerpo[el.name] = el.value;
   }
@@ -530,24 +541,15 @@ $('#config-form').addEventListener('submit', async (e) => {
   }
 });
 
-/**
- * Llena el form de ajustes.
- *
- * Se recorre `form.elements` y se usa el `name` de cada input como clave del
- * ajuste, en vez de buscarlos por id uno por uno. Es lo que permite agregar un
- * ajuste nuevo poniendo un `<input name="...">` en el HTML, sin tocar este JS.
- *
- * OJO: el panel se llama `data-tab="ajustes"`, no `id="config"`. Por eso esto
- * no puede hacer `$$('#config input')`: ese selector no matchea nada y el panel
- * aparece vacío.
- */
-function renderConfig() {
-  const form = $('#config-form');
-  const c = estado.cfg;
-  for (const el of form.elements) {
-    if (!el.name || c[el.name] === undefined) continue;
-    el.value = c[el.name];
+AMIGO.montar({ nombre: 'Control de Pagos', paneles: ['tablero', 'cobros', 'reporte', 'ajustes'], alEntrar: conAviso(repintar) });
+
+/** Corre una parte de la pantalla y avisa si falla, en vez de dejarla a medias. */
+async function conAviso(fn) {
+  try {
+    await fn();
+  } catch (e) {
+    avisar(e.message, true);
   }
 }
 
-cargar().then(pintarTablero);
+cargar().then(repintar).catch((e) => avisar(e.message, true));

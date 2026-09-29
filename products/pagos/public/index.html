@@ -4,58 +4,208 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Control de Pagos</title>
+<!--
+  Esta pagina no pide usuario ni contrasena: la sesion vive en el Core y este
+  documento solo se sirve si ya la hay. Todo lo que se ve sale de la API, que
+  filtra por organizacion; por eso aca no hay ningun dato de ninguna empresa.
+
+  Y lo que se ve es la CARTERA POR COBRAR de la empresa: lo que sus clientes le
+  deben. Lo que la empresa le paga a AMG por la suscripcion no aparece por
+  ninguna parte de esta pantalla: eso lo cobra el Core, en su propia base.
+
+  La forma (tarjetas, botones, tablas, canal lateral) viene de /amigo.css, que
+  es la misma hoja en los nueve productos. Este archivo solo declara que
+  secciones tiene y con que color las pinta: /style.css.
+-->
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<!--
-  Esta página no pide usuario ni contraseña: la sesión vive en el Core y este
-  documento solo se sirve si ya la hay. Todo lo que se ve sale de la API, que
-  filtra por organización; por eso acá no hay ningún dato de ninguna empresa.
 
-  Y lo que se ve es la CARTERA POR COBRAR de la empresa: lo que sus clientes le
-  deben. Lo que la empresa le paga a AMG por la suscripción no aparece por
-  ninguna parte de esta pantalla: eso lo cobra el Core, en su propia base.
--->
-<header>
-  <h1>Control de Pagos</h1>
-  <nav id="tabs">
-    <button data-tab="tablero" class="activo">Tablero</button>
-    <button data-tab="cobros">Cobros</button>
-    <button data-tab="reporte">Antiguedad</button>
-    <button data-tab="ajustes">Ajustes</button>
-  </nav>
-  <a id="salir" href="/auth/logout">Salir</a>
-</header>
+<div class="ui">
 
-<main>
-  <section id="panel-tablero">
-    <div class="tarjetas" id="resumen"></div>
-    <h3>Ultimos cargos emitidos</h3>
-    <div id="recientes" class="lineas"></div>
-  </section>
+  <!-- ── el canal: igual en los nueve productos ─────────────────────── -->
+  <aside class="ui-canal">
+    <a class="ui-marca" href="/">
+      <span class="ui-logo" data-amigo="logo" aria-hidden="true">CP</span>
+      <span class="ui-marca__texto">
+        <span class="ui-marca__nombre">Control de Pagos</span>
+        <span class="ui-marca__empresa" data-amigo="empresa"></span>
+      </span>
+    </a>
 
-  <section id="panel-cobros" hidden>
-    <form id="cargo-form">
-      <h3><span id="cargo-form-titulo">Nuevo cargo</span></h3>
-      <div class="fila">
-        <div>
-          <label for="cargo-numero">Folio</label>
-          <!--
-            `name="number"` es lo que viaja a la API, y el boton de "proponer" pide
-            `/api/charges/next-number`: el folio lo propone el servidor, no el
-            formulario, para que dos personas de la misma empresa no propongan el
-            mismo numero a la vez.
-          -->
-          <div class="fila compacta">
-            <input id="cargo-numero" name="number" type="number" min="1" step="1">
-            <button type="button" id="cargo-proponer-numero">Proponer</button>
+    <nav class="ui-nav" id="tabs" aria-label="Secciones de Control de Pagos">
+      <p class="ui-nav__titulo">Cartera</p>
+      <a href="?panel=tablero" data-tab="tablero">Tablero</a>
+      <a href="?panel=cobros" data-tab="cobros">Cobros</a>
+      <a href="?panel=reporte" data-tab="reporte">Antiguedad</a>
+      <p class="ui-nav__titulo">Configuración</p>
+      <a href="?panel=ajustes" data-tab="ajustes">Ajustes</a>
+
+      <p class="ui-nav__titulo" data-amigo="otras-titulo" hidden>Mis otras herramientas</p>
+      <div data-amigo="otras"></div>
+    </nav>
+
+    <div class="ui-pie">
+      <span class="ui-avatar" data-amigo="avatar" aria-hidden="true">–</span>
+      <span class="ui-pie__texto">
+        <span class="ui-pie__nombre" data-amigo="usuario"></span>
+        <span class="ui-pie__correo" data-amigo="correo"></span>
+      </span>
+      <a href="/auth/logout" title="Cerrar sesión">Salir</a>
+    </div>
+  </aside>
+
+  <!-- ── barra ──────────────────────────────────────────────────────── -->
+  <header class="ui-topbar">
+    <div class="ui-topbar__titulo">
+      <h1 data-amigo="titulo">Tablero</h1>
+    </div>
+    <div class="ui-topbar__acciones">
+      <button type="button" class="ui-btn" id="cargo-nuevo">Nuevo cargo</button>
+    </div>
+  </header>
+
+  <!-- ── contenido ──────────────────────────────────────────────────── -->
+  <main class="ui-main">
+    <div class="ui-envoltura">
+
+      <!-- TABLERO -->
+      <section class="ui-panel" data-panel="tablero">
+        <div class="ui-rejilla ui-rejilla--4" id="resumen"></div>
+
+        <div class="ui-tarjeta" style="margin-top:1rem">
+          <div class="ui-tarjeta__cab">
+            <h2>Últimos cargos emitidos</h2>
           </div>
+          <div id="recientes" class="ui-lista"></div>
         </div>
-        <div>
-          <label for="cargo-concepto">Concepto</label>
-          <input id="cargo-concepto" name="concept" required maxlength="150" placeholder="Contrato mensual, instalacion, repuestos">
+      </section>
+
+      <!-- COBROS -->
+      <section class="ui-panel" data-panel="cobros" hidden>
+        <div class="ui-tarjeta">
+          <div class="ui-form__fila ui-form__fila--3" style="margin-bottom:.85rem">
+            <div class="ui-campo">
+              <label for="cargo-buscar">Buscar</label>
+              <input id="cargo-buscar" maxlength="100" placeholder="Folio, concepto, cliente, correo">
+            </div>
+            <div class="ui-campo">
+              <label for="cargo-filtro">Estado</label>
+              <select id="cargo-filtro">
+                <option value="">Todos</option>
+                <option value="pending">Pendiente</option>
+                <option value="partial">Parcial</option>
+                <option value="paid">Pagado</option>
+                <option value="canceled">Cancelado</option>
+              </select>
+            </div>
+          </div>
+          <div id="cobros-lista"></div>
+        </div>
+      </section>
+
+      <!-- ANTIGUEDAD -->
+      <section class="ui-panel" data-panel="reporte" hidden>
+        <div class="ui-tarjeta">
+          <div class="ui-tarjeta__cab">
+            <h2>Antiguedad de la cartera</h2>
+          </div>
+          <p class="ui-pista">
+            Cuanto se le debe a cada cliente y desde cuando. Los dias de atraso se
+            miden contra la fecha de corte; si no se pone una, se miden contra hoy.
+          </p>
+          <div class="ui-form__fila ui-form__fila--3">
+            <div class="ui-campo">
+              <label for="reporte-desde">Emitidos desde</label>
+              <input id="reporte-desde" type="date">
+            </div>
+            <div class="ui-campo">
+              <label for="reporte-hasta">Emitidos hasta</label>
+              <input id="reporte-hasta" type="date">
+            </div>
+            <div class="ui-campo" style="align-self:end">
+              <button type="button" class="ui-btn" id="reporte-filtrar">Calcular</button>
+            </div>
+          </div>
+          <div id="reporte-tabla" style="margin-top:1rem"></div>
+          <p class="ui-pista" id="reporte-total" style="margin-top:.75rem"></p>
+        </div>
+      </section>
+
+      <!-- AJUSTES -->
+      <section class="ui-panel" data-panel="ajustes" hidden>
+        <form class="ui-tarjeta ui-form" id="config-form" style="max-width:34rem">
+          <div class="ui-tarjeta__cab">
+            <h2>Ajustes</h2>
+          </div>
+          <div class="ui-form__fila ui-form__fila--2">
+            <div class="ui-campo">
+              <label for="cfg-moneda">Moneda</label>
+              <input id="cfg-moneda" name="currency" maxlength="5">
+            </div>
+            <div class="ui-campo">
+              <label for="cfg-zona">Zona horaria</label>
+              <!--
+                La zona horaria no es decorativa aca: decide que dia es hoy para el
+                reporte de antiguedad y cual es el mes en curso del "cobrado del
+                mes". Por eso es de la EMPRESA y no de la persona, y por eso solo un
+                admin la cambia.
+              -->
+              <input id="cfg-zona" name="timezone" maxlength="64">
+            </div>
+          </div>
+          <div class="ui-form__pie">
+            <button type="submit" class="ui-btn">Guardar ajustes</button>
+          </div>
+        </form>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!--
+  El formulario del cargo. Es un dialogo y no otra seccion porque se abre encima
+  del listado: se emite o se corrige algo y se vuelve a lo que se estaba viendo,
+  sin perder la pagina ni el filtro.
+
+  No tiene un select de estado, y no es un olvido: el estado lo recalcula el
+  servidor cuando se registra un abono, y permitir escribirlo desde aca dejaria
+  cargos "pagados" sin un centimo cobrado.
+
+  El MONTO va en CENTAVOS y no en pesos a proposito: es la misma unidad en que se
+  guarda y en que viaja por la API, y por eso esta pantalla no multiplica ni
+  divide para mandarlo. El texto de ayuda muestra como se va a ver.
+-->
+<dialog id="cargo-dialog" class="ui-ancho">
+  <form class="ui-tarjeta ui-form" id="cargo-form">
+    <div class="ui-cabecera-modal">
+      <h2 id="cargo-form-titulo">Nuevo cargo</h2>
+      <button type="button" class="ui-cerrar" id="cargo-cerrar" aria-label="Cerrar">&times;</button>
+    </div>
+    <input type="hidden" id="cargo-id">
+
+    <div class="ui-form__fila ui-form__fila--2">
+      <div class="ui-campo">
+        <label for="cargo-numero">Folio</label>
+        <!--
+          `name="number"` es lo que viaja a la API, y el boton de "proponer" pide
+          `/api/charges/next-number`: el folio lo propone el servidor, no el
+          formulario, para que dos personas de la misma empresa no propongan el
+          mismo numero a la vez.
+        -->
+        <div class="ui-fila">
+          <input id="cargo-numero" name="number" type="number" min="1" step="1" style="flex:1;min-width:8rem">
+          <button type="button" class="ui-btn ui-btn--chico" id="cargo-proponer-numero">Proponer</button>
         </div>
       </div>
+      <div class="ui-campo">
+        <label for="cargo-concepto">Concepto</label>
+        <input id="cargo-concepto" name="concept" required maxlength="150" placeholder="Contrato mensual, instalacion, repuestos">
+      </div>
+    </div>
+
+    <div class="ui-campo">
       <label for="cargo-cliente-nombre">Cliente</label>
       <!--
         El nombre es OBLIGATORIO y es una copia, no una busqueda: los clientes
@@ -64,121 +214,67 @@
         suelto y es opcional, por lo mismo.
       -->
       <input id="cargo-cliente-nombre" name="customerName" required maxlength="150">
-      <div class="fila">
-        <div>
-          <label for="cargo-cliente-id">Id del cliente (opcional)</label>
-          <input id="cargo-cliente-id" name="customerId" maxlength="64">
-        </div>
-        <div>
-          <label for="cargo-cliente-email">Correo (opcional)</label>
-          <input id="cargo-cliente-email" name="customerEmail" type="email" maxlength="200">
-        </div>
+    </div>
+
+    <div class="ui-form__fila ui-form__fila--2">
+      <div class="ui-campo">
+        <label for="cargo-cliente-id">Id del cliente (opcional)</label>
+        <input id="cargo-cliente-id" name="customerId" maxlength="64">
       </div>
-      <div class="fila">
-        <div>
-          <label for="cargo-monto">Total (centavos)</label>
-          <!--
-            El campo va en CENTAVOS y no en pesos a proposito: es la misma unidad
-            en que se guarda y en que viaja por la API, y por eso esta pantalla
-            no multiplica ni divide el monto para mandarlo. El texto de ayuda de
-            abajo muestra como se va a ver.
-          -->
-          <input id="cargo-monto" name="amountCents" type="number" min="1" step="1" value="0" required>
-          <small id="cargo-monto-vista">$ 0</small>
-        </div>
-        <div>
-          <label for="cargo-emision">Emitido el</label>
-          <input id="cargo-emision" name="issuedDate" type="date">
-        </div>
-        <div>
-          <label for="cargo-vencimiento">Vence el</label>
-          <input id="cargo-vencimiento" name="dueDate" type="date">
-        </div>
+      <div class="ui-campo">
+        <label for="cargo-cliente-email">Correo (opcional)</label>
+        <input id="cargo-cliente-email" name="customerEmail" type="email" maxlength="200">
       </div>
+    </div>
+
+    <div class="ui-form__fila ui-form__fila--3">
+      <div class="ui-campo">
+        <label for="cargo-monto">Total (centavos)</label>
+        <input id="cargo-monto" name="amountCents" type="number" min="1" step="1" value="0" required>
+        <span class="ui-pista" id="cargo-monto-vista">se ve como $ 0</span>
+      </div>
+      <div class="ui-campo">
+        <label for="cargo-emision">Emitido el</label>
+        <input id="cargo-emision" name="issuedDate" type="date">
+      </div>
+      <div class="ui-campo">
+        <label for="cargo-vencimiento">Vence el</label>
+        <input id="cargo-vencimiento" name="dueDate" type="date">
+      </div>
+    </div>
+
+    <div class="ui-campo">
       <label for="cargo-notas">Notas</label>
       <input id="cargo-notas" name="notes" maxlength="2000">
-      <input type="hidden" id="cargo-id">
-      <div class="fila">
-        <button type="submit">Guardar</button>
-        <button type="button" id="cargo-cancelar" hidden>Cancelar</button>
-      </div>
-    </form>
-
-    <div class="fila">
-      <div>
-        <label for="cargo-buscar">Buscar</label>
-        <input id="cargo-buscar" maxlength="100" placeholder="Folio, concepto, cliente, correo">
-      </div>
-      <div>
-        <label for="cargo-filtro">Estado</label>
-        <select id="cargo-filtro">
-          <option value="">Todos</option>
-          <option value="pending">Pendiente</option>
-          <option value="partial">Parcial</option>
-          <option value="paid">Pagado</option>
-          <option value="canceled">Cancelado</option>
-        </select>
-      </div>
     </div>
-    <div id="cobros-lista"></div>
-  </section>
 
-  <section id="panel-reporte" hidden>
-    <h3>Antiguedad de la cartera</h3>
-    <p class="meta">
-      Cuanto se le debe a cada cliente y desde cuando. Los dias de atraso se miden
-      contra la fecha de corte; si no se pone una, se miden contra hoy.
-    </p>
-    <div class="fila">
-      <div>
-        <label for="reporte-desde">Emitidos desde</label>
-        <input id="reporte-desde" type="date">
-      </div>
-      <div>
-        <label for="reporte-hasta">Emitidos hasta</label>
-        <input id="reporte-hasta" type="date">
-      </div>
-      <div>
-        <button type="button" id="reporte-filtrar">Calcular</button>
-      </div>
+    <div class="ui-form__pie">
+      <button type="submit" class="ui-btn">Guardar</button>
+      <button type="button" class="ui-btn ui-btn--fantasma" id="cargo-cancelar">Cancelar</button>
     </div>
-    <div id="reporte-tabla"></div>
-    <p class="meta" id="reporte-total"></p>
-  </section>
-
-  <section id="panel-ajustes" hidden>
-    <form id="config-form">
-      <h3>Ajustes</h3>
-      <label for="cfg-moneda">Moneda</label>
-      <input id="cfg-moneda" name="currency" maxlength="5">
-      <label for="cfg-zona">Zona horaria</label>
-      <!--
-        La zona horaria no es decorativa aca: decide que dia es hoy para el reporte
-        de antiguedad y cual es el mes en curso del "cobrado del mes". Por eso es
-        de la EMPRESA y no de la persona, y por eso solo un admin la cambia.
-      -->
-      <input id="cfg-zona" name="timezone" maxlength="64">
-      <button type="submit">Guardar ajustes</button>
-    </form>
-  </section>
-</main>
+  </form>
+</dialog>
 
 <!--
   La ficha de un cargo. Es un dialogo y no otra seccion porque se abre encima de la
   lista: se mira el saldo y los abonos, y se vuelve al listado sin perder la pagina.
 -->
-<dialog id="ficha-dialog">
-  <div id="ficha"></div>
+<dialog id="ficha-dialog" class="ui-ancho">
+  <div class="ui-tarjeta">
+    <div id="ficha"></div>
+  </div>
 
-  <form id="abono-form">
-    <h4>Registrar un abono</h4>
-    <div class="fila">
-      <div>
+  <form class="ui-tarjeta ui-form" id="abono-form" style="margin-top:1rem">
+    <div class="ui-tarjeta__cab">
+      <h2>Registrar un abono</h2>
+    </div>
+    <div class="ui-form__fila ui-form__fila--2">
+      <div class="ui-campo">
         <label for="abono-monto">Monto (centavos)</label>
         <input id="abono-monto" name="amountCents" type="number" min="1" step="1" value="0" required>
-        <small id="abono-monto-vista">$ 0</small>
+        <span class="ui-pista" id="abono-monto-vista">se ve como $ 0</span>
       </div>
-      <div>
+      <div class="ui-campo">
         <label for="abono-metodo">Como entro</label>
         <select id="abono-metodo" name="method">
           <option value="cash">Efectivo</option>
@@ -188,12 +284,12 @@
         </select>
       </div>
     </div>
-    <div class="fila">
-      <div>
+    <div class="ui-form__fila ui-form__fila--2">
+      <div class="ui-campo">
         <label for="abono-referencia">Referencia</label>
         <input id="abono-referencia" name="reference" maxlength="120">
       </div>
-      <div>
+      <div class="ui-campo">
         <label for="abono-fecha">Recibido el (vacio = ahora)</label>
         <!--
           El abono se recibe un dia, no a una hora que nadie anotó. Si se escribe
@@ -204,16 +300,17 @@
         <input id="abono-fecha" name="receivedAt" type="date">
       </div>
     </div>
-    <button type="submit">Registrar abono</button>
+    <div class="ui-form__pie">
+      <button type="submit" class="ui-btn">Registrar abono</button>
+      <button type="button" class="ui-btn ui-btn--fantasma" id="ficha-cancelar-cargo" hidden>Cancelar el cargo</button>
+      <button type="button" class="ui-btn ui-btn--fantasma" id="ficha-cerrar">Cerrar</button>
+    </div>
   </form>
-
-  <div class="fila">
-    <button type="button" id="ficha-cancelar-cargo">Cancelar el cargo</button>
-    <button type="button" id="ficha-cerrar">Cerrar</button>
-  </div>
 </dialog>
 
-<div id="aviso" hidden></div>
+<div id="aviso" class="ui-aviso" hidden></div>
+<script src="/amigo-ui.js"></script>
+<script src="/amigo.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

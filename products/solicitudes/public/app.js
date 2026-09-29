@@ -12,9 +12,14 @@
  * la numero 8 o la 9: eso lo dice el servidor, que es el unico que ve las
  * solicitudes de las otras organizaciones. El folio que se muestra es la
  * propuesta del servidor, y se puede cambiar.
+ *
+ * El nombre de la empresa y de la persona, el canal y las pestañas los pone
+ * `/amigo.js`; las tablas, tarjetas y etiquetas, `AMIGO_UI`.
  */
 
-const $ = (sel) => document.querySelector(sel);
+const $ = AMIGO_UI.$;
+const api = AMIGO_UI.api;
+const avisar = AMIGO_UI.avisar;
 
 const estado = {
   cfg: { currency: '$', nextNumber: 1 },
@@ -24,48 +29,27 @@ const estado = {
   hilo: { comments: [], attachments: [], history: [] },
 };
 
-async function api(ruta, opciones = {}) {
-  const res = await fetch(ruta, {
-    headers: { 'content-type': 'application/json' },
-    ...opciones,
-    body: opciones.body ? JSON.stringify(opciones.body) : undefined,
-  });
-  const datos = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const err = new Error(datos.error ?? 'No se pudo completar la operacion');
-    err.status = res.status;
-    throw err;
-  }
-  return datos;
-}
-
-function avisar(mensaje, malo = false) {
-  const caja = $('#aviso');
-  caja.textContent = mensaje;
-  caja.classList.toggle('malo', malo);
-  caja.hidden = false;
-  clearTimeout(caja.t);
-  caja.t = setTimeout(() => { caja.hidden = true; }, 5000);
-}
-
-function escapar(texto) {
-  return String(texto ?? '').replace(/[&<>"']/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
-  );
-}
-
-const ETIQUETAS_ESTADO = {
-  open: 'Abierta',
-  in_progress: 'En curso',
-  resolved: 'Resuelta',
-  closed: 'Cerrada',
-  cancelled: 'Cancelada',
+/**
+ * Los estados y las prioridades, con su tono.
+ *
+ * El tono importa tanto como la palabra: una tabla donde todo dice "Pendiente"
+ * sin color obliga a leer celda por celda. Con color, un barrido de la vista
+ * dice cuantas hay urgentes.
+ */
+const ESTADOS = {
+  open: { texto: 'Abierta', tono: 'acento' },
+  in_progress: { texto: 'En curso', tono: 'aviso' },
+  resolved: { texto: 'Resuelta', tono: 'ok' },
+  closed: { texto: 'Cerrada', tono: 'neutro' },
+  cancelled: { texto: 'Cancelada', tono: 'neutro' },
 };
 
-const ETIQUETAS_PRIORIDAD = { low: 'Baja', medium: 'Media', high: 'Alta', urgent: 'Urgente' };
-
-const etiquetaEstado = (e) => ETIQUETAS_ESTADO[e] ?? e;
-const etiquetaPrioridad = (p) => ETIQUETAS_PRIORIDAD[p] ?? p;
+const PRIORIDADES = {
+  low: { texto: 'Baja', tono: 'neutro' },
+  medium: { texto: 'Media', tono: 'neutro' },
+  high: { texto: 'Alta', tono: 'aviso' },
+  urgent: { texto: 'Urgente', tono: 'malo' },
+};
 
 /** La fecha se muestra como vino: lo importante es el dia, no la hora. */
 function fecha(texto) {
@@ -89,18 +73,17 @@ async function cargar() {
 
 async function pintarResumen() {
   const r = await api('/api/resumen');
-  $('#resumen').innerHTML = [
-    ['Abiertas', r.abiertas, ''],
-    ['Vencidas', r.vencidas, 'urgente'],
-    ['Resueltas', r.resueltas, ''],
-    ['Prioridad alta', r.alta, 'urgente'],
-  ]
-    .map(
-      ([titulo, valor, clase]) =>
-        `<div class="tarjeta ${clase}"><strong>${valor}</strong><span>${titulo}</span></div>`,
-    )
-    .join('');
+  AMIGO_UI.kpis($('#resumen'), [
+    [r.abiertas, 'Abiertas', true],
+    [r.vencidas, 'Vencidas'],
+    [r.resueltas, 'Resueltas'],
+    [r.alta, 'Prioridad alta'],
+  ]);
 }
+
+/** Vencida es solo si sigue abierta: una resuelta que pasó su fecha no lo está. */
+const vencida = (r) =>
+  (r.status === 'open' || r.status === 'in_progress') && r.dueAt !== null && r.dueAt < hoyIso;
 
 async function pintarLista() {
   const q = encodeURIComponent($('#filtro-q').value.trim());
@@ -112,55 +95,69 @@ async function pintarLista() {
   if (q) params.set('q', q);
   const { requests } = await api(`/api/requests?${params.toString()}`);
 
+  const tabla = AMIGO_UI.tabla([
+    'Folio',
+    'Título',
+    'Solicitante',
+    'Responsable',
+    'Prioridad',
+    'Estado',
+    'Vence',
+    '',
+  ]);
+  const cuerpo = AMIGO_UI.cuerpoDe(tabla);
+
   if (requests.length === 0) {
-    $('#solicitudes-lista').innerHTML = '<p>Todavía no hay solicitudes.</p>';
-    return;
+    cuerpo.append(AMIGO_UI.filaVacia(8, 'Todavía no hay solicitudes.'));
+  } else {
+    for (const r of requests) {
+      const folio = document.createElement('span');
+      folio.className = 'mono';
+      folio.textContent = `#${r.number}`;
+
+      // La fecha límite es texto y no etiqueta cuando no hay problema: un chip por
+      // cada fila convierte la columna en ruido. El color se reserva para lo que
+      // hay que mirar de verdad, que es la fecha que ya pasó.
+      const vence = document.createElement('span');
+      vence.textContent = fecha(r.dueAt);
+      const celdaVence = vencida(r) ? AMIGO_UI.etiqueta(`${fecha(r.dueAt)} · vencida`, 'malo') : vence;
+
+      cuerpo.append(
+        AMIGO_UI.fila(
+          [
+            folio,
+            r.title,
+            r.requesterName,
+            r.responsibleName ?? '—',
+            AMIGO_UI.estadoDe(r.priority, PRIORIDADES),
+            AMIGO_UI.estadoDe(r.status, ESTADOS),
+            celdaVence,
+            AMIGO_UI.celda(
+              AMIGO_UI.boton('Ver', () => abrirSolicitud(r.id).catch((e) => avisar(e.message, true))),
+              AMIGO_UI.boton(
+                'Borrar',
+                async () => {
+                  if (!confirm('¿Borrar la solicitud con su hilo y sus adjuntos?')) return;
+                  try {
+                    await api(`/api/requests/${r.id}`, { method: 'DELETE' });
+                    avisar('Solicitud borrada');
+                    await pintarLista();
+                    await pintarResumen();
+                  } catch (e) {
+                    avisar(e.message, true);
+                  }
+                },
+                'ui-btn ui-btn--chico ui-btn--fantasma',
+              ),
+            ),
+          ],
+          { className: 'acciones' },
+        ),
+      );
+    }
   }
 
-  const claseEstado = (s) => ({ closed: 'cerrada', cancelled: 'cerrada' })[s] ?? '';
-  const clasePrioridad = (p) => ({ high: 'alta', urgent: 'urgente' })[p] ?? '';
-  const vencida = (r) =>
-    r.status === 'open' || r.status === 'in_progress' ? r.dueAt !== null && r.dueAt < hoyIso : false;
-
-  $('#solicitudes-lista').innerHTML = `<table>
-    <thead><tr><th>Folio</th><th>Título</th><th>Solicitante</th><th>Responsable</th><th>Prioridad</th><th>Estado</th><th>Vence</th><th></th></tr></thead>
-    <tbody>
-      ${requests
-        .map(
-          (r) => `<tr>
-            <td>#${r.number}</td>
-            <td>${escapar(r.title)}</td>
-            <td>${escapar(r.requesterName)}</td>
-            <td>${escapar(r.responsibleName ?? '—')}</td>
-            <td><span class="etiqueta ${clasePrioridad(r.priority)}">${etiquetaPrioridad(r.priority)}</span></td>
-            <td><span class="etiqueta ${claseEstado(r.status)}">${etiquetaEstado(r.status)}</span></td>
-            <td><span class="etiqueta ${vencida(r) ? 'vencida' : ''}">${fecha(r.dueAt)}</span></td>
-            <td>
-              <button data-ver="${r.id}">Ver</button>
-              <button data-borrar="${r.id}">Borrar</button>
-            </td>
-          </tr>`,
-        )
-        .join('')}
-    </tbody>
-  </table>`;
-
-  for (const b of document.querySelectorAll('[data-ver]')) {
-    b.addEventListener('click', () => abrirSolicitud(b.dataset.ver));
-  }
-  for (const b of document.querySelectorAll('[data-borrar]')) {
-    b.addEventListener('click', async () => {
-      if (!confirm('¿Borrar la solicitud con su hilo y sus adjuntos?')) return;
-      try {
-        await api(`/api/requests/${b.dataset.borrar}`, { method: 'DELETE' });
-        avisar('Solicitud borrada');
-        await pintarLista();
-        await pintarResumen();
-      } catch (e) {
-        avisar(e.message, true);
-      }
-    });
-  }
+  $('#solicitudes-lista').replaceChildren(AMIGO_UI.cajaTabla(tabla));
 }
 
 // ────────────────────────────────────────────────────────────────────── diálogo
@@ -181,56 +178,93 @@ function limpiaFormulario() {
 function pintarHilo() {
   const { comments, attachments: archivos, history } = estado.hilo;
 
-  $('#hilo').innerHTML =
-    comments.length === 0
-      ? '<p class="evento">Sin comentarios todavía.</p>'
-      : comments
-          .map(
-            (c) => `<div class="comentario">
-            <span class="autor">${escapar(c.authorName)}</span>
-            <span class="fecha"> · ${fecha(c.createdAt)}</span>
-            <p>${escapar(c.content)}</p>
-          </div>`,
-          )
-          .join('');
+  const cajaHilo = $('#hilo');
+  if (comments.length === 0) {
+    cajaHilo.replaceChildren(AMIGO_UI.vacio(document.createElement('div'), 'Sin comentarios todavía.'));
+  } else {
+    cajaHilo.replaceChildren(
+      ...comments.map((c) => {
+        const div = document.createElement('article');
+        div.className = 'ui-comentario';
+        const cabeza = document.createElement('div');
+        cabeza.className = 'ui-comentario__cabeza';
+        const autor = document.createElement('span');
+        autor.className = 'ui-comentario__autor';
+        autor.textContent = c.authorName;
+        const cuando = document.createElement('span');
+        cuando.className = 'ui-comentario__fecha';
+        cuando.textContent = fecha(c.createdAt);
+        cabeza.append(autor, cuando);
+        const texto = document.createElement('p');
+        texto.className = 'ui-comentario__texto';
+        texto.textContent = c.content;
+        div.append(cabeza, texto);
+        return div;
+      }),
+    );
+  }
 
-  $('#adjuntos').innerHTML =
-    archivos.length === 0
-      ? '<p class="evento">Sin adjuntos.</p>'
-      : archivos
-          .map(
-            (a) => `<div class="adjunto">
-            <a href="${a.url}" download="${escapar(a.filename)}">${escapar(a.filename)}</a>
-            <span class="tamano">${(a.sizeBytes / 1024).toFixed(1)} KB</span>
-            <button type="button" data-quitar-adjunto="${a.id}">Quitar</button>
-          </div>`,
-          )
-          .join('');
+  const cajaAdj = $('#adjuntos');
+  if (archivos.length === 0) {
+    cajaAdj.replaceChildren(AMIGO_UI.vacio(document.createElement('div'), 'Sin adjuntos.'));
+  } else {
+    cajaAdj.replaceChildren(
+      ...archivos.map((a) => {
+        const fila = document.createElement('div');
+        fila.className = 'ui-ficha';
+        const enlace = document.createElement('a');
+        enlace.href = a.url;
+        enlace.download = a.filename;
+        enlace.textContent = a.filename;
+        const cuerpo = document.createElement('div');
+        cuerpo.className = 'ui-ficha__cuerpo';
+        const nota = document.createElement('span');
+        nota.className = 'ui-ficha__nota';
+        nota.textContent = `${(a.sizeBytes / 1024).toFixed(1)} KB`;
+        cuerpo.append(enlace, nota);
+        const acciones = document.createElement('div');
+        acciones.className = 'ui-ficha__acciones';
+        acciones.append(
+          AMIGO_UI.boton(
+            'Quitar',
+            async () => {
+              if (!confirm('¿Quitar este adjunto?')) return;
+              try {
+                await api(`/api/requests/${estado.editando}/attachments/${a.id}`, { method: 'DELETE' });
+                await abrirSolicitud(estado.editando);
+              } catch (e) {
+                avisar(e.message, true);
+              }
+            },
+            'ui-btn ui-btn--chico ui-btn--fantasma',
+          ),
+        );
+        fila.append(cuerpo, acciones);
+        return fila;
+      }),
+    );
+  }
 
-  $('#historial').innerHTML =
-    history.length === 0
-      ? '<p class="evento">Sin cambios de estado.</p>'
-      : history
-          .map(
-            (h) => `<div class="evento">
-            <span class="autor">${h.oldStatus ? `${etiquetaEstado(h.oldStatus)} → ${etiquetaEstado(h.newStatus)}` : `Creada en estado ${etiquetaEstado(h.newStatus)}`}</span>
-            <span class="fecha"> · ${escapar(h.changedBy)} · ${fecha(h.createdAt)}</span>
-          </div>`,
-          )
-          .join('');
-
-  for (const b of document.querySelectorAll('[data-quitar-adjunto]')) {
-    b.addEventListener('click', async () => {
-      if (!confirm('¿Quitar este adjunto?')) return;
-      try {
-        await api(`/api/requests/${estado.editando}/attachments/${b.dataset.quitarAdjunto}`, {
-          method: 'DELETE',
-        });
-        await abrirSolicitud(estado.editando);
-      } catch (e) {
-        avisar(e.message, true);
-      }
-    });
+  const cajaHist = $('#historial');
+  if (history.length === 0) {
+    cajaHist.replaceChildren(AMIGO_UI.vacio(document.createElement('div'), 'Sin cambios de estado.'));
+  } else {
+    cajaHist.replaceChildren(
+      ...history.map((h) => {
+        const div = document.createElement('div');
+        div.className = 'ui-evento';
+        const cambio = document.createElement('div');
+        cambio.className = 'ui-evento__cambio';
+        cambio.textContent = h.oldStatus
+          ? `${(ESTADOS[h.oldStatus] ?? { texto: h.oldStatus }).texto} → ${(ESTADOS[h.newStatus] ?? { texto: h.newStatus }).texto}`
+          : `Creada en estado ${(ESTADOS[h.newStatus] ?? { texto: h.newStatus }).texto}`;
+        const meta = document.createElement('div');
+        meta.className = 'ui-evento__meta';
+        meta.textContent = `${h.changedBy} · ${fecha(h.createdAt)}`;
+        div.append(cambio, meta);
+        return div;
+      }),
+    );
   }
 }
 
@@ -292,6 +326,7 @@ $('#solicitud-form').addEventListener('submit', async (ev) => {
 });
 
 $('#solicitud-cancelar').addEventListener('click', () => $('#solicitud-dialog').close());
+$('#solicitud-cerrar').addEventListener('click', () => $('#solicitud-dialog').close());
 $('#solicitud-nueva').addEventListener('click', () => {
   limpiaFormulario();
   $('#solicitud-dialog').showModal();
@@ -339,9 +374,9 @@ $('#adjunto-agregar').addEventListener('click', async () => {
   }
 });
 
-$('#filtro-q').addEventListener('input', () => pintarLista());
-$('#filtro-estado').addEventListener('change', () => pintarLista());
-$('#filtro-prioridad').addEventListener('change', () => pintarLista());
+$('#filtro-q').addEventListener('input', () => pintarLista().catch((e) => avisar(e.message, true)));
+$('#filtro-estado').addEventListener('change', () => pintarLista().catch((e) => avisar(e.message, true)));
+$('#filtro-prioridad').addEventListener('change', () => pintarLista().catch((e) => avisar(e.message, true)));
 
 $('#config-form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
@@ -360,18 +395,6 @@ $('#config-form').addEventListener('submit', async (ev) => {
   }
 });
 
-// ───────────────────────────────────────────────────────────────── navegación
-
-for (const boton of document.querySelectorAll('#tabs button')) {
-  boton.addEventListener('click', async () => {
-    document.querySelectorAll('#tabs button').forEach((b) => b.classList.remove('activo'));
-    boton.classList.add('activo');
-    $('#panel-solicitudes').hidden = boton.dataset.tab !== 'solicitudes';
-    $('#panel-ajustes').hidden = boton.dataset.tab !== 'ajustes';
-    if (boton.dataset.tab === 'ajustes') renderConfig();
-  });
-}
-
 /**
  * Llena el form de ajustes.
  *
@@ -388,8 +411,25 @@ function renderConfig() {
   }
 }
 
-cargar().then(async () => {
-  $('#sol-folio').value = estado.cfg.nextNumber;
-  await pintarResumen();
-  await pintarLista();
+// ───────────────────────────────────────────────────────────────── navegación
+
+/** Las pestañas las lleva el shell compartido; acá solo qué pintar en cada una. */
+function alEntrar(panel) {
+  if (panel === 'ajustes') renderConfig();
+  else pintarLista().catch((e) => avisar(e.message, true));
+}
+
+AMIGO.montar({
+  nombre: 'Solicitudes',
+  paneles: ['solicitudes', 'ajustes'],
+  alEntrar,
 });
+
+cargar()
+  .then(async () => {
+    renderConfig();
+    $('#sol-folio').value = estado.cfg.nextNumber;
+    await pintarResumen();
+    await pintarLista();
+  })
+  .catch((e) => avisar(e.message, true));

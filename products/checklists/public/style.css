@@ -1,304 +1,139 @@
-/* Estilos de checklists. Sin framework: es una pantalla y una hoja de estilos. */
+/* ==========================================================================
+   CHECKLISTS · el color de este producto
+   --------------------------------------------------------------------------
+   Esto es TODO lo que hace que Checklists se vea distinto de las otras ocho
+   herramientas. La forma esta en /amigo.css y es la misma en todas.
+
+   Para darle otro color a una herramienta se cambia este archivo, no el CSS
+   compartido: si alguna vez un producto necesita mas que un color, lo que se
+   anade es un bloque propio aqui, jamas una regla sobre las clases de la
+   plataforma.
+
+   Turquesa: el color de la pizarra de un galpon y del casete de inspeccion.
+   Es el unico producto cuya pantalla principal es una lista de preguntas por
+   responder, y un color de aviso lo haria parecer una lista de errores en vez
+   de un formulario de visita.
+   ========================================================================== */
+
+@import url("/amigo.css");
 
 :root {
-  --borde: #d5dbe3;
-  --tinta: #1a2029;
-  --suave: #5d6875;
-  --fondo: #f6f8fa;
-  --acento: #1f4e79;
-  --ok: #1e7a45;
-  --fail: #b42318;
-  --na: #6b7480;
+  --acento: #0e7490;
+  --acento-fuerte: #0a5568;
+  --acento-tenue: #e4f2f6;
+  --acento-borde: #b3d9e3;
+  --sobre-acento: #ffffff;
 }
 
-* { box-sizing: border-box; }
+/* ==========================================================================
+   Las dos piezas que SOLO existen acá
+   --------------------------------------------------------------------------
+   Este producto tiene dos cosas que los otros ocho no tienen: una lista de
+   puntos agrupados por sección (el editor de la plantilla) y una lista de puntos
+   con un control de respuesta (la ficha de la corrida). Ninguna calza en las
+   piezas de la plataforma, así que viven acá.
 
-body {
-  margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: var(--tinta);
-  background: var(--fondo);
-}
+   Van con prefijo `ck-` a propósito: un nombre sin prefijo como `.punto` es
+   exactamente el tipo de cosa que un día choca con una clase de la plataforma
+   y cambia el color de otra pantalla sin que nadie sepa por qué.
+   ========================================================================== */
 
-header {
-  display: flex;
+/* Un punto de la corrida: número, texto, control y nota. */
+.ck-punto {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr) auto;
   align-items: center;
-  gap: 1.5rem;
-  padding: 1rem 1.5rem;
-  background: #fff;
-  border-bottom: 1px solid var(--borde);
-}
-
-header h1 { margin: 0; font-size: 1.25rem; }
-
-nav { display: flex; gap: 0.25rem; }
-
-nav button {
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  padding: 0.4rem 0.8rem;
-  cursor: pointer;
-  color: var(--suave);
-  font: inherit;
-}
-
-nav button.activo {
-  border-color: var(--borde);
-  background: var(--fondo);
-  color: var(--tinta);
-  font-weight: 600;
-}
-
-#salir { margin-left: auto; color: var(--suave); }
-
-main { padding: 1.5rem; max-width: 1100px; }
-
-h3 { margin: 1.5rem 0 0.5rem; }
-h4 { margin: 1.25rem 0 0.25rem; font-size: 0.95rem; }
-
-label { display: block; font-size: 0.85rem; color: var(--suave); margin-top: 0.5rem; }
-
-input, select, textarea {
-  width: 100%;
-  max-width: 22rem;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid var(--borde);
-  border-radius: 6px;
-  font: inherit;
-  background: #fff;
-}
-
-textarea { max-width: 34rem; resize: vertical; }
-
-button {
-  font: inherit;
-  padding: 0.45rem 0.8rem;
-  border: 1px solid var(--borde);
-  border-radius: 6px;
-  background: #fff;
-  cursor: pointer;
-}
-
-button[disabled] { opacity: 0.45; cursor: not-allowed; }
-
-button[type="submit"] {
-  background: var(--acento);
-  border-color: var(--acento);
-  color: #fff;
-  margin-top: 1rem;
-}
-
-.fila { display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
-
-/* El checkbox de "obligatorio" es una casilla, no un campo de texto: sin esto
-   mide el ancho de un input y parece un campo mas del formulario. */
-input[type="checkbox"] { width: auto; max-width: none; }
-
-small { color: var(--suave); font-size: 0.78rem; }
-
-code { background: var(--fondo); padding: 0 0.2rem; border-radius: 3px; }
-
-.tarjetas { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; }
-
-.tarjeta {
-  background: #fff;
-  border: 1px solid var(--borde);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  min-width: 8rem;
-  display: flex;
-  flex-direction: column;
-}
-
-.tarjeta strong { font-size: 1.4rem; }
-.tarjeta span { font-size: 0.8rem; color: var(--suave); }
-
-.ficha {
-  background: #fff;
-  border: 1px solid var(--borde);
-  border-radius: 6px;
-  padding: 0.5rem 0.6rem;
-  margin-bottom: 0.5rem;
-}
-
-.ficha strong { display: block; font-size: 0.9rem; }
-.ficha span { display: block; font-size: 0.78rem; color: var(--suave); }
-.ficha.vacia { color: var(--suave); font-style: italic; }
-
-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--borde); border-radius: 8px; }
-
-th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--borde); vertical-align: top; }
-
-th { font-size: 0.8rem; color: var(--suave); text-transform: uppercase; letter-spacing: 0.03em; }
-
-tr:last-child td { border-bottom: none; }
-
-td button { padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.25rem; }
-
-.lineas { display: flex; flex-direction: column; gap: 0.35rem; }
-
-.linea {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: var(--fondo);
-  border: 1px solid var(--borde);
-  border-radius: 6px;
-  padding: 0.35rem 0.5rem;
-  font-size: 0.85rem;
-}
-
-.linea .estado { margin-left: auto; color: var(--suave); font-size: 0.78rem; }
-
-/* La ficha de una corrida, en el dialogo. El form de editar y los botones de
-   estado van dentro del mismo dialogo porque los dos se usan sobre la misma
-   corrida, sin salir de ella. */
-dialog {
-  border: 1px solid var(--borde);
+  gap: 0.15rem 0.7rem;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.45rem;
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-left-width: 3px;
   border-radius: 10px;
-  padding: 1.5rem;
-  min-width: 34rem;
-  max-height: 85vh;
-  overflow-y: auto;
 }
 
-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
+.ck-punto__num {
+  grid-row: 1 / span 2;
+  align-self: start;
+  padding-top: 0.15rem;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--tinta-tenue);
+  text-align: right;
+}
 
-dialog h3 { margin-top: 0; }
+.ck-punto__texto { min-width: 0; }
+.ck-punto__texto strong { display: block; }
+.ck-punto__nota { font-size: 12.5px; color: var(--tinta-tenue); }
 
-#corrida-editar-form { border-top: 1px solid var(--borde); margin-top: 1rem; padding-top: 0.5rem; }
-
-.meta { color: var(--suave); font-size: 0.85rem; }
+.ck-punto__control {
+  grid-row: 1 / span 2;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.ck-punto__control select,
+.ck-punto__control input { max-width: 15rem; }
+.ck-punto__nota-campo { grid-column: 2 / span 2; }
 
 /*
-  Los puntos de la corrida. Cada uno lleva su numero, su texto, los tres botones
-  de respuesta y su nota. El color del borde izquierdo es el unico que distingue
-  "sin responder" de los tres resultados: el texto del boton ya dice cual es, y
-  cuatro colores mas serian ruido.
-*/
-.puntos { display: flex; flex-direction: column; gap: 0.4rem; }
+ * El color del borde izquierdo es el veredicto del punto, y es lo unico que se
+ * ve a simple vista: en una corrida de treinta puntos, lo que se busca es
+ * "cuáles fallaron", y eso lo contesta un barrido de colores, no la lectura de
+ * treinta textos.
+ */
+.ck-punto--ok { border-left-color: var(--ok); }
+.ck-punto--fail { border-left-color: var(--malo); background: var(--malo-fondo); }
+.ck-punto--na { border-left-color: var(--aviso); }
+.ck-punto--sin { border-left-color: var(--linea); }
 
-.punto {
-  display: grid;
-  grid-template-columns: 1.5rem 1fr auto;
-  align-items: center;
-  gap: 0.5rem;
-  background: #fff;
-  border: 1px solid var(--borde);
-  border-left: 4px solid var(--borde);
-  border-radius: 6px;
-  padding: 0.4rem 0.5rem;
+/* La sección del editor de la plantilla: cabecera con orden + sus puntos. */
+.ck-seccion {
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  margin-bottom: 0.6rem;
+  background: var(--superficie);
 }
 
-.punto.ok { border-left-color: var(--ok); }
-.punto.fail { border-left-color: var(--fail); }
-.punto.na { border-left-color: var(--na); }
-
-.punto .numero { color: var(--suave); font-size: 0.85rem; text-align: right; }
-.punto .texto { font-size: 0.9rem; }
-.punto .acciones { display: flex; gap: 0.25rem; }
-.punto .acciones button { padding: 0.2rem 0.45rem; font-size: 0.75rem; }
-
-/* La nota va en su propia fila cuando hay espacio, para que escribirla no sea
-   pelear con un campo de 20 pixeles de alto. */
-.punto .nota, .punto .nota-texto { grid-column: 2 / 4; }
-
-.punto .nota-texto { font-size: 0.8rem; color: var(--suave); }
-
-dl { display: grid; grid-template-columns: 8rem 1fr; gap: 0.25rem 0.75rem; font-size: 0.9rem; }
-dt { color: var(--suave); }
-dd { margin: 0; }
-
-#aviso {
-  position: fixed;
-  bottom: 1.25rem;
-  right: 1.25rem;
-  background: var(--acento);
-  color: #fff;
-  padding: 0.7rem 1rem;
-  border-radius: 8px;
-  max-width: 26rem;
-}
-
-#aviso.malo { background: var(--fail); }
-
-/* ── el editor de plantillas por secciones ─────────────────────────────── */
-
-.secciones { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; }
-
-.seccion {
-  background: #fff;
-  border: 1px solid var(--borde);
-  border-radius: 8px;
-  padding: 0.6rem 0.7rem;
-}
-
-.seccion-cabecera {
+.ck-seccion__cab {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.9rem;
-  padding-bottom: 0.4rem;
-  border-bottom: 1px solid var(--borde);
-  margin-bottom: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  background: var(--superficie-baja);
+  border-bottom: 1px solid var(--linea);
+  border-radius: var(--radio) var(--radio) 0 0;
+  flex-wrap: wrap;
 }
+.ck-seccion__num { font-family: var(--mono); font-size: 12px; color: var(--tinta-tenue); }
+.ck-seccion__nombre { font-weight: 600; min-width: 0; }
+.ck-seccion__acciones { display: flex; align-items: center; gap: 0.3rem; margin-left: auto; }
+.ck-seccion__puntos { padding: 0.15rem 0.7rem 0.5rem; }
 
-.seccion-cabecera .estado { margin-left: auto; }
-
-.seccion-cabecera button { padding: 0.2rem 0.45rem; font-size: 0.75rem; }
-
-.seccion-nombre { font-weight: 600; }
-
-.seccion-puntos { display: flex; flex-direction: column; gap: 0.35rem; }
-
-.seccion-puntos .fila { margin: 0.3rem 0 0; }
-
-hr { border: none; border-top: 1px solid var(--borde); margin: 1.25rem 0; }
-
-/* Las etiquetas con checkbox (obligatorio) alinean texto y casilla. */
-#punto-form label, #punto-editar-form label {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  white-space: nowrap;
-}
-
-#punto-editar-form, #punto-editar-opciones-caja, #punto-opciones-caja, #seccion-renombrar-form {
-  background: var(--fondo);
-  border: 1px solid var(--borde);
-  border-radius: 8px;
-  padding: 0.6rem 0.7rem;
-  margin: 0.5rem 0;
-}
-
-/* ── la ficha: respuesta por tipo, veredicto y adjuntos ────────────────── */
-
-.punto .acciones { display: flex; gap: 0.25rem; align-items: center; }
-
-.punto .acciones input, .punto .acciones select { width: auto; max-width: 12rem; padding: 0.3rem 0.5rem; }
-
-.punto .acciones button.activo {
-  background: var(--acento);
-  border-color: var(--acento);
-  color: #fff;
-}
-
-.punto .respuesta { font-size: 0.85rem; color: var(--tinta); font-weight: 600; }
-
-.adjuntos { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.6rem; }
-
-.adjunto {
+/* Un punto dentro del editor: no es lo mismo que un punto de una corrida. */
+.ck-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: var(--fondo);
-  border: 1px solid var(--borde);
-  border-radius: 6px;
-  padding: 0.35rem 0.5rem;
-  font-size: 0.85rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--linea-suave);
+  flex-wrap: wrap;
 }
+.ck-item:last-child { border-bottom: 0; }
+.ck-item__texto { min-width: 0; flex: 1; }
+.ck-item__meta { font-size: 12.5px; color: var(--tinta-tenue); }
+.ck-item__acciones { display: flex; align-items: center; gap: 0.3rem; margin-left: auto; }
 
-.adjunto small { margin-left: auto; }
-
-#adjunto-form .fila { margin-bottom: 0.4rem; }
+/* Un adjunto de la corrida. */
+.ck-adjuntos { display: grid; gap: 0.4rem; margin-bottom: 0.5rem; }
+.ck-adjunto {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  background: var(--superficie-baja);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+.ck-adjunto__meta { font-size: 12.5px; color: var(--tinta-tenue); }
+.ck-adjunto__acciones { display: flex; align-items: center; gap: 0.3rem; margin-left: auto; }

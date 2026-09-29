@@ -1,136 +1,23 @@
-/* Estilos de espacios. Sin framework: es una pantalla y una hoja de estilos. */
+/* ==========================================================================
+   ESPACIOS · el color de este producto
+   --------------------------------------------------------------------------
+   Esto es TODO lo que hace que Espacios se vea distinto de las otras ocho
+   herramientas. La forma esta en /amigo.css y es la misma en todas.
+
+   Para darle otro color a una herramienta se cambia este archivo, no el CSS
+   compartido: si alguna vez un producto necesita mas que un color, lo que se
+   anade es un bloque propio aqui, jamas una regla sobre las clases de la
+   plataforma.
+
+   Verde de cancha: es el color del producto y tambien el de la marca.
+   ========================================================================== */
+
+@import url("/amigo.css");
 
 :root {
-  --borde: #d5dbe3;
-  --tinta: #1a2029;
-  --suave: #5d6875;
-  --fondo: #f6f8fa;
-  --acento: #15803d;
-  --peligro: #b42318;
+  --acento: #1a7f5a;
+  --acento-fuerte: #14654a;
+  --acento-tenue: #e4f2ec;
+  --acento-borde: #b4dccb;
+  --sobre-acento: #ffffff;
 }
-
-* { box-sizing: border-box; }
-
-body {
-  margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: var(--tinta);
-  background: var(--fondo);
-}
-
-header {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  padding: 1rem 1.5rem;
-  background: #fff;
-  border-bottom: 1px solid var(--borde);
-}
-
-header h1 { margin: 0; font-size: 1.25rem; }
-
-nav { display: flex; gap: 0.25rem; }
-
-nav button {
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  padding: 0.4rem 0.8rem;
-  cursor: pointer;
-  color: var(--suave);
-  font: inherit;
-}
-
-nav button.activo {
-  border-color: var(--borde);
-  background: var(--fondo);
-  color: var(--tinta);
-  font-weight: 600;
-}
-
-#salir { margin-left: auto; color: var(--suave); }
-
-main { padding: 1.5rem; max-width: 1100px; }
-
-h3 { margin: 1.5rem 0 0.5rem; }
-
-label { display: block; font-size: 0.85rem; color: var(--suave); margin-top: 0.5rem; }
-
-input, select {
-  width: 100%;
-  max-width: 22rem;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid var(--borde);
-  border-radius: 6px;
-  font: inherit;
-  background: #fff;
-}
-
-button {
-  font: inherit;
-  padding: 0.45rem 0.8rem;
-  border: 1px solid var(--borde);
-  border-radius: 6px;
-  background: #fff;
-  cursor: pointer;
-}
-
-button[type="submit"] {
-  background: var(--acento);
-  border-color: var(--acento);
-  color: #fff;
-  margin-top: 1rem;
-}
-
-.fila { display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
-
-.tarjetas { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; }
-
-.tarjeta {
-  background: #fff;
-  border: 1px solid var(--borde);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  min-width: 8rem;
-  display: flex;
-  flex-direction: column;
-}
-
-.tarjeta strong { font-size: 1.4rem; }
-.tarjeta span { font-size: 0.8rem; color: var(--suave); }
-
-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--borde); border-radius: 8px; }
-
-th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--borde); }
-
-th { font-size: 0.8rem; color: var(--suave); text-transform: uppercase; letter-spacing: 0.03em; }
-
-tr:last-child td { border-bottom: none; }
-
-td button { padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.25rem; }
-
-.franjas { display: flex; gap: 0.4rem; flex-wrap: wrap; }
-
-dialog {
-  border: 1px solid var(--borde);
-  border-radius: 10px;
-  padding: 1.5rem;
-  min-width: 22rem;
-}
-
-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
-
-.total { font-weight: 600; margin-top: 1rem; }
-
-#aviso {
-  position: fixed;
-  bottom: 1.25rem;
-  right: 1.25rem;
-  background: var(--acento);
-  color: #fff;
-  padding: 0.7rem 1rem;
-  border-radius: 8px;
-  max-width: 26rem;
-}
-
-#aviso.malo { background: var(--peligro); }

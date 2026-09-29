@@ -4,45 +4,318 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Checklists e Inspecciones</title>
-<link rel="stylesheet" href="/style.css">
-</head>
-<body>
 <!--
   Esta pagina no pide usuario ni contrasena: la sesion vive en el Core y este
   documento solo se sirve si ya la hay. Todo lo que se ve sale de la API, que
   filtra por organizacion; por eso aca no hay ningun dato de ninguna empresa.
+
+  Este producto tiene dos piezas que los otros ocho no tienen: la lista de puntos
+  de una plantilla y la lista de puntos de una corrida. Viven en /style.css de
+  este producto, con prefijo `ck-`, y no en /amigo.css: no son piezas de la
+  plataforma, son de esta herramienta.
 -->
-<header>
-  <h1>Checklists e Inspecciones</h1>
-  <nav id="tabs">
-    <button data-tab="tablero" class="activo">Tablero</button>
-    <button data-tab="plantillas">Plantillas</button>
-    <button data-tab="corridas">Corridas</button>
-    <button data-tab="ajustes">Ajustes</button>
-  </nav>
-  <a id="salir" href="/auth/logout">Salir</a>
-</header>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
 
-<main>
-  <section id="panel-tablero">
-    <div class="tarjetas" id="resumen"></div>
-    <h3>Puntos fallados en las ultimas corridas</h3>
-    <div id="fallos" class="lineas"></div>
-  </section>
+<div class="ui">
 
-  <section id="panel-plantillas" hidden>
-    <form id="plantilla-form">
-      <h3><span id="plantilla-titulo">Nueva plantilla</span></h3>
-      <div class="fila">
-        <div>
-          <label for="plantilla-nombre">Nombre</label>
-          <input id="plantilla-nombre" name="name" required maxlength="150">
+  <!-- ── el canal: igual en los nueve productos ─────────────────────── -->
+  <aside class="ui-canal">
+    <a class="ui-marca" href="/">
+      <span class="ui-logo" data-amigo="logo" aria-hidden="true">CI</span>
+      <span class="ui-marca__texto">
+        <span class="ui-marca__nombre">Checklists</span>
+        <span class="ui-marca__empresa" data-amigo="empresa"></span>
+      </span>
+    </a>
+
+    <nav class="ui-nav" id="tabs" aria-label="Secciones de Checklists">
+      <p class="ui-nav__titulo">Inspecciones</p>
+      <a href="?panel=tablero" data-tab="tablero">Tablero</a>
+      <a href="?panel=plantillas" data-tab="plantillas">Plantillas</a>
+      <a href="?panel=corridas" data-tab="corridas">Corridas</a>
+      <p class="ui-nav__titulo">Configuración</p>
+      <a href="?panel=ajustes" data-tab="ajustes">Ajustes</a>
+
+      <p class="ui-nav__titulo" data-amigo="otras-titulo" hidden>Mis otras herramientas</p>
+      <div data-amigo="otras"></div>
+    </nav>
+
+    <div class="ui-pie">
+      <span class="ui-avatar" data-amigo="avatar" aria-hidden="true">–</span>
+      <span class="ui-pie__texto">
+        <span class="ui-pie__nombre" data-amigo="usuario"></span>
+        <span class="ui-pie__correo" data-amigo="correo"></span>
+      </span>
+      <a href="/auth/logout" title="Cerrar sesión">Salir</a>
+    </div>
+  </aside>
+
+  <!-- ── barra ──────────────────────────────────────────────────────── -->
+  <header class="ui-topbar">
+    <div class="ui-topbar__titulo">
+      <h1 data-amigo="titulo">Tablero</h1>
+    </div>
+    <div class="ui-topbar__acciones">
+      <button type="button" class="ui-btn" id="plantilla-nueva">Nueva plantilla</button>
+    </div>
+  </header>
+
+  <!-- ── contenido ──────────────────────────────────────────────────── -->
+  <main class="ui-main">
+    <div class="ui-envoltura">
+
+      <!-- TABLERO -->
+      <section class="ui-panel" data-panel="tablero">
+        <div class="ui-rejilla ui-rejilla--4" id="resumen"></div>
+
+        <div class="ui-tarjeta" style="margin-top:1rem">
+          <div class="ui-tarjeta__cab">
+            <h2>Puntos fallados en las últimas corridas</h2>
+          </div>
+          <div id="fallos" class="ui-lista"></div>
         </div>
-        <div>
-          <label for="plantilla-descripcion">Descripcion</label>
-          <input id="plantilla-descripcion" name="description" maxlength="1000">
+      </section>
+
+      <!-- PLANTILLAS -->
+      <section class="ui-panel" data-panel="plantillas" hidden>
+        <div class="ui-tarjeta">
+          <div class="ui-form__fila ui-form__fila--2" style="margin-bottom:.85rem">
+            <div class="ui-campo">
+              <label for="plantilla-buscar">Buscar</label>
+              <input id="plantilla-buscar" maxlength="100" placeholder="Nombre o descripcion">
+            </div>
+            <div class="ui-campo">
+              <label for="plantilla-filtro">Ver</label>
+              <select id="plantilla-filtro">
+                <option value="1">Solo activas</option>
+                <option value="">Todas</option>
+                <option value="0">Solo inactivas</option>
+              </select>
+            </div>
+          </div>
+          <div id="plantillas-lista"></div>
         </div>
-      </div>
+
+        <!--
+          Editor de la plantilla seleccionada. La plantilla se arma por SECCIONES: cada
+          seccion agrupa sus puntos, y los puntos llevan un TIPO de respuesta (Si/No,
+          texto, numero o seleccion). El servidor renumera las secciones a 1..N y los
+          puntos de cada seccion a 1..N sin huecos; la pantalla no recalcula ningun
+          numero. El orden de las secciones se cambia con Subir/Bajar, que manda la
+          lista completa del orden a la API.
+        -->
+        <div class="ui-tarjeta" id="plantilla-editor" style="margin-top:1rem" hidden>
+          <div class="ui-tarjeta__cab">
+            <h2>Puntos de <span id="plantilla-seleccionada"></span></h2>
+          </div>
+
+          <div id="plantilla-secciones-lista"></div>
+
+          <form class="ui-form" id="seccion-form" style="margin-top:.75rem">
+            <div class="ui-form__fila ui-form__fila--2">
+              <div class="ui-campo">
+                <label for="seccion-nombre">Nueva sección</label>
+                <input id="seccion-nombre" maxlength="150" required placeholder="Condiciones de seguridad">
+              </div>
+              <div class="ui-campo" style="align-self:end">
+                <button type="submit" class="ui-btn">Agregar sección</button>
+              </div>
+            </div>
+          </form>
+
+          <form class="ui-form" id="seccion-renombrar-form" style="margin-top:.75rem" hidden>
+            <div class="ui-form__fila ui-form__fila--2">
+              <input type="hidden" id="seccion-renombrar-id">
+              <div class="ui-campo">
+                <label for="seccion-renombrar-nombre">Nombre de la sección</label>
+                <input id="seccion-renombrar-nombre" maxlength="150" required>
+              </div>
+              <div class="ui-campo" style="align-self:end">
+                <div class="ui-fila">
+                  <button type="submit" class="ui-btn">Renombrar</button>
+                  <button type="button" class="ui-btn ui-btn--fantasma" id="seccion-renombrar-cancelar">Cancelar</button>
+                </div>
+              </div>
+            </div>
+          </form>
+
+          <hr>
+
+          <form class="ui-form" id="punto-form">
+            <div class="ui-form__fila ui-form__fila--4">
+              <div class="ui-campo">
+                <label for="punto-seccion">En la sección</label>
+                <select id="punto-seccion"></select>
+              </div>
+              <div class="ui-campo">
+                <label for="punto-label">Nuevo punto</label>
+                <input id="punto-label" maxlength="200" required>
+              </div>
+              <div class="ui-campo">
+                <label for="punto-tipo">Tipo de respuesta</label>
+                <select id="punto-tipo">
+                  <option value="yes_no">Si / No</option>
+                  <option value="text">Texto</option>
+                  <option value="number">Numero</option>
+                  <option value="select">Seleccion</option>
+                </select>
+              </div>
+              <div class="ui-campo">
+                <span class="ui-pista">Obligatorio</span>
+                <label class="check"><input id="punto-requerido" type="checkbox" checked> Hay que responderlo</label>
+              </div>
+            </div>
+            <div class="ui-campo" id="punto-opciones-caja" hidden>
+              <label for="punto-opciones">Opciones del punto (una por linea)</label>
+              <textarea id="punto-opciones" rows="3" placeholder="Bueno&#10;Regular&#10;Malo"></textarea>
+            </div>
+            <div class="ui-form__pie">
+              <button type="submit" class="ui-btn">Agregar punto</button>
+            </div>
+          </form>
+
+          <form class="ui-form" id="punto-editar-form" style="margin-top:1rem" hidden>
+            <div class="ui-form__fila ui-form__fila--4">
+              <input type="hidden" id="punto-editar-id">
+              <div class="ui-campo">
+                <label for="punto-editar-label">Texto del punto</label>
+                <input id="punto-editar-label" maxlength="200" required>
+              </div>
+              <div class="ui-campo">
+                <label for="punto-editar-tipo">Tipo de respuesta</label>
+                <select id="punto-editar-tipo">
+                  <option value="yes_no">Si / No</option>
+                  <option value="text">Texto</option>
+                  <option value="number">Numero</option>
+                  <option value="select">Seleccion</option>
+                </select>
+              </div>
+              <div class="ui-campo">
+                <span class="ui-pista">Obligatorio</span>
+                <label class="check"><input id="punto-editar-required" type="checkbox" checked> Hay que responderlo</label>
+              </div>
+            </div>
+            <div class="ui-campo" id="punto-editar-opciones-caja" hidden>
+              <label for="punto-editar-opciones">Opciones del punto (una por linea)</label>
+              <textarea id="punto-editar-opciones" rows="3"></textarea>
+            </div>
+            <div class="ui-form__pie">
+              <button type="submit" class="ui-btn">Guardar cambios</button>
+              <button type="button" class="ui-btn ui-btn--fantasma" id="punto-editar-cancelar">Cancelar</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- CORRIDAS -->
+      <section class="ui-panel" data-panel="corridas" hidden>
+        <form class="ui-tarjeta ui-form" id="corrida-form">
+          <div class="ui-tarjeta__cab">
+            <h2>Empezar una corrida</h2>
+          </div>
+          <div class="ui-form__fila ui-form__fila--2">
+            <div class="ui-campo">
+              <label for="corrida-plantilla">Plantilla</label>
+              <select id="corrida-plantilla"></select>
+            </div>
+            <div class="ui-campo">
+              <label for="corrida-lugar">Lugar</label>
+              <input id="corrida-lugar" maxlength="150" placeholder="Bodega 2, faena norte">
+            </div>
+          </div>
+          <div class="ui-campo">
+            <label for="corrida-notas">Notas</label>
+            <input id="corrida-notas" maxlength="2000">
+          </div>
+          <!--
+            Al empezar, el servidor COPIA los puntos de la plantilla a la corrida. Por
+            eso la corrida muestra siempre la misma lista aunque la plantilla cambie
+            despues, y por eso los puntos de una corrida libre se escriben aqui (tipo
+            Si/No: el resto de los tipos se arma en las plantillas).
+          -->
+          <div class="ui-campo">
+            <label for="corrida-items">Puntos (solo si la corrida es libre)</label>
+            <textarea id="corrida-items" rows="4" placeholder="Solo para corrida libre: un punto por linea, * marca los opcionales"></textarea>
+          </div>
+          <div class="ui-form__pie">
+            <button type="submit" class="ui-btn">Empezar corrida</button>
+          </div>
+        </form>
+
+        <div class="ui-tarjeta" style="margin-top:1rem">
+          <div class="ui-form__fila ui-form__fila--3" style="margin-bottom:.85rem">
+            <div class="ui-campo">
+              <label for="corrida-buscar">Buscar</label>
+              <input id="corrida-buscar" maxlength="100" placeholder="Plantilla o lugar">
+            </div>
+            <div class="ui-campo">
+              <label for="corrida-estado">Estado</label>
+              <select id="corrida-estado">
+                <option value="">Todos</option>
+                <option value="in_progress">En curso</option>
+                <option value="done">Completadas</option>
+                <option value="canceled">Canceladas</option>
+              </select>
+            </div>
+            <div class="ui-campo">
+              <label for="corrida-plantilla-filtro">De la plantilla</label>
+              <select id="corrida-plantilla-filtro"></select>
+            </div>
+          </div>
+          <div id="corridas-lista"></div>
+        </div>
+      </section>
+
+      <!-- AJUSTES -->
+      <section class="ui-panel" data-panel="ajustes" hidden>
+        <form class="ui-tarjeta ui-form" id="config-form" style="max-width:34rem">
+          <div class="ui-tarjeta__cab">
+            <h2>Ajustes</h2>
+          </div>
+          <div class="ui-campo">
+            <label for="cfg-moneda">Moneda</label>
+            <input id="cfg-moneda" name="currency" maxlength="5">
+            <span class="ui-pista">Este producto no maneja importes: la moneda queda como preferencia de la empresa.</span>
+          </div>
+          <div class="ui-campo">
+            <label for="cfg-zona">Zona horaria</label>
+            <input id="cfg-zona" name="timezone" maxlength="64">
+          </div>
+          <div class="ui-form__pie">
+            <button type="submit" class="ui-btn">Guardar ajustes</button>
+          </div>
+        </form>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!--
+  El alta y la edicion de la plantilla. Es un dialogo porque el textarea de
+  puntos iniciales solo tiene sentido en el alta: al editar, los puntos se
+  editan uno por uno en el editor, y volver a mandar el textarea sobreescribiria
+  la lista con lo que la pantalla recuerda.
+-->
+<dialog id="plantilla-dialog">
+  <form class="ui-tarjeta ui-form" id="plantilla-form">
+    <div class="ui-cabecera-modal">
+      <h2 id="plantilla-titulo">Nueva plantilla</h2>
+      <button type="button" class="ui-cerrar" id="plantilla-cerrar" aria-label="Cerrar">&times;</button>
+    </div>
+    <input type="hidden" id="plantilla-id">
+
+    <div class="ui-campo">
+      <label for="plantilla-nombre">Nombre</label>
+      <input id="plantilla-nombre" name="name" required maxlength="150">
+    </div>
+    <div class="ui-campo">
+      <label for="plantilla-descripcion">Descripcion</label>
+      <input id="plantilla-descripcion" name="description" maxlength="1000">
+    </div>
+    <div class="ui-campo">
       <label for="plantilla-items">Puntos iniciales (uno por linea, tipo Si/No)</label>
       <!--
         El alta acepta `items: [{label, required}]` en la misma llamada: los puntos
@@ -51,202 +324,56 @@
         se arman las secciones.
       -->
       <textarea id="plantilla-items" rows="5" placeholder="Extintor con carga vigente&#10;Piso sin cables sueltos*"></textarea>
-      <small>Un punto por linea. Si la linea termina en <code>*</code>, el punto es opcional: no hace falta responderlo para cerrar una corrida.</small>
-      <input type="hidden" id="plantilla-id">
-      <div class="fila">
-        <button type="submit">Guardar plantilla</button>
-        <button type="button" id="plantilla-cancelar" hidden>Cancelar edicion</button>
-      </div>
-    </form>
-
-    <div class="fila">
-      <div>
-        <label for="plantilla-buscar">Buscar</label>
-        <input id="plantilla-buscar" maxlength="100" placeholder="Nombre o descripcion">
-      </div>
-      <div>
-        <label for="plantilla-filtro">Ver</label>
-        <select id="plantilla-filtro">
-          <option value="1">Solo activas</option>
-          <option value="">Todas</option>
-          <option value="0">Solo inactivas</option>
-        </select>
-      </div>
+      <span class="ui-pista">Un punto por linea. Si la linea termina en <code>*</code>, el punto es opcional: no hace falta responderlo para cerrar una corrida.</span>
     </div>
-    <div id="plantillas-lista"></div>
 
-    <!--
-      Editor de la plantilla seleccionada. La plantilla se arma por SECCIONES: cada
-      seccion agrupa sus puntos, y los puntos llevan un TIPO de respuesta (Si/No,
-      texto, numero o seleccion). El servidor renumera las secciones a 1..N y los
-      puntos de cada seccion a 1..N sin huecos; la pantalla no recalcula ningun
-      numero. El orden de las secciones se cambia con Subir/Bajar, que manda la
-      lista completa del orden a la API.
-    -->
-    <div id="plantilla-editor" hidden>
-      <h3>Puntos de <span id="plantilla-seleccionada"></span></h3>
-      <div id="plantilla-secciones-lista" class="secciones"></div>
-
-      <form id="seccion-form">
-        <div class="fila">
-          <div>
-            <label for="seccion-nombre">Nueva seccion</label>
-            <input id="seccion-nombre" maxlength="150" required placeholder="Condiciones de seguridad">
-          </div>
-          <button type="submit">Agregar seccion</button>
-        </div>
-      </form>
-
-      <form id="seccion-renombrar-form" hidden>
-        <div class="fila">
-          <input type="hidden" id="seccion-renombrar-id">
-          <div>
-            <label for="seccion-renombrar-nombre">Nombre de la seccion</label>
-            <input id="seccion-renombrar-nombre" maxlength="150" required>
-          </div>
-          <button type="submit">Renombrar</button>
-          <button type="button" id="seccion-renombrar-cancelar">Cancelar</button>
-        </div>
-      </form>
-
-      <hr>
-
-      <form id="punto-form">
-        <div class="fila">
-          <div>
-            <label for="punto-seccion">En la seccion</label>
-            <select id="punto-seccion"></select>
-          </div>
-          <div>
-            <label for="punto-label">Nuevo punto</label>
-            <input id="punto-label" maxlength="200" required>
-          </div>
-          <div>
-            <label for="punto-tipo">Tipo de respuesta</label>
-            <select id="punto-tipo">
-              <option value="yes_no">Si / No</option>
-              <option value="text">Texto</option>
-              <option value="number">Numero</option>
-              <option value="select">Seleccion</option>
-            </select>
-          </div>
-          <div>
-            <label><input id="punto-requerido" type="checkbox" checked> Obligatorio</label>
-          </div>
-          <button type="submit">Agregar punto</button>
-        </div>
-        <div id="punto-opciones-caja" hidden>
-          <label for="punto-opciones">Opciones del punto (una por linea)</label>
-          <textarea id="punto-opciones" rows="3" placeholder="Bueno&#10;Regular&#10;Malo"></textarea>
-        </div>
-      </form>
-
-      <form id="punto-editar-form" hidden>
-        <div class="fila">
-          <input type="hidden" id="punto-editar-id">
-          <div>
-            <label for="punto-editar-label">Texto del punto</label>
-            <input id="punto-editar-label" maxlength="200" required>
-          </div>
-          <div>
-            <label for="punto-editar-tipo">Tipo de respuesta</label>
-            <select id="punto-editar-tipo">
-              <option value="yes_no">Si / No</option>
-              <option value="text">Texto</option>
-              <option value="number">Numero</option>
-              <option value="select">Seleccion</option>
-            </select>
-          </div>
-          <div>
-            <label><input id="punto-editar-required" type="checkbox" checked> Obligatorio</label>
-          </div>
-          <button type="submit">Guardar cambios</button>
-          <button type="button" id="punto-editar-cancelar">Cancelar</button>
-        </div>
-        <div id="punto-editar-opciones-caja" hidden>
-          <label for="punto-editar-opciones">Opciones del punto (una por linea)</label>
-          <textarea id="punto-editar-opciones" rows="3"></textarea>
-        </div>
-      </form>
+    <div class="ui-form__pie">
+      <button type="submit" class="ui-btn">Guardar plantilla</button>
+      <button type="button" class="ui-btn ui-btn--fantasma" id="plantilla-cancelar" hidden>Cancelar edicion</button>
     </div>
-  </section>
-
-  <section id="panel-corridas" hidden>
-    <form id="corrida-form">
-      <h3>Empezar una corrida</h3>
-      <div class="fila">
-        <div>
-          <label for="corrida-plantilla">Plantilla</label>
-          <select id="corrida-plantilla"></select>
-        </div>
-        <div>
-          <label for="corrida-lugar">Lugar</label>
-          <input id="corrida-lugar" maxlength="150" placeholder="Bodega 2, faena norte">
-        </div>
-      </div>
-      <label for="corrida-notas">Notas</label>
-      <input id="corrida-notas" maxlength="2000">
-      <label for="corrida-items">Puntos (solo si la corrida es libre)</label>
-      <!--
-        Al empezar, el servidor COPIA los puntos de la plantilla a la corrida. Por
-        eso la corrida muestra siempre la misma lista aunque la plantilla cambie
-        despues, y por eso los puntos de una corrida libre se escriben aqui (tipo
-        Si/No: el resto de los tipos se arma en las plantillas).
-      -->
-      <textarea id="corrida-items" rows="4" placeholder="Solo para corrida libre: un punto por linea, * marca los opcionales"></textarea>
-      <button type="submit">Empezar corrida</button>
-    </form>
-
-    <div class="fila">
-      <div>
-        <label for="corrida-buscar">Buscar</label>
-        <input id="corrida-buscar" maxlength="100" placeholder="Plantilla o lugar">
-      </div>
-      <div>
-        <label for="corrida-estado">Estado</label>
-        <select id="corrida-estado">
-          <option value="">Todos</option>
-          <option value="in_progress">En curso</option>
-          <option value="done">Completadas</option>
-          <option value="canceled">Canceladas</option>
-        </select>
-      </div>
-      <div>
-        <label for="corrida-plantilla-filtro">De la plantilla</label>
-        <select id="corrida-plantilla-filtro"></select>
-      </div>
-    </div>
-    <div id="corridas-lista"></div>
-  </section>
-
-  <section id="panel-ajustes" hidden>
-    <form id="config-form">
-      <h3>Ajustes</h3>
-      <label for="cfg-moneda">Moneda</label>
-      <input id="cfg-moneda" name="currency" maxlength="5">
-      <small>Este producto no maneja importes: la moneda queda como preferencia de la empresa.</small>
-      <label for="cfg-zona">Zona horaria</label>
-      <input id="cfg-zona" name="timezone" maxlength="64">
-      <button type="submit">Guardar ajustes</button>
-    </form>
-  </section>
-</main>
+  </form>
+</dialog>
 
 <!--
   La ficha de una corrida. Es un dialogo y no otra seccion porque se abre encima
   del listado: se revisa, se responde y se vuelve a la lista, sin perder la pagina.
   Dentro se arma cada punto segun su tipo, el veredicto global y los adjuntos.
 -->
-<dialog id="ficha-dialog">
-  <div id="ficha"></div>
+<dialog id="ficha-dialog" class="ui-ancho">
+  <div class="ui-tarjeta">
+    <div id="ficha"></div>
+  </div>
 
-  <form id="corrida-editar-form">
-    <div class="fila">
-      <div>
+  <!--
+    El form de adjuntar vive acá y no armandolo con innerHTML cada vez que se
+    abre la ficha: si se creara al vuelo, el `input type="file"` volvería a estar
+    vacío en cada visita (eso lo hace el navegador por seguridad) y la persona
+    tendria que elegir el archivo de nuevo cada vez que responde un punto.
+  -->
+  <form class="ui-tarjeta ui-form" id="adjunto-form" style="margin-top:1rem" hidden>
+    <div class="ui-tarjeta__cab">
+      <h2>Adjuntar</h2>
+    </div>
+    <div class="ui-campo">
+      <label for="adjunto-archivo">Archivo</label>
+      <input id="adjunto-archivo" type="file" accept="image/*,video/*,application/pdf,application/*">
+      <span class="ui-pista">Hasta 750 KB por archivo. El navegador lo manda en base64 y la API lo guarda en disco.</span>
+    </div>
+    <div class="ui-form__pie">
+      <button type="submit" class="ui-btn">Adjuntar archivo</button>
+    </div>
+  </form>
+
+  <form class="ui-tarjeta ui-form" id="corrida-editar-form" style="margin-top:1rem">
+    <div class="ui-tarjeta__cab">
+      <h2>Corrida</h2>
+    </div>
+    <div class="ui-form__fila ui-form__fila--3">
+      <div class="ui-campo">
         <label for="corrida-editar-lugar">Lugar</label>
         <input id="corrida-editar-lugar" maxlength="150">
       </div>
-      <div>
+      <div class="ui-campo">
         <label for="corrida-editar-estado">Estado</label>
         <select id="corrida-editar-estado">
           <option value="in_progress">En curso</option>
@@ -254,7 +381,7 @@
           <option value="canceled">Cancelada</option>
         </select>
       </div>
-      <div>
+      <div class="ui-campo">
         <label for="corrida-editar-resultado">Veredicto global</label>
         <select id="corrida-editar-resultado">
           <option value="">(al completar, se deriva)</option>
@@ -264,9 +391,13 @@
         </select>
       </div>
     </div>
-    <label for="corrida-editar-notas">Notas</label>
-    <input id="corrida-editar-notas" maxlength="2000">
-    <button type="submit">Guardar cambios</button>
+    <div class="ui-campo">
+      <label for="corrida-editar-notas">Notas</label>
+      <input id="corrida-editar-notas" maxlength="2000">
+    </div>
+    <div class="ui-form__pie">
+      <button type="submit" class="ui-btn">Guardar cambios</button>
+    </div>
   </form>
 
   <!--
@@ -276,16 +407,20 @@
     por la misma regla del servidor (no se puede pasar a "completada" con
     obligatorios sin responder), y por eso los dos muestran el mismo 400.
   -->
-  <div class="fila">
-    <button type="button" id="ficha-completar">Completar corrida</button>
-    <button type="button" id="ficha-cancelar">Cancelar corrida</button>
-    <button type="button" id="ficha-reabrir">Reabrir</button>
-    <button type="button" id="ficha-borrar">Borrar corrida</button>
-    <button type="button" id="ficha-cerrar">Cerrar</button>
+  <div class="ui-tarjeta" style="margin-top:1rem">
+    <div class="ui-fila">
+      <button type="button" class="ui-btn" id="ficha-completar">Completar corrida</button>
+      <button type="button" class="ui-btn ui-btn--fantasma" id="ficha-cancelar">Cancelar corrida</button>
+      <button type="button" class="ui-btn ui-btn--fantasma" id="ficha-reabrir">Reabrir</button>
+      <button type="button" class="ui-btn ui-btn--fantasma ui-btn--peligro" id="ficha-borrar">Borrar corrida</button>
+      <button type="button" class="ui-btn ui-btn--fantasma" id="ficha-cerrar">Cerrar</button>
+    </div>
   </div>
 </dialog>
 
-<div id="aviso" hidden></div>
+<div id="aviso" class="ui-aviso" hidden></div>
+<script src="/amigo-ui.js"></script>
+<script src="/amigo.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

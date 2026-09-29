@@ -1,180 +1,25 @@
-/* Estilos de solicitudes. Sin framework: es una pantalla y una hoja de estilos. */
+/* ==========================================================================
+   SOLICITUDES · el color de este producto
+   --------------------------------------------------------------------------
+   Esto es TODO lo que hace que Solicitudes se vea distinto de las otras ocho
+   herramientas. La forma esta en /amigo.css y es la misma en todas.
+
+   Para darle otro color a una herramienta se cambia este archivo, no el CSS
+   compartido: si alguna vez un producto necesita mas que un color, lo que se
+   anade es un bloque propio aqui, jamas una regla sobre las clases de la
+   plataforma.
+
+   Indigo: el color de la bandeja de entrada. Es el ticket que espera respuesta,
+   y la pantalla entera esta ordenada por urgencia, asi que el color tiene que
+   avisar antes de que se lea un solo numero.
+   ========================================================================== */
+
+@import url("/amigo.css");
 
 :root {
-  --borde: #d5dbe3;
-  --tinta: #1a2029;
-  --suave: #5d6875;
-  --fondo: #f6f8fa;
-  --acento: #b45309;
-  --peligro: #b42318;
-  --ok: #15803d;
+  --acento: #4f46e5;
+  --acento-fuerte: #3d35b3;
+  --acento-tenue: #eae9fc;
+  --acento-borde: #c5c2f2;
+  --sobre-acento: #ffffff;
 }
-
-* { box-sizing: border-box; }
-
-body {
-  margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: var(--tinta);
-  background: var(--fondo);
-}
-
-header {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  padding: 1rem 1.5rem;
-  background: #fff;
-  border-bottom: 1px solid var(--borde);
-}
-
-header h1 { margin: 0; font-size: 1.25rem; }
-
-nav { display: flex; gap: 0.25rem; }
-
-nav button {
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  padding: 0.4rem 0.8rem;
-  cursor: pointer;
-  color: var(--suave);
-  font: inherit;
-}
-
-nav button.activo {
-  border-color: var(--borde);
-  background: var(--fondo);
-  color: var(--tinta);
-  font-weight: 600;
-}
-
-#salir { margin-left: auto; color: var(--suave); }
-
-main { padding: 1.5rem; max-width: 1100px; }
-
-h3 { margin: 1.5rem 0 0.5rem; }
-h4 { margin: 1.25rem 0 0.25rem; font-size: 0.95rem; }
-
-label { display: block; font-size: 0.85rem; color: var(--suave); margin-top: 0.5rem; }
-
-input, select, textarea {
-  width: 100%;
-  max-width: 22rem;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid var(--borde);
-  border-radius: 6px;
-  font: inherit;
-  background: #fff;
-}
-
-textarea { resize: vertical; }
-
-button {
-  font: inherit;
-  padding: 0.45rem 0.8rem;
-  border: 1px solid var(--borde);
-  border-radius: 6px;
-  background: #fff;
-  cursor: pointer;
-}
-
-button[type="submit"] {
-  background: var(--acento);
-  border-color: var(--acento);
-  color: #fff;
-  margin-top: 1rem;
-}
-
-.fila { display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
-.herramientas { align-items: flex-end; }
-.crecer { flex: 1 1 auto; }
-
-.tarjetas { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; }
-
-.tarjeta {
-  background: #fff;
-  border: 1px solid var(--borde);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  min-width: 8rem;
-  display: flex;
-  flex-direction: column;
-}
-
-.tarjeta strong { font-size: 1.4rem; }
-.tarjeta span { font-size: 0.8rem; color: var(--suave); }
-.tarjeta.urgente strong { color: var(--peligro); }
-
-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--borde); border-radius: 8px; }
-
-th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--borde); }
-
-th { font-size: 0.8rem; color: var(--suave); text-transform: uppercase; letter-spacing: 0.03em; }
-
-tr:last-child td { border-bottom: none; }
-
-td button { padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.25rem; }
-
-/* Etiquetas de estado y prioridad en la lista. */
-.etiqueta {
-  display: inline-block;
-  padding: 0.12rem 0.45rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  border: 1px solid var(--borde);
-  background: var(--fondo);
-  white-space: nowrap;
-}
-
-.etiqueta.cerrada { color: var(--suave); }
-.etiqueta.vencida { color: var(--peligro); border-color: var(--peligro); }
-.etiqueta.urgente { color: var(--peligro); border-color: var(--peligro); }
-.etiqueta.alta { color: #c2410c; border-color: #c2410c; }
-.etiqueta.ok { color: var(--ok); border-color: var(--ok); }
-
-dialog {
-  border: 1px solid var(--borde);
-  border-radius: 10px;
-  padding: 1.5rem;
-  min-width: 34rem;
-  max-width: 46rem;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
-
-/* El hilo de la solicitud: comentarios, adjuntos e historial. */
-.hilo, .historial, .adjuntos { display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.5rem; }
-
-.comentario, .evento, .adjunto {
-  background: var(--fondo);
-  border: 1px solid var(--borde);
-  border-radius: 6px;
-  padding: 0.5rem 0.65rem;
-  font-size: 0.88rem;
-}
-
-.comentario .autor, .evento .autor { font-weight: 600; font-size: 0.82rem; }
-.comentario .fecha, .evento .fecha { color: var(--suave); font-size: 0.78rem; }
-.comentario p { margin: 0.25rem 0 0; white-space: pre-wrap; }
-
-.evento { color: var(--suave); font-size: 0.82rem; }
-
-.adjunto { display: flex; align-items: center; gap: 0.5rem; }
-.adjunto a { color: var(--acento); }
-.adjunto .tamano { margin-left: auto; color: var(--suave); font-size: 0.78rem; }
-
-#aviso {
-  position: fixed;
-  bottom: 1.25rem;
-  right: 1.25rem;
-  background: var(--acento);
-  color: #fff;
-  padding: 0.7rem 1rem;
-  border-radius: 8px;
-  max-width: 26rem;
-}
-
-#aviso.malo { background: var(--peligro); }

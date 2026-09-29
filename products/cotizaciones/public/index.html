@@ -4,9 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cotizaciones</title>
-<link rel="stylesheet" href="/style.css">
-</head>
-<body>
 <!--
   Esta pagina no pide usuario ni contrasena: la sesion vive en el Core y este
   documento solo se sirve si ya la hay. Todo lo que se ve sale de la API, que
@@ -15,122 +12,230 @@
   Tampoco hay login, ni alta de cuentas, ni clientes: los clientes son del producto
   `clientes`. Una cotizacion guarda el NOMBRE del cliente como foto, para poder
   leerse sola, y un id suelto que apunta alla.
+
+  La forma (tarjetas, botones, tablas, canal lateral) viene de /amigo.css, que
+  es la misma hoja en los nueve productos. Este archivo solo declara qué
+  secciones tiene y con qué color las pinta: /style.css.
 -->
-<header>
-  <h1>Cotizaciones</h1>
-  <nav id="tabs">
-    <button data-tab="inicio" class="activo">Inicio</button>
-    <button data-tab="cotizaciones">Cotizaciones</button>
-    <button data-tab="ajustes">Ajustes</button>
-  </nav>
-  <a id="salir" href="/auth/logout">Salir</a>
-</header>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
 
-<main>
-  <section id="panel-inicio">
-    <div class="tarjetas" id="resumen"></div>
-    <h3>Pendientes de respuesta</h3>
-    <div id="abiertas"></div>
-  </section>
+<div class="ui">
 
-  <section id="panel-cotizaciones" hidden>
-    <div class="fila">
-      <label for="buscar">Buscar</label>
-      <input id="buscar" type="search" placeholder="Folio, cliente o titulo" maxlength="150">
-      <label for="filtro-estado">Estado</label>
-      <select id="filtro-estado"></select>
-      <button id="cotizacion-nueva" type="button">Nueva cotizacion</button>
+  <!-- ── el canal: igual en los nueve productos ─────────────────────── -->
+  <aside class="ui-canal">
+    <a class="ui-marca" href="/">
+      <span class="ui-logo" data-amigo="logo" aria-hidden="true">CQ</span>
+      <span class="ui-marca__texto">
+        <span class="ui-marca__nombre">Cotizaciones</span>
+        <span class="ui-marca__empresa" data-amigo="empresa"></span>
+      </span>
+    </a>
+
+    <nav class="ui-nav" id="tabs" aria-label="Secciones de Cotizaciones">
+      <p class="ui-nav__titulo">Comercial</p>
+      <a href="?panel=inicio" data-tab="inicio">Inicio</a>
+      <a href="?panel=cotizaciones" data-tab="cotizaciones">Cotizaciones</a>
+      <p class="ui-nav__titulo">Configuración</p>
+      <a href="?panel=ajustes" data-tab="ajustes">Ajustes</a>
+
+      <p class="ui-nav__titulo" data-amigo="otras-titulo" hidden>Mis otras herramientas</p>
+      <div data-amigo="otras"></div>
+    </nav>
+
+    <div class="ui-pie">
+      <span class="ui-avatar" data-amigo="avatar" aria-hidden="true">–</span>
+      <span class="ui-pie__texto">
+        <span class="ui-pie__nombre" data-amigo="usuario"></span>
+        <span class="ui-pie__correo" data-amigo="correo"></span>
+      </span>
+      <a href="/auth/logout" title="Cerrar sesión">Salir</a>
     </div>
-    <div id="cotizaciones-lista"></div>
-  </section>
+  </aside>
 
-  <section id="panel-ajustes" hidden>
-    <form id="config-form">
-      <h3>Ajustes</h3>
-      <label for="cfg-moneda">Moneda</label>
-      <input id="cfg-moneda" name="currency" maxlength="5">
-      <label for="cfg-zona">Zona horaria</label>
-      <input id="cfg-zona" name="timezone" maxlength="60">
-      <label for="cfg-impuesto">Impuesto por defecto (puntos basicos, 1600 = 16%)</label>
-      <input id="cfg-impuesto" name="defaultTaxRateBp" type="number" min="0" max="10000" step="1">
-      <label for="cfg-vigencia">Dias de vigencia de la oferta</label>
-      <input id="cfg-vigencia" name="validityDays" type="number" min="1" max="3650" step="1">
-      <p class="nota">
-        El folio siguiente NO se ajusta: es el ultimo numero de la empresa mas uno, y
-        se calcula en el servidor. Reservarlo desde aca dejaria huecos en la
-        numeracion.
-      </p>
-      <p>Folio siguiente: <strong id="cfg-folio">—</strong></p>
-      <button type="submit">Guardar ajustes</button>
-    </form>
-  </section>
-</main>
+  <!-- ── barra ──────────────────────────────────────────────────────── -->
+  <header class="ui-topbar">
+    <div class="ui-topbar__titulo">
+      <h1 data-amigo="titulo">Inicio</h1>
+    </div>
+    <div class="ui-topbar__acciones">
+      <button type="button" class="ui-btn" id="cotizacion-nueva">Nueva cotización</button>
+    </div>
+  </header>
 
-<dialog id="cotizacion-dialog">
-  <form id="cotizacion-form">
-    <h3><span id="cotizacion-form-titulo">Nueva cotizacion</span></h3>
+  <!-- ── contenido ──────────────────────────────────────────────────── -->
+  <main class="ui-main">
+    <div class="ui-envoltura">
+
+      <!-- INICIO -->
+      <section class="ui-panel" data-panel="inicio">
+        <div class="ui-rejilla ui-rejilla--4" id="resumen"></div>
+
+        <div class="ui-tarjeta" style="margin-top:1rem">
+          <div class="ui-tarjeta__cab">
+            <h2>Pendientes de respuesta</h2>
+          </div>
+          <div id="abiertas" class="ui-lista"></div>
+        </div>
+      </section>
+
+      <!-- COTIZACIONES -->
+      <section class="ui-panel" data-panel="cotizaciones" hidden>
+        <div class="ui-tarjeta">
+          <div class="ui-form__fila ui-form__fila--3" style="margin-bottom:.85rem">
+            <div class="ui-campo">
+              <label for="buscar">Buscar</label>
+              <input id="buscar" type="search" placeholder="Folio, cliente o titulo" maxlength="150">
+            </div>
+            <div class="ui-campo">
+              <label for="filtro-estado">Estado</label>
+              <select id="filtro-estado"></select>
+            </div>
+          </div>
+          <div id="cotizaciones-lista"></div>
+        </div>
+      </section>
+
+      <!-- AJUSTES -->
+      <section class="ui-panel" data-panel="ajustes" hidden>
+        <form class="ui-tarjeta ui-form" id="config-form" style="max-width:44rem">
+          <div class="ui-tarjeta__cab">
+            <h2>Ajustes</h2>
+          </div>
+          <div class="ui-form__fila ui-form__fila--2">
+            <div class="ui-campo">
+              <label for="cfg-moneda">Moneda</label>
+              <input id="cfg-moneda" name="currency" maxlength="5">
+            </div>
+            <div class="ui-campo">
+              <label for="cfg-zona">Zona horaria</label>
+              <input id="cfg-zona" name="timezone" maxlength="60">
+            </div>
+          </div>
+          <div class="ui-form__fila ui-form__fila--2">
+            <div class="ui-campo">
+              <label for="cfg-impuesto">Impuesto por defecto (puntos basicos, 1600 = 16%)</label>
+              <input id="cfg-impuesto" name="defaultTaxRateBp" type="number" min="0" max="10000" step="1">
+            </div>
+            <div class="ui-campo">
+              <label for="cfg-vigencia">Dias de vigencia de la oferta</label>
+              <input id="cfg-vigencia" name="validityDays" type="number" min="1" max="3650" step="1">
+            </div>
+          </div>
+          <div class="ui-aviso ui-aviso--info">
+            El folio siguiente NO se ajusta: es el ultimo numero de la empresa mas uno, y
+            se calcula en el servidor. Reservarlo desde aca dejaria huecos en la
+            numeracion. Ahora es <strong id="cfg-folio">—</strong>.
+          </div>
+          <div class="ui-form__pie">
+            <button type="submit" class="ui-btn">Guardar ajustes</button>
+          </div>
+        </form>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<dialog id="cotizacion-dialog" class="ui-ancho">
+  <form class="ui-tarjeta ui-form" id="cotizacion-form">
+    <div class="ui-cabecera-modal">
+      <h2 id="cotizacion-form-titulo">Nueva cotización</h2>
+      <button type="button" class="ui-cerrar" id="cotizacion-cerrar" aria-label="Cerrar">&times;</button>
+    </div>
     <input type="hidden" id="cotizacion-id">
 
-    <label for="cot-folio">Folio</label>
-    <input id="cot-folio" type="number" min="1" step="1" required>
+    <div class="ui-form__fila ui-form__fila--2">
+      <div class="ui-campo">
+        <label for="cot-folio">Folio</label>
+        <input id="cot-folio" type="number" min="1" step="1" required>
+        <span class="ui-pista">Lo propone el servidor</span>
+      </div>
+      <div class="ui-campo">
+        <label for="cot-cliente">Cliente</label>
+        <input id="cot-cliente" maxlength="150" required placeholder="Nombre del cliente">
+        <span class="ui-pista">Los clientes viven en el producto Clientes. Acá va el nombre.</span>
+      </div>
+    </div>
 
-    <label for="cot-cliente">Cliente</label>
-    <input id="cot-cliente" maxlength="150" required placeholder="Nombre del cliente">
-    <p class="nota">Los clientes viven en el producto Clientes. Aca va el nombre.</p>
+    <div class="ui-form__fila ui-form__fila--2">
+      <div class="ui-campo">
+        <label for="cot-cliente-id">Id del cliente en Clientes (opcional)</label>
+        <input id="cot-cliente-id" maxlength="64">
+      </div>
+      <div class="ui-campo">
+        <label for="cot-correo">Correo del cliente (opcional)</label>
+        <input id="cot-correo" type="email" maxlength="200">
+      </div>
+    </div>
 
-    <label for="cot-cliente-id">Id del cliente en Clientes (opcional)</label>
-    <input id="cot-cliente-id" maxlength="64">
+    <div class="ui-campo">
+      <label for="cot-titulo">Titulo (opcional)</label>
+      <input id="cot-titulo" maxlength="200">
+    </div>
 
-    <label for="cot-correo">Correo del cliente (opcional)</label>
-    <input id="cot-correo" type="email" maxlength="200">
+    <div class="ui-form__fila ui-form__fila--2">
+      <div class="ui-campo">
+        <label for="cot-emision">Fecha de emision</label>
+        <input id="cot-emision" type="date">
+      </div>
+      <div class="ui-campo">
+        <label for="cot-vigencia">Vigente hasta</label>
+        <input id="cot-vigencia" type="date">
+      </div>
+    </div>
 
-    <label for="cot-titulo">Titulo (opcional)</label>
-    <input id="cot-titulo" maxlength="200">
+    <div class="ui-form__fila ui-form__fila--2">
+      <div class="ui-campo">
+        <label for="cot-impuesto">Impuesto (puntos basicos, 1600 = 16%)</label>
+        <input id="cot-impuesto" type="number" min="0" max="10000" step="1" value="0">
+      </div>
+      <div class="ui-campo">
+        <label for="cot-notas">Notas (opcional)</label>
+        <input id="cot-notas" maxlength="2000">
+      </div>
+    </div>
 
-    <label for="cot-emision">Fecha de emision</label>
-    <input id="cot-emision" type="date">
-
-    <label for="cot-vigencia">Vigente hasta</label>
-    <input id="cot-vigencia" type="date">
-
-    <label for="cot-impuesto">Impuesto (puntos basicos, 1600 = 16%)</label>
-    <input id="cot-impuesto" type="number" min="0" max="10000" step="1" value="0">
-
-    <label for="cot-notas">Notas (opcional)</label>
-    <input id="cot-notas" maxlength="2000">
-
-    <h4>Lineas</h4>
-    <div id="cot-lineas"></div>
-    <div class="fila">
-      <div>
+    <h3 style="margin-top:.75rem">Líneas</h3>
+    <div id="cot-lineas" class="ui-lista"></div>
+    <div class="ui-form__fila ui-form__fila--3" style="margin-top:.5rem">
+      <div class="ui-campo">
         <label for="linea-descripcion">Descripcion</label>
         <input id="linea-descripcion" maxlength="150" placeholder="Logo y tarjetas">
       </div>
-      <div>
+      <div class="ui-campo">
         <label for="linea-cantidad">Cantidad</label>
         <input id="linea-cantidad" type="number" min="1" step="0.5" value="1">
       </div>
-      <div>
+      <div class="ui-campo">
         <label for="linea-precio">Precio unitario</label>
         <input id="linea-precio" type="number" min="0" step="1" value="0">
       </div>
-      <button type="button" id="linea-agregar">Agregar</button>
+    </div>
+    <div class="ui-form__pie">
+      <button type="button" class="ui-btn ui-btn--chico" id="linea-agregar">Agregar línea</button>
     </div>
 
-    <p class="total">Total estimado: <span id="cot-total">—</span></p>
-    <p class="nota">El total que queda guardado lo calcula el servidor.</p>
+    <div class="ui-fila ui-fila--entre" style="margin-top:.85rem">
+      <span class="suave">Total estimado</span>
+      <span class="mono" id="cot-total" style="font-size:1.1rem">—</span>
+    </div>
+    <p class="ui-pista">El total que queda guardado lo calcula el servidor.</p>
 
-    <h4>Estado</h4>
-    <div class="fila" id="cot-estados"></div>
+    <h3 style="margin-top:1rem">Estado</h3>
+    <div class="ui-fila" id="cot-estados"></div>
 
-    <div class="fila">
-      <button type="submit">Guardar</button>
-      <button type="button" id="cotizacion-cancelar">Cancelar</button>
+    <div class="ui-form__pie" style="margin-top:1.25rem">
+      <button type="submit" class="ui-btn">Guardar</button>
+      <button type="button" class="ui-btn ui-btn--fantasma" id="cotizacion-cancelar">Cancelar</button>
     </div>
   </form>
 </dialog>
 
-<div id="aviso" hidden></div>
+<div id="aviso" class="ui-aviso" hidden></div>
+<script src="/amigo-ui.js"></script>
+<script src="/amigo.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>
