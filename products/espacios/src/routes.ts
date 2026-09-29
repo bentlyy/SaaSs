@@ -583,18 +583,26 @@ export function buildRoutes(ctx: ProductContext): Router[] {
     }),
   );
 
-  /** Números del día, para las tarjetas de arriba. */
+  /**
+   * Números del día, para las tarjetas de arriba.
+   *
+   * Acepta `date=YYYY-MM-DD` porque la agenda deja mirar cualquier día, no solo
+   * el de hoy. Sin ese parámetro las tarjetas seguían enseñando los números de
+   * hoy mientras la tabla de al lado mostraba el día que uno eligió: dos
+   * verdades distintas en la misma pantalla.
+   */
   router.get(
     '/api/resumen',
     asyncHandler(async (req, res) => {
       const org = orgId(req);
-      const hoy = new Date();
+      const pedido = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().parse(req.query.date);
+      const hoy = pedido ? new Date(`${pedido}T00:00:00.000Z`) : new Date();
       hoy.setUTCHours(0, 0, 0, 0);
       const manana = new Date(hoy.getTime() + 86_400_000);
       const desde = hoy.toISOString();
       const hasta = manana.toISOString();
 
-      const deHoy = db
+      const delDia = db
         .select()
         .from(bookings)
         .where(and(eq(bookings.organizationId, org), gte(bookings.startAt, desde), lte(bookings.startAt, hasta)))
@@ -606,11 +614,15 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         .all();
 
       res.json({
-        hoy: deHoy.length,
-        confirmadas: deHoy.filter((b) => b.status === 'confirmed').length,
-        porConfirmar: futuras.filter((b) => b.status === 'pending').length,
+        date: pedido ?? null,
+        hoy: delDia.length,
+        confirmadas: delDia.filter((b) => b.status === 'confirmed').length,
+        // Cuenta las pendientes DEL DÍA, no las que hay desde ese día en adelante.
+        // Con un día pasado, contar hacia adelante daba el mismo número que
+        // "hoy": las cuatro tarjetas hablaban de días distintos.
+        porConfirmar: delDia.filter((b) => b.status === 'pending').length,
         futuras: futuras.length,
-        ingresos: deHoy
+        ingresos: delDia
           .filter((b) => b.status !== 'cancelled')
           .reduce((acc, b) => acc + b.totalCents, 0),
       });

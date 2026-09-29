@@ -238,6 +238,67 @@ describe('aislamiento entre organizaciones', () => {
   });
 });
 
+describe('el resumen de las tarjetas de arriba', () => {
+  it('cuenta el día que se le pide, no siempre el de hoy', async () => {
+    const org = await comoAdmin(TEST_ORG_A);
+    const cliente = (await org.get('/api/customers')).body.items[0].id;
+    // El total lo calcula el servidor desde la tarifa del espacio: no se manda.
+    const barato = await nuevoEspacio(TEST_ORG_A, { name: 'Sala Barata', pricePerHourCents: 10_000 });
+    const caro = await nuevoEspacio(TEST_ORG_A, { name: 'Sala Cara', pricePerHourCents: 25_000 });
+
+    // Fechas fijas y no "hoy": si la prueba dependiera del reloj, correría mal a
+    // medianoche sin que nadie hubiera tocado nada.
+    const unaHora = (espacio: string, dia: string) =>
+      org
+        .post('/api/bookings')
+        .send({ spaceId: espacio, customerId: cliente, startAt: `${dia}T14:00:00.000Z`, endAt: `${dia}T15:00:00.000Z` });
+    expect((await unaHora(barato, '2026-11-10')).status).toBe(201);
+    expect((await unaHora(caro, '2026-11-11')).status).toBe(201);
+
+    const uno = await org.get('/api/resumen?date=2026-11-10');
+    const otro = await org.get('/api/resumen?date=2026-11-11');
+
+    expect(uno.status).toBe(200);
+    expect(uno.body.date).toBe('2026-11-10');
+    expect(otro.body.date).toBe('2026-11-11');
+
+    // Cada día trae SU reserva y SU ingreso, no la del otro.
+    expect(uno.body.hoy).toBe(1);
+    expect(otro.body.hoy).toBe(1);
+    expect(uno.body.ingresos).toBe(10_000);
+    expect(otro.body.ingresos).toBe(25_000);
+  });
+
+  it('las cuatro tarjetas hablan del mismo día, incluidas las pendientes', async () => {
+    const org = await comoAdmin(TEST_ORG_A);
+    const cliente = (await org.get('/api/customers')).body.items[0].id;
+    const espacio = await nuevoEspacio(TEST_ORG_A, { name: 'Sala de Coherencia' });
+
+    const crear = (inicio: string, fin: string, status: string) =>
+      org
+        .post('/api/bookings')
+        .send({ spaceId: espacio, customerId: cliente, startAt: inicio, endAt: fin, status });
+
+    await crear('2026-11-20T14:00:00.000Z', '2026-11-20T15:00:00.000Z', 'confirmed');
+    await crear('2026-11-20T16:00:00.000Z', '2026-11-20T17:00:00.000Z', 'pending');
+    // Una pendiente en OTRO día. Si el resumen la mezclara, las tarjetas
+    // dirían "2 por confirmar" sobre un día que solo tiene una.
+    await crear('2026-11-25T14:00:00.000Z', '2026-11-25T15:00:00.000Z', 'pending');
+
+    const r = await org.get('/api/resumen?date=2026-11-20');
+    expect(r.body.hoy).toBe(2);
+    expect(r.body.confirmadas).toBe(1);
+    expect(r.body.porConfirmar).toBe(1);
+  });
+
+  it('una fecha con formato raro es 400, no el resumen de hoy', async () => {
+    // Si el parámetro viniera roto y se ignorara en silencio, la agenda
+    // mostraría los números de otro día sin avisar. Mejor un error visible.
+    const res = await comoAdmin(TEST_ORG_A).get('/api/resumen?date=ayer');
+    expect(res.status).toBe(400);
+  });
+});
+
 describe('choques de horario', () => {
   it('no deja dos reservas en el MISMO espacio al mismo tiempo', async () => {
     const espacio = await nuevoEspacio(TEST_ORG_A, { name: 'Cancha de Choques' });
