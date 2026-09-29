@@ -190,16 +190,123 @@
 
   function navAuth(guest) {
     if (guest) return [
-      el('a', { class: CLASE_GHOST, href: '/login', text: 'Ingresar' }),
+      el('button', { class: CLASE_GHOST, type: 'button', text: 'Ingresar', onclick: abrirLogin }),
       el('a', { class: CLASE_SOLID, href: '/registro', text: 'Crear cuenta' }),
     ];
-    /* Con sesión, todo vive en la landing: los enlaces son anclas a las
-     * secciones de abajo. Los ajustes se editan aquí mismo, no en un SPA. */
-    return [
-      el('a', { class: CLASE_GHOST, href: '/#tus-aplicaciones', text: 'Mis aplicaciones' }),
-      el('a', { class: CLASE_GHOST, href: '/#mi-cuenta', text: 'Mi cuenta' }),
-      el('button', { class: CLASE_SOLID, type: 'button', text: 'Salir', onclick: signOut }),
-    ];
+    /* Con sesión, todo sucede en la landing: un solo botón de identidad
+     * abre el menú con "Mi cuenta", "Mis aplicaciones" y "Salir". */
+    return menuSesion(sesionActual);
+  }
+
+  /* ── ventana de login ────────────────────────────────────────────────── */
+
+  var menuActivo = null;
+  var menuActivoCerrar = null;
+
+  function cerrarMenuActivo() {
+    if (menuActivoCerrar) { menuActivoCerrar(); menuActivoCerrar = null; menuActivo = null; }
+  }
+
+  function abrirLogin() {
+    var alerta = el('div', { dataset: { alert: '' } });
+    var form = el('form', { class: 'grid gap-4', novalidate: true },
+      alerta,
+      campo('email', 'Correo', { type: 'email', autocomplete: 'email', inputMode: 'email', placeholder: 'tucorreo@negocio.cl' }),
+      campo('password', 'Contraseña', { type: 'password', autocomplete: 'current-password' }),
+      el('button', { class: BTN_SOLIDO + ' w-full justify-center', type: 'submit', text: 'Ingresar' }),
+      el('p', { class: 'text-body-sm font-body-sm text-on-surface-variant', text: '¿Olvidaste tu contraseña? ' },
+        el('a', { class: 'text-primary font-medium underline underline-offset-2', href: '/recuperar', text: 'Recuperarla' })),
+      el('p', { class: 'text-body-sm font-body-sm text-on-surface-variant', text: '¿Aún no tienes cuenta? ' },
+        el('a', { class: 'text-primary font-medium underline underline-offset-2', href: '/registro', text: 'Crea una gratis' })),
+    );
+    bindForm(form, function (values) {
+      return api('/auth/login', { method: 'POST', body: { email: values.email, password: values.password } });
+    }, function () { location.assign('/'); });
+
+    var cerrar = el('button', { class: 'absolute top-4 right-4 w-9 h-9 grid place-items-center rounded-full text-on-surface-variant hover:bg-surface-container-low transition-colors', type: 'button', 'aria-label': 'Cerrar' },
+      el('span', { class: 'material-symbols-outlined text-xl', text: 'close' }));
+    var panel = el('div', { class: 'w-full max-w-md bg-surface-container-lowest rounded-3xl border border-outline-variant/60 bento-shadow p-6 md:p-8 relative' },
+      el('div', { class: 'mb-5 pr-8' },
+        el('h2', { class: 'text-headline-lg font-headline-lg text-primary tracking-tight', text: 'Ingresa a tu cuenta' }),
+        el('p', { class: 'text-body-sm font-body-sm text-on-surface-variant mt-1', text: 'Un solo acceso para todas tus herramientas.' }),
+      ),
+      form,
+    );
+    panel.appendChild(cerrar);
+    var overlay = el('div', { class: 'fixed inset-0 z-[70] flex items-center justify-center p-4 bg-primary/45 backdrop-blur-sm', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Ingresar a tu cuenta' },
+      panel);
+    document.body.appendChild(overlay);
+
+    function cerrarDialogo() {
+      document.removeEventListener('keydown', onKey);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }
+    function onKey(event) { if (event.key === 'Escape') cerrarDialogo(); }
+    cerrar.addEventListener('click', cerrarDialogo);
+    overlay.addEventListener('click', function (event) { if (event.target === overlay) cerrarDialogo(); });
+    document.addEventListener('keydown', onKey);
+    var primer = form.querySelector('[name="email"]');
+    if (primer && primer.focus) primer.focus();
+  }
+
+  /* ── menú de sesión en el navbar ─────────────────────────────────────── */
+
+  function menuSesion(session) {
+    var ses = session || {};
+    var user = ses.user || {};
+    var nombre = user.name || 'Usuario';
+    var email = user.email || '';
+    var chevron = el('span', { class: 'material-symbols-outlined text-[1.05rem] text-on-surface-variant transition-transform duration-200', text: 'expand_more' });
+
+    var trig = el('button', {
+      class: 'inline-flex items-center gap-2 rounded-full border border-outline-variant/60 bg-surface-container-lowest pl-1.5 pr-3 py-1.5 hover:bg-surface-container-low transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+      type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false',
+    },
+      el('span', { class: 'w-8 h-8 rounded-full bg-primary text-on-primary grid place-items-center text-body-sm font-body-sm font-semibold', text: avatarInicial(nombre) }),
+      el('span', { class: 'hidden sm:inline text-body-sm font-body-sm font-medium text-primary', text: String(nombre).split(' ')[0] }),
+      chevron,
+    );
+
+    var sheet = el('div', { class: 'hidden absolute right-0 top-full mt-2 w-72 z-50 rounded-2xl border border-outline-variant/60 bg-surface-container-lowest bento-shadow p-2', role: 'menu' },
+      el('div', { class: 'px-3 py-2.5 border-b border-outline-variant/30 mb-1' },
+        el('p', { class: 'text-body-sm font-body-sm font-semibold text-primary truncate', text: nombre }),
+        el('p', { class: 'text-body-xs font-body-xs text-on-surface-variant truncate', text: email }),
+      ),
+    );
+
+    function opcion(ic, texto, fn) {
+      var item = el('button', { class: 'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-body-sm font-body-sm text-primary hover:bg-surface-container-low transition-colors text-left', type: 'button' },
+        el('span', { class: 'material-symbols-outlined text-xl text-on-surface-variant', text: ic }),
+        el('span', { text: texto }),
+      );
+      item.addEventListener('click', function () { cerrar(); fn(); });
+      return item;
+    }
+
+    sheet.appendChild(opcion('person', 'Mi cuenta', function () { mostrarVista('cuenta'); }));
+    sheet.appendChild(opcion('apps', 'Mis aplicaciones', function () { mostrarVista('apps'); }));
+    sheet.appendChild(el('div', { class: 'my-1 h-px bg-outline-variant/30' }));
+    sheet.appendChild(opcion('logout', 'Salir', signOut));
+
+    var wrapper = el('div', { class: 'relative' }, trig, sheet);
+
+    function cerrar() {
+      sheet.classList.add('hidden');
+      trig.setAttribute('aria-expanded', 'false');
+      chevron.classList.remove('rotate-180');
+      if (menuActivo === wrapper) { menuActivo = null; menuActivoCerrar = null; }
+    }
+    trig.addEventListener('click', function (event) {
+      event.stopPropagation();
+      if (!sheet.classList.contains('hidden')) { cerrar(); return; }
+      cerrarMenuActivo();
+      sheet.classList.remove('hidden');
+      trig.setAttribute('aria-expanded', 'true');
+      chevron.classList.add('rotate-180');
+      menuActivo = wrapper;
+      menuActivoCerrar = cerrar;
+    });
+    return wrapper;
   }
 
   /* ── sección "Tus aplicaciones" ──────────────────────────────────────── */
@@ -754,11 +861,40 @@
     });
   }
 
-  /* ── ancla tras la redirección de /mi-cuenta y /mis-aplicaciones ─────── */
+  /* ── vistas: landing, aplicaciones y cuenta ─────────────────────────────── */
+
+  var sesionActual = null;
+
+  function seccionesDeMain() {
+    return Array.prototype.slice.call(document.querySelectorAll('main > section'));
+  }
+
+  function mostrarVista(vista) {
+    if (vista === 'landing') {
+      seccionesDeMain().forEach(function (sec) {
+        if (sec.id === 'tus-aplicaciones' || sec.id === 'mi-cuenta') sec.classList.add('hidden');
+        else sec.classList.remove('hidden');
+      });
+    } else {
+      var activa = vista === 'apps' ? 'tus-aplicaciones' : 'mi-cuenta';
+      seccionesDeMain().forEach(function (sec) {
+        if (sec.id === activa) sec.classList.remove('hidden');
+        else sec.classList.add('hidden');
+      });
+    }
+    window.scrollTo(0, 0);
+  }
+
+  function volverLanding() {
+    mostrarVista('landing');
+    if (location.hash) history.replaceState(null, '', location.pathname);
+  }
+
+  /* ── ancla a una sección (enlaces de la landing) ──────────────────────── */
 
   function saltarAAncla() {
     var id = (location.hash || '').replace(/^#/, '');
-    if (!id) return;
+    if (!id || !document.getElementById(id)) return;
     var intentos = 0;
     (function poll() {
       var target = document.getElementById(id);
@@ -771,17 +907,47 @@
     })();
   }
 
+  function aplicarHashInicial() {
+    var hash = (location.hash || '').replace(/^#/, '');
+    if (sesionActual && (hash === 'mi-cuenta' || hash === 'tus-aplicaciones')) {
+      mostrarVista(hash === 'mi-cuenta' ? 'cuenta' : 'apps');
+    } else {
+      mostrarVista('landing');
+    }
+    if (hash && hash !== 'mi-cuenta' && hash !== 'tus-aplicaciones') saltarAAncla();
+  }
+
+  function vincularSesionEnPagina() {
+    document.querySelectorAll('[data-volver]').forEach(function (link) {
+      link.addEventListener('click', function (event) { event.preventDefault(); volverLanding(); });
+    });
+    var logo = document.querySelector('header nav a[href="#"]');
+    if (logo) logo.addEventListener('click', function (event) { event.preventDefault(); volverLanding(); });
+    window.addEventListener('hashchange', function () {
+      var hash = (location.hash || '').replace(/^#/, '');
+      if (sesionActual && (hash === 'mi-cuenta' || hash === 'tus-aplicaciones')) {
+        mostrarVista(hash === 'mi-cuenta' ? 'cuenta' : 'apps');
+        return;
+      }
+      mostrarVista('landing');
+      if (hash) saltarAAncla();
+    });
+  }
+
   /* ── arranque ────────────────────────────────────────────────────────── */
 
   function boot() {
     if (!document.getElementById('auth-nav') && !document.getElementById('tus-aplicaciones') && !document.getElementById('mi-cuenta')) return;
     function run() {
       loadSession().then(function (session) {
+        sesionActual = session;
         var nav = document.getElementById('auth-nav');
         if (nav) mount(nav, navAuth(!session));
         renderApps(session);
         renderCuenta(session);
-        saltarAAncla();
+        aplicarHashInicial();
+        vincularSesionEnPagina();
+        document.addEventListener('click', function () { cerrarMenuActivo(); });
       });
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
