@@ -1,0 +1,575 @@
+CATÁLOGO FINAL — 9 MINI-SAAS AMG DEVELOPER
+================================================
+
+1. RESERVA DE ESPACIOS
+Dominio: espacios.amgdeveloper.cl
+
+Funciones:
+- Crear, editar y activar/desactivar espacios o recursos.
+- Configurar tipo, nombre, capacidad y precio opcional.
+- Definir horarios de disponibilidad.
+- Crear, modificar, confirmar, cancelar y completar reservas.
+- Bloquear horarios.
+- Calendario diario y semanal.
+- Datos básicos del reservante.
+- Estados: pendiente, confirmada, cancelada, completada.
+- Historial de reservas.
+- Configuración de negocio, moneda y zona horaria.
+
+Base de datos: espacios.sqlite
+
+Tablas:
+- resources
+  - id
+  - organization_id
+  - name
+  - description
+  - type
+  - capacity
+  - price_cents
+  - active
+  - created_at
+  - updated_at
+
+- availability
+  - id
+  - organization_id
+  - resource_id
+  - weekday
+  - start_time
+  - end_time
+  - active
+
+- blocks
+  - id
+  - organization_id
+  - resource_id
+  - start_at
+  - end_at
+  - reason
+  - created_at
+
+- reservations
+  - id
+  - organization_id
+  - resource_id
+  - customer_name
+  - customer_email
+  - customer_phone
+  - start_at
+  - end_at
+  - status
+  - notes
+  - created_at
+  - updated_at
+
+- settings
+  - organization_id
+  - business_name
+  - currency
+  - timezone
+
+
+2. RESERVA DE CITAS
+Dominio: citas.amgdeveloper.cl
+
+Funciones:
+- Crear, editar y activar/desactivar profesionales.
+- Crear y administrar servicios.
+- Definir duración y precio opcional de servicios.
+- Asociar servicios a profesionales.
+- Definir horarios de atención.
+- Bloquear horarios.
+- Crear, modificar, confirmar, cancelar y completar citas.
+- Reprogramar citas.
+- Calendario diario y semanal.
+- Datos básicos del cliente.
+- Estados: pendiente, confirmada, cancelada, completada.
+- Historial de citas.
+- Configuración de negocio, moneda y zona horaria.
+
+Base de datos: citas.sqlite
+
+Tablas:
+- staff
+  - id
+  - organization_id
+  - name
+  - email
+  - phone
+  - color
+  - active
+  - created_at
+  - updated_at
+
+- services
+  - id
+  - organization_id
+  - name
+  - description
+  - duration_minutes
+  - price_cents
+  - active
+  - created_at
+  - updated_at
+
+- staff_services
+  - staff_id
+  - service_id
+
+- availability
+  - id
+  - organization_id
+  - staff_id
+  - weekday
+  - start_time
+  - end_time
+  - active
+
+- blocks
+  - id
+  - organization_id
+  - staff_id
+  - start_at
+  - end_at
+  - reason
+  - created_at
+
+- appointments
+  - id
+  - organization_id
+  - staff_id
+  - service_id
+  - customer_name
+  - customer_email
+  - customer_phone
+  - start_at
+  - end_at
+  - status
+  - notes
+  - created_at
+  - updated_at
+
+- settings
+  - organization_id
+  - business_name
+  - currency
+  - timezone
+
+
+3. INVENTARIO
+Dominio: inventario.amgdeveloper.cl
+
+Funciones:
+- Crear, editar y archivar productos.
+- Crear categorías.
+- Definir SKU, unidad, precio y stock mínimo.
+- Consultar stock actual.
+- Registrar entradas.
+- Registrar salidas.
+- Registrar ajustes.
+- Mantener historial de movimientos.
+- Mostrar productos bajo stock.
+- Búsqueda y filtros.
+- Dashboard de inventario.
+- Exportación de información.
+
+Base de datos: inventario.sqlite
+
+Tablas:
+- categories
+  - id
+  - organization_id
+  - name
+  - created_at
+  - updated_at
+
+- products
+  - id
+  - organization_id
+  - category_id
+  - name
+  - sku
+  - unit
+  - stock
+  - minimum_stock
+  - price_cents
+  - active
+  - created_at
+  - updated_at
+
+- stock_movements
+  - id
+  - organization_id
+  - product_id
+  - type
+  - quantity
+  - reason
+  - created_by
+  - created_at
+
+- settings
+  - organization_id
+  - currency
+  - created_at
+  - updated_at
+
+
+4. SOLICITUDES Y ÓRDENES
+Dominio: solicitudes.amgdeveloper.cl
+
+Funciones:
+- Crear y editar solicitudes.
+- Número correlativo.
+- Título y descripción.
+- Registrar solicitante.
+- Asignar responsable.
+- Definir prioridad.
+- Definir fecha y fecha límite.
+- Cambiar estado.
+- Agregar comentarios.
+- Adjuntar archivos.
+- Registrar historial de estados.
+- Registrar resolución.
+- Cerrar solicitudes.
+- Filtros por estado y prioridad.
+- Búsqueda.
+
+Base de datos: solicitudes.sqlite
+
+Tablas:
+- requests
+  - id
+  - organization_id
+  - number
+  - title
+  - description
+  - requester_name
+  - requester_email
+  - responsible_name
+  - priority
+  - status
+  - due_at
+  - resolution
+  - created_at
+  - updated_at
+  - closed_at
+
+- comments
+  - id
+  - organization_id
+  - request_id
+  - author_name
+  - author_user_id
+  - content
+  - created_at
+
+- attachments
+  - id
+  - organization_id
+  - request_id
+  - filename
+  - path
+  - mime_type
+  - size_bytes
+  - created_at
+
+- status_history
+  - id
+  - organization_id
+  - request_id
+  - old_status
+  - new_status
+  - changed_by
+  - created_at
+
+
+5. COTIZACIONES
+Dominio: cotizaciones.amgdeveloper.cl
+
+Funciones:
+- Crear, editar, duplicar y archivar cotizaciones.
+- Registrar datos del cliente.
+- Agregar y quitar líneas.
+- Definir descripción, cantidad y precio.
+- Aplicar descuentos.
+- Aplicar impuestos configurables.
+- Calcular subtotal y total.
+- Agregar observaciones.
+- Definir vigencia.
+- Numeración correlativa.
+- Estados: borrador, enviada, aceptada, rechazada, vencida.
+- Generar PDF.
+- Historial básico.
+
+Base de datos: cotizaciones.sqlite
+
+Tablas:
+- quotes
+  - id
+  - organization_id
+  - number
+  - customer_name
+  - customer_email
+  - customer_phone
+  - status
+  - valid_until
+  - subtotal_cents
+  - discount_cents
+  - tax_cents
+  - total_cents
+  - notes
+  - created_at
+  - updated_at
+
+- quote_items
+  - id
+  - organization_id
+  - quote_id
+  - description
+  - quantity
+  - unit_price_cents
+  - discount_cents
+  - subtotal_cents
+
+- settings
+  - organization_id
+  - business_name
+  - address
+  - phone
+  - email
+  - currency
+  - created_at
+  - updated_at
+
+
+6. GESTIÓN DE CLIENTES
+Dominio: clientes.amgdeveloper.cl
+
+Funciones:
+- Crear, editar y archivar clientes.
+- Registrar nombre, email, teléfono y dirección.
+- Registrar empresa.
+- Agregar etiquetas.
+- Agregar notas.
+- Buscar clientes.
+- Filtrar clientes.
+- Ver información del cliente.
+- Historial manual básico.
+- Importar clientes por CSV.
+- Exportar clientes.
+
+Base de datos: clientes.sqlite
+
+Tablas:
+- customers
+  - id
+  - organization_id
+  - name
+  - email
+  - phone
+  - address
+  - company
+  - tags
+  - status
+  - created_at
+  - updated_at
+
+- customer_notes
+  - id
+  - organization_id
+  - customer_id
+  - note
+  - created_by
+  - created_at
+
+
+7. CONTROL DE ACTIVOS
+Dominio: activos.amgdeveloper.cl
+
+Funciones:
+- Crear, editar y archivar activos.
+- Asignar código interno.
+- Registrar nombre y categoría.
+- Registrar marca y modelo.
+- Registrar número de serie.
+- Definir estado.
+- Registrar ubicación.
+- Registrar responsable.
+- Registrar fecha de adquisición.
+- Registrar valor opcional.
+- Adjuntar fotografías.
+- Adjuntar documentos.
+- Mantener historial de cambios.
+- Buscar y filtrar activos.
+
+Base de datos: activos.sqlite
+
+Tablas:
+- assets
+  - id
+  - organization_id
+  - code
+  - name
+  - category
+  - brand
+  - model
+  - serial_number
+  - status
+  - location
+  - responsible_name
+  - acquired_at
+  - value_cents
+  - notes
+  - created_at
+  - updated_at
+
+- asset_history
+  - id
+  - organization_id
+  - asset_id
+  - field
+  - old_value
+  - new_value
+  - changed_by
+  - created_at
+
+
+8. CHECKLISTS E INSPECCIONES
+Dominio: checklists.amgdeveloper.cl
+
+Funciones:
+- Crear y editar plantillas.
+- Activar/desactivar plantillas.
+- Crear secciones.
+- Ordenar secciones.
+- Crear ítems.
+- Definir tipos de respuesta: sí/no, texto, número, selección.
+- Definir ítems obligatorios.
+- Ejecutar una inspección.
+- Registrar respuestas.
+- Agregar observaciones.
+- Adjuntar fotografías.
+- Adjuntar archivos.
+- Registrar responsable y fecha.
+- Definir resultado: aprobado, observado, rechazado.
+- Consultar historial.
+- Generar PDF.
+
+Base de datos: checklists.sqlite
+
+Tablas:
+- templates
+  - id
+  - organization_id
+  - name
+  - description
+  - active
+  - created_at
+  - updated_at
+
+- sections
+  - id
+  - organization_id
+  - template_id
+  - name
+  - sort_order
+
+- items
+  - id
+  - organization_id
+  - section_id
+  - label
+  - type
+  - required
+  - options_json
+  - sort_order
+
+- inspections
+  - id
+  - organization_id
+  - template_id
+  - subject
+  - performed_by
+  - performed_at
+  - result
+  - notes
+  - created_at
+
+- inspection_answers
+  - id
+  - organization_id
+  - inspection_id
+  - item_id
+  - value_text
+  - created_at
+
+- attachments
+  - id
+  - organization_id
+  - inspection_id
+  - filename
+  - path
+  - mime_type
+  - size_bytes
+  - created_at
+
+
+9. CONTROL DE PAGOS
+Dominio: pagos.amgdeveloper.cl
+
+Funciones:
+- Crear cobros.
+- Registrar concepto y descripción.
+- Definir monto total.
+- Definir fecha de vencimiento.
+- Registrar pagos.
+- Registrar abonos parciales.
+- Calcular automáticamente pagado y saldo.
+- Registrar método de pago.
+- Registrar referencia.
+- Adjuntar comprobante.
+- Estados: pendiente, parcial, pagado, vencido.
+- Consultar historial.
+- Filtrar cobros y pagos.
+- Dashboard de pendientes, pagados y vencidos.
+
+Base de datos: pagos.sqlite
+
+Tablas:
+- charges
+  - id
+  - organization_id
+  - number
+  - concept
+  - description
+  - total_cents
+  - due_date
+  - status
+  - created_at
+  - updated_at
+
+- payments
+  - id
+  - organization_id
+  - charge_id
+  - amount_cents
+  - payment_method
+  - reference
+  - paid_at
+  - created_at
+
+- attachments
+  - id
+  - organization_id
+  - charge_id
+  - filename
+  - path
+  - mime_type
+  - size_bytes
+
+- settings
+  - organization_id
+  - currency
+  - created_at
+  - updated_at
