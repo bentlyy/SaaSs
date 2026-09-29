@@ -57,9 +57,18 @@ declare -A VOL=(
 [ "${#VOL[@]}" -eq 10 ] || fallar "el mapa de volúmenes está roto (${#VOL[@]} entradas en vez de 10)"
 ESPERADOS=10
 
-# producto -> ruta de SU base DENTRO del volumen. Coincide con el DB_PATH o el
-# CORE_DB_PATH del compose: los productos dejan su base en la raiz del volumen
-# como <slug>.sqlite, y el Core la tiene en core/core.sqlite.
+# producto -> ruta de SU base DENTRO del volumen, es decir como se ve desde la
+# RAÍZ del volumen (que es donde lo monta el `docker run` de más abajo como
+# /origen). Los nueve productos montan su volumen en /app/data y dejan la base
+# en la raíz como <slug>.sqlite.
+#
+# El Core NO: su compose monta el volumen en /app/data/core, un nivel más
+# adentro, para que la ruta de su CORE_DB_PATH (/app/data/core/core.sqlite) sea
+# igual de plana que la de los productos. Mirado desde la raíz del volumen, la
+# base del Core está en `core.sqlite` y NO en `core/core.sqlite`: con la ruta
+# de abajo el snapshot pedía un directorio que no existe y el respaldo del Core
+# —la base de organizaciones, usuarios y suscripciones, la que más duele
+# perder— salía FALLIDO en cada corrida.
 declare -A BD=(
   [espacios]=espacios.sqlite
   [citas]=citas.sqlite
@@ -70,7 +79,7 @@ declare -A BD=(
   [activos]=activos.sqlite
   [checklists]=checklists.sqlite
   [pagos]=pagos.sqlite
-  [core]=core/core.sqlite
+  [core]=core.sqlite
 )
 [ "${#BD[@]}" -eq "${#VOL[@]}" ] || fallar "VOL y BD no tienen la misma cantidad de entradas"
 
