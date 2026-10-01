@@ -49,6 +49,100 @@ async function nuevaCita(
   return { status: res.status, body: res.body };
 }
 
+describe('editar una cita', () => {
+  it('un PATCH parcial cambia solo lo que viene', async () => {
+    const { servicio, profesional } = await catalogo(TEST_ORG_A, { minutos: 30, precio: 12000 });
+    const creada = await nuevaCita(TEST_ORG_A, {
+      staffId: profesional,
+      startAt: '2026-12-01T15:00:00.000Z',
+      endAt: '2026-12-01T15:30:00.000Z',
+      notes: 'primera',
+      services: [{ serviceId: servicio, priceCents: 12000 }],
+    });
+    expect(creada.status, JSON.stringify(creada.body)).toBe(201);
+    const id = creada.body.id;
+
+    // Antes el PATCH se validaba contra el schema COMPLETO: mandar solo las notas
+    // pedia el resto de los campos y devolvia 400, asi que no habia forma de
+    // corregir una nota sin reescribir la cita entera.
+    const editada = await comoMiembro(TEST_ORG_A)
+      .patch(`/api/appointments/${id}`)
+      .send({ notes: 'corregida' });
+    expect(editada.status, JSON.stringify(editada.body)).toBe(200);
+    expect(editada.body.notes).toBe('corregida');
+    expect(editada.body.startAt).toBe('2026-12-01T15:00:00.000Z');
+    expect(editada.body.endAt).toBe('2026-12-01T15:30:00.000Z');
+    expect(editada.body.staffId).toBe(profesional);
+    expect(editada.body.totalCents).toBe(12000);
+  });
+
+  it('reprogramar no borra ni el cliente ni las notas', async () => {
+    const { servicio, profesional } = await catalogo(TEST_ORG_A, { minutos: 45, precio: 9000 });
+    const creada = await nuevaCita(TEST_ORG_A, {
+      staffId: profesional,
+      startAt: '2026-12-02T15:00:00.000Z',
+      endAt: '2026-12-02T15:45:00.000Z',
+      notes: 'no perder esto',
+      services: [{ serviceId: servicio, priceCents: 9000 }],
+    });
+    expect(creada.status, JSON.stringify(creada.body)).toBe(201);
+
+    const movida = await comoMiembro(TEST_ORG_A)
+      .patch(`/api/appointments/${creada.body.id}`)
+      .send({ startAt: '2026-12-02T18:00:00.000Z', endAt: '2026-12-02T18:45:00.000Z' });
+    expect(movida.status, JSON.stringify(movida.body)).toBe(200);
+    expect(movida.body.notes).toBe('no perder esto');
+    expect(movida.body.startAt).toBe('2026-12-02T18:00:00.000Z');
+  });
+
+  it('sin `endAt`, la cita dura lo que el servicio', async () => {
+    const { servicio, profesional } = await catalogo(TEST_ORG_A, { servicio: 'Limpieza', minutos: 90, precio: 5000 });
+    // Sin `endAt` no se puede agendar una cita de 90 minutos de 8:00 a 17:00:
+    // el final lo decide el servicio, no lo que mande el navegador.
+    const creada = await nuevaCita(TEST_ORG_A, {
+      staffId: profesional,
+      startAt: '2026-12-03T15:00:00.000Z',
+      services: [{ serviceId: servicio, priceCents: 5000 }],
+    });
+    expect(creada.status, JSON.stringify(creada.body)).toBe(201);
+    expect(creada.body.endAt).toBe('2026-12-03T16:30:00.000Z');
+  });
+
+  it('sin `endAt` ni servicios, la cita dura 30 minutos', async () => {
+    const { profesional } = await catalogo(TEST_ORG_A);
+    const creada = await nuevaCita(TEST_ORG_A, {
+      staffId: profesional,
+      startAt: '2026-12-04T15:00:00.000Z',
+    });
+    expect(creada.status, JSON.stringify(creada.body)).toBe(201);
+    expect(creada.body.endAt).toBe('2026-12-04T15:30:00.000Z');
+  });
+
+  it('un `endAt` explicito manda, para reprogramar a mano', async () => {
+    const { servicio, profesional } = await catalogo(TEST_ORG_A, { minutos: 30, precio: 7000 });
+    const creada = await nuevaCita(TEST_ORG_A, {
+      staffId: profesional,
+      startAt: '2026-12-05T15:00:00.000Z',
+      endAt: '2026-12-05T16:15:00.000Z',
+      services: [{ serviceId: servicio, priceCents: 7000 }],
+    });
+    expect(creada.status, JSON.stringify(creada.body)).toBe(201);
+    expect(creada.body.endAt).toBe('2026-12-05T16:15:00.000Z');
+  });
+
+  it('el PATCH no puede pisar el horario de otra organización', async () => {
+    const { profesional } = await catalogo(TEST_ORG_A);
+    const creada = await nuevaCita(TEST_ORG_A, {
+      staffId: profesional,
+      startAt: '2026-12-06T15:00:00.000Z',
+      endAt: '2026-12-06T15:30:00.000Z',
+    });
+    expect(creada.status).toBe(201);
+    const ajena = await comoMiembro(TEST_ORG_B).patch(`/api/appointments/${creada.body.id}`).send({ notes: 'mía' });
+    expect([403, 404]).toContain(ajena.status);
+  });
+});
+
 describe('la interfaz', () => {
   it('con sesión sirve la app y sus estáticos', async () => {
     const html = await tp.as({ orgId: TEST_ORG_A }).get('/');

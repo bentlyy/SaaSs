@@ -65,6 +65,10 @@ function pintarMe() {
   document.querySelectorAll('[data-requiere-admin]').forEach((el) => {
     el.hidden = !puedeMover;
   });
+  // Sembrar solo existe fuera de produccion. Si el boton queda a la vista ahi,
+  // el admin toca "Cargar ejemplos" y recibe un 404 sin explicacion de por que.
+  const sembrar = $('#sembrar');
+  if (sembrar) sembrar.hidden = !puedeMover || !estado.settings?.seedAvailable;
 }
 
 function pintarResumen(r) {

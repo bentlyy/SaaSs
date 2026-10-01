@@ -568,27 +568,70 @@ describe('cancelar un cargo', () => {
 // ─────────────────────────────────────────────────────────────────────── cascada
 
 describe('borrar un cargo', () => {
-  it('se lleva sus abonos: un abono sin cargo no significa nada', async () => {
+  it('un cargo sin abonos se borra', async () => {
+    const cargo = await nuevoCargo(TEST_ORG_A, { amountCents: 100_000 });
+    expect((await comoAdmin(TEST_ORG_A).delete(`/api/charges/${cargo.id}`)).status).toBe(200);
+    expect((await comoMiembro(TEST_ORG_A).get(`/api/charges/${cargo.id}`)).status).toBe(404);
+  });
+
+  it('un cargo con plata cobrada NO se borra: es 409', async () => {
     const cargo = await nuevoCargo(TEST_ORG_A, { amountCents: 100_000 });
     await abonar(TEST_ORG_A, cargo.id, 30_000);
-    await abonar(TEST_ORG_A, cargo.id, 20_000);
 
-    const antes = tp.sqlite.prepare('SELECT COUNT(*) AS n FROM charge_payments WHERE charge_id = ?').get(cargo.id) as {
-      n: number;
-    };
-    expect(antes.n).toBe(2);
+    // El CASCADE del DDL se sigue aplicando, pero ya no es una puerta abierta: con
+    // esto un admin no puede deshacer con un clic el registro de plata que entro.
+    const intento = await comoAdmin(TEST_ORG_A).delete(`/api/charges/${cargo.id}`);
+    expect(intento.status).toBe(409);
+    expect(intento.body.error).toContain('30000');
+    expect(intento.body.error).toContain('se cancela');
+
+    // Ni el cargo ni el abono se tocan.
+    expect((await comoMiembro(TEST_ORG_A).get(`/api/charges/${cargo.id}`)).status).toBe(200);
+    const abonos = tp.sqlite
+      .prepare('SELECT COUNT(*) AS n FROM charge_payments WHERE charge_id = ?')
+      .get(cargo.id) as { n: number };
+    expect(abonos.n).toBe(1);
+  });
+
+  it('el camino para deshacer un cargo cobrado es cancelar, no borrar', async () => {
+    const cargo = await nuevoCargo(TEST_ORG_A, { amountCents: 100_000 });
+    await abonar(TEST_ORG_A, cargo.id, 30_000);
+
+    // Cancelar con plata cobrada tampoco: primero hay que devolverla.
+    const cancelar = await comoMiembro(TEST_ORG_A).post(`/api/charges/${cargo.id}/cancelar`).send({});
+    expect(cancelar.status).toBe(409);
+
+    // Y borrar tampoco. Los dos caminos cierran la puerta, que es lo correcto: la
+    // plata que entra no se deshace, se devuelve con su propio documento.
+    expect((await comoAdmin(TEST_ORG_A).delete(`/api/charges/${cargo.id}`)).status).toBe(409);
+  });
+
+  it('un abono de 0 centavos no bloquea el borrado', async () => {
+    // El chequeo es sobre plata REALMENTE cobrada. Un abono en cero es un ruido, no
+    // un hecho de caja, y no debe cerrar la puerta a corregir el cargo.
+    const cargo = await nuevoCargo(TEST_ORG_A, { amountCents: 100_000 });
+    await abonar(TEST_ORG_A, cargo.id, 0);
 
     expect((await comoAdmin(TEST_ORG_A).delete(`/api/charges/${cargo.id}`)).status).toBe(200);
+  });
 
-    // Lo aplica el `ON DELETE CASCADE` del DDL, no el código de la API: si
-    // dependiera de acordarse, algún día se cuela un camino que deja abonos
-    // colgando de un cargo que ya no existe.
-    const despues = tp.sqlite.prepare('SELECT COUNT(*) AS n FROM charge_payments WHERE charge_id = ?').get(cargo.id) as {
-      n: number;
-    };
-    expect(despues.n).toBe(0);
+  it('la compra de tiempo no hace la puerta mas facil: el chequeo mira el saldo', async () => {
+    const cargo = await nuevoCargo(TEST_ORG_A, { amountCents: 100_000 });
+    await abonar(TEST_ORG_A, cargo.id, 10_000);
+
+    // Bajar el total por debajo de lo cobrado es 409, por invariante del producto.
+    const bajar = await comoAdmin(TEST_ORG_A).patch(`/api/charges/${cargo.id}`).send({ amountCents: 1 });
+    expect(bajar.status).toBe(409);
+    expect(bajar.body.error).toContain('10000');
+
+    // Editar el total NO cambia el hecho de que entro plata, asi que el 409 del
+    // borrado sigue. El chequeo mira el saldo real, no lo que el cargo diga.
+    const subir = await comoAdmin(TEST_ORG_A).patch(`/api/charges/${cargo.id}`).send({ amountCents: 200_000 });
+    expect(subir.status).toBe(200);
+    expect((await comoAdmin(TEST_ORG_A).delete(`/api/charges/${cargo.id}`)).status).toBe(409);
   });
 });
+
 
 // ─────────────────────────────────────────────────────────────────────── tablero
 

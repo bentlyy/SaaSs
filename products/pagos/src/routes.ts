@@ -59,6 +59,11 @@ import { chargePayments, charges, settings, ESTADOS_CARGO, type EstadoCargo } fr
  *      va a cobrar", no "se borro la historia": si ya entro dinero, primero hay
  *      que devolverlo, y eso es otro documento con su propia razon social.
  *
+ *   6. Por la misma razon, BORRAR un cargo con plata cobrada tambien es 409. Antes
+ *      el CASCADE del DGL se lo llevaba en silencio y un admin podia deshacer con
+ *      un clic el registro de lo que la empresa recibio. Un cargo con abonos se
+ *      cancela; solo se borra el que no tiene un centimo cobrado.
+ *
  * ESTE producto NO tiene fuente legacy: no hay datos de cartera en ningun producto
  * viejo. Por eso no hay `migrate-legacy.ts` ni `legacy_tenant_map` que mapear. Un
  * migrador sin datos de los que leer es fiction.
@@ -873,15 +878,24 @@ export function buildRoutes(ctx: ProductContext): Router[] {
   );
 
   /**
-   * Borrar un cargo se lleva sus abonos, y eso es lo que quiere el producto.
+   * Borrar un cargo: solo si no tiene un centimo cobrado.
    *
-   * Aqui NO hay el 409 de `activos` ("tiene historial, archivalo"): alli el historial
-   * era la prueba de que un equipo se perdio en obra y perderlo era grave. Un abono
-   * es un hecho de caja, y un cargo creado por error, con su abono equivocado
-   * tambien, se borran los dos. El CASCADE lo aplica el DDL, no este codigo.
+   * El CASCADE del DDL se sigue aplicando, pero ya no es una puerta: si hay
+   * abonos, este endpoint responde 409. El CASCADE sin este chequeo dejaba que un
+   * admin deshiciera con un clic el registro de plata que la empresa recibio de
+   * verdad, y no habia forma de saber despues cuanto se habia cobrado. El dinero
+   * que entra no se borra: se devuelve, y esa devolucion es otro documento con su
+   * propia razon social.
    *
-   * Sigue siendo de `admin`: borrar un cargo borra ademas el registro de lo que la
-   * empresa recibio, y eso no lo decide cualquier miembro.
+   * Sin abonos, borrar sigue siendo lo de siempre: un cargo cargado por error se
+   * borra sin dejar rastro, que es lo que se quiere de el.
+   *
+   * El camino para deshacer un cargo con plata cobrada es `/cancelar`, que ya
+   * tiene su propio 409 para el caso inverso. Los dos operaciones separsers del
+   * mismo principio: lo que no se toco sigue diciendo la verdad.
+   *
+   * Sigue siendo de `admin`: borrar un cargo borra el registro de la cartera, y
+   * eso no lo decide cualquier miembro.
    */
   router.delete(
     '/api/charges/:id',
@@ -889,12 +903,34 @@ export function buildRoutes(ctx: ProductContext): Router[] {
     asyncHandler(async (req, res) => {
       const org = orgId(req);
       const cargoId = id.parse(req.params.id);
-      const borrado = db
-        .delete(charges)
-        .where(and(eq(charges.id, cargoId), eq(charges.organizationId, org)))
-        .returning()
-        .get();
-      if (!borrado) throw new AppError(404, 'Ese cargo no existe');
+      // En transaccion porque el chequeo y el borrado tienen que ver la misma foto:
+      // si alguien cobra entre medio, sin esto se podrian borrar abonos que todavia
+      // no son visibles para la consulta.
+      const borrado = db.transaction((tx) => {
+        const cargo = tx
+          .select()
+          .from(charges)
+          .where(and(eq(charges.id, cargoId), eq(charges.organizationId, org)))
+          .get();
+        if (!cargo) throw new AppError(404, 'Ese cargo no existe');
+
+        const pagado = pagadoDe(tx, org, cargoId);
+        if (pagado > 0) {
+          throw new AppError(
+            409,
+            `Este cargo tiene ${pagado} centavos ya cobrados y no se borra: se cancela. ` +
+              'Borrarlo eliminaria el registro de la plata que entro. Si el abono estaba mal, ' +
+              'registra la devolucion como una anotacion nueva en vez de borrar la anterior',
+          );
+        }
+
+        return tx
+          .delete(charges)
+          .where(and(eq(charges.id, cargoId), eq(charges.organizationId, org)))
+          .returning()
+          .get();
+      });
+
       res.json({ charge: borrado, deleted: true });
     }),
   );
@@ -1050,6 +1086,9 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       idPrefix: 'pagcargo',
       label: 'cargo',
       search: [charges.number, charges.concept, charges.customerName, charges.customerEmail],
+      // Sin esto `?status=pending` se ignoraba en silencio y la pantalla de cartera
+      // mostrar los cuatro estados mientras aparentaba estar filtrada.
+      filters: { status: { column: charges.status, schema: z.enum(ESTADOS) } },
       orderBy: charges.number,
       orderDirection: 'desc',
       fields: {

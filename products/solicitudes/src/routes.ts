@@ -15,6 +15,10 @@ import {
   type ProductConfig,
   type ProductContext,
   type ProductDb,
+  zonaHoraria,
+  enviarAdjunto,
+  nombreSeguro,
+  revisarAdjunto,
 } from '@amg/product-runtime';
 import { attachments, comments, requests, settings, statusHistory } from './schema.js';
 
@@ -559,17 +563,17 @@ export function buildRoutes(ctx: ProductContext): Router[] {
 
       const luego = cuerpo.data.includes(';base64,') ? cuerpo.data.split(';base64,')[1] : cuerpo.data;
       const buffer = Buffer.from(luego as string, 'base64');
-      // El limite de 750 KB es un poco menor al tope de 1 MB del JSON: el body
-      // en base64 ocupa 4/3 del archivo, y quien exceda el tope tiene que saberlo
-      // con un 413 que signifique algo.
-      if (buffer.length < 1 || buffer.length > 750_000) {
-        throw new AppError(413, 'El archivo no puede superar 750 KB');
-      }
+      revisarAdjunto({
+        filename: cuerpo.filename,
+        mimeType: cuerpo.mimeType,
+        bytes: buffer.length,
+      }, 750_000);
 
       const adjuntoId = createId('soladj');
       // El nombre en disco se deriva del id, nunca del que envio el cliente: un
       // nombre llegado de afuera no vale para armar una ruta. El original se
-      // conserva solo en la columna `filename`, para mostrarlo y descargarlo.
+      // conserva solo en la columna `filename`, para mostrarlo y descargarlo, y
+      // se sanea para que no pueda romper la cabecera de la descarga.
       mkdirSync(carpetaAdjuntos, { recursive: true });
       writeFileSync(join(carpetaAdjuntos, adjuntoId), buffer);
 
@@ -577,7 +581,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         id: adjuntoId,
         organizationId: org,
         requestId: idSol,
-        filename: cuerpo.filename,
+        filename: nombreSeguro(cuerpo.filename, 'adjunto'),
         path: `attachments/${adjuntoId}`,
         mimeType: cuerpo.mimeType ?? null,
         sizeBytes: buffer.length,
@@ -615,8 +619,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       const ruta = join(carpetaAdjuntos, basename(adjunto.path));
       if (!existsSync(ruta)) throw new AppError(404, 'El archivo ya no existe');
 
-      if (adjunto.mimeType) res.setHeader('content-type', adjunto.mimeType);
-      res.download(ruta, adjunto.filename);
+      enviarAdjunto(res, ruta, { filename: adjunto.filename, mimeType: adjunto.mimeType });
     }),
   );
 
@@ -671,7 +674,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       const cuerpo = z
         .object({
           currency: z.string().trim().min(1).max(5).default('$'),
-          timezone: z.string().trim().min(1).max(60).default('America/Santiago'),
+          timezone: zonaHoraria.default('America/Santiago'),
         })
         .parse(req.body);
 

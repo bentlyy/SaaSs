@@ -23,10 +23,48 @@ export function errorPage(options: {
   message: string;
   loginUrl?: string;
   productName?: string;
+  /**
+   * Cuando el error es transitorio (límite de solicitudes, Core caído) la página
+   * ofrece volver a intentarlo: sin esto el usuario queda en un callejón sin
+   * salida y tiene que adivinar cuánto esperar.
+   */
+  retryUrl?: string;
+  /** Segundos que faltan para que valga la pena reintentar. */
+  retryAfterSeconds?: number;
 }): string {
-  const action = options.loginUrl
-    ? `<a class="btn" href="${escapeHtml(options.loginUrl)}">Iniciar sesión</a>`
+  const href = options.retryUrl ?? options.loginUrl;
+  const espera = options.retryUrl ? Math.max(1, Math.ceil(options.retryAfterSeconds ?? 30)) : 0;
+  const etiqueta = options.loginUrl && !options.retryUrl ? 'Iniciar sesión' : 'Reintentar';
+  const action = href
+    ? `<a class="btn" id="amg-retry" href="${escapeHtml(href)}"${espera > 0 ? ` data-espera="${espera}" aria-disabled="true"` : ''}>${etiqueta}</a>`
     : '';
+  const script =
+    espera > 0
+      ? `<script>
+(function () {
+  var btn = document.getElementById('amg-retry');
+  var restante = ${espera};
+  var original = ${JSON.stringify(etiqueta)};
+  function tic() {
+    if (restante > 0) {
+      btn.textContent = original + ' (' + restante + ')';
+      restante -= 1;
+      setTimeout(tic, 1000);
+      return;
+    }
+    btn.textContent = original;
+    btn.removeAttribute('aria-disabled');
+    btn.removeAttribute('data-espera');
+    btn.style.opacity = '1';
+    btn.style.pointerEvents = '';
+    btn.focus();
+  }
+  btn.style.opacity = '.5';
+  btn.style.pointerEvents = 'none';
+  tic();
+})();
+</script>`
+      : '';
   return `<!doctype html>
 <html lang="es">
 <head>
@@ -39,7 +77,7 @@ export function errorPage(options: {
   .card { max-width: 30rem; padding: 2.5rem; text-align:center; }
   h1 { font-size: 1.35rem; margin: 0 0 .75rem; }
   p { margin: 0 0 1.5rem; line-height: 1.55; color: #a6adbb; }
-  .btn { display:inline-block; padding: .7rem 1.2rem; border-radius: 8px; background: #3b82f6; color:#fff; text-decoration:none; font-weight:600; }
+  .btn { display:inline-block; min-height:44px; line-height:44px; padding: 0 1.2rem; border-radius: 8px; background: #3b82f6; color:#fff; text-decoration:none; font-weight:600; }
   .btn:hover { background: #2f6fd8; }
   small { display:block; margin-top: 2rem; color:#6b7280; }
 </style>
@@ -51,6 +89,7 @@ export function errorPage(options: {
     ${action}
     <small>${escapeHtml(options.productName ?? 'AMG')}</small>
   </main>
+  ${script}
 </body>
 </html>`;
 }

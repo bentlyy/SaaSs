@@ -179,19 +179,24 @@ describe('sesion e identidad', () => {
 // ─────────────────────────────────────────────── el aislamiento entre empresas
 
 describe('el aislamiento entre organizaciones', () => {
-  it('ignora el organizationId que venga en el cuerpo', async () => {
-    const { plantilla } = await nuevaPlantilla(TEST_ORG_A, {
-      name: 'Aislamiento',
-      organizationId: TEST_ORG_B,
-    });
+  it('rechaza el organizationId que venga en el cuerpo', async () => {
     // `organization_id` lo pone el servidor, nunca el cliente: si se escuchara el
     // cuerpo, bastaria cambiar un campo al crear para escribir en otra empresa.
+    // Ahora el campo ni siquiera pasa: se rechaza el 400 y no se escribe nada, que
+    // es mas fuerte que ignorarlo en silencio.
+    const inválida = await comoMiembro(TEST_ORG_A)
+      .post('/api/templates')
+      .send({ name: 'Aislamiento', organizationId: TEST_ORG_B });
+    expect(inválida.status).toBe(400);
+    expect(inválida.body.error).toContain('organizationId');
+
+    const { plantilla } = await nuevaPlantilla(TEST_ORG_A, { name: 'Aislamiento' });
     expect(plantilla.organizationId).toBe(TEST_ORG_A);
 
     const parche = await comoMiembro(TEST_ORG_A)
       .patch(`/api/templates/${plantilla.id}`)
       .send({ organizationId: TEST_ORG_B });
-    expect(parche.body.organizationId).toBe(TEST_ORG_A);
+    expect(parche.status).toBe(400);
 
     const fila = tp.sqlite
       .prepare('SELECT organization_id FROM templates WHERE id = ?')
@@ -199,10 +204,12 @@ describe('el aislamiento entre organizaciones', () => {
     expect(fila.organization_id).toBe(TEST_ORG_A);
 
     // Y lo mismo en una corrida: el snapshot tampoco acepta una empresa ajena.
-    const { run } = await nuevaCorrida(TEST_ORG_A, {
-      items: [{ label: 'Punto' }],
-      organization_id: TEST_ORG_B,
-    });
+    const corridaInvalida = await comoMiembro(TEST_ORG_A)
+      .post('/api/runs')
+      .send({ items: [{ label: 'Punto' }], organization_id: TEST_ORG_B });
+    expect(corridaInvalida.status).toBe(400);
+
+    const { run } = await nuevaCorrida(TEST_ORG_A, { items: [{ label: 'Punto' }] });
     expect(run.organizationId).toBe(TEST_ORG_A);
     const filaRun = tp.sqlite.prepare('SELECT organization_id FROM runs WHERE id = ?').get(run.id) as {
       organization_id: string;
@@ -1289,16 +1296,33 @@ describe('el veredicto global', () => {
     expect(cerrada.body.run.result).toBe('rejected');
   });
 
-  it('el PATCH puede fijar o limpiar el veredicto, y completar por PATCH lo deriva', async () => {
+  it('el veredicto no se escribe en una corrida abierta, y corregir el de una cerrada si', async () => {
     const { plantilla } = await plantillaConItems(TEST_ORG_A, 'Veredicto movible', ['Uno', 'Dos']);
 
-    const fijada = await corridaDe(plantilla.id);
-    await responder(fijada.run.id, 1, 'ok');
-    await responder(fijada.run.id, 2, 'ok');
-    await comoMiembro(TEST_ORG_A).patch(`/api/runs/${fijada.run.id}`).send({ result: 'approved' });
-    const cerradaFija = await comoMiembro(TEST_ORG_A).post(`/api/runs/${fijada.run.id}/completar`);
-    expect(cerradaFija.body.run.result).toBe('approved');
+    // Firmar el veredicto de una corrida que sigue abierta dejaba al tablero
+    // contando una inspeccion cerrada con `status: in_progress`.
+    const abierta = await corridaDe(plantilla.id);
+    await responder(abierta.run.id, 1, 'ok');
+    await responder(abierta.run.id, 2, 'ok');
+    const intento = await comoMiembro(TEST_ORG_A).patch(`/api/runs/${abierta.run.id}`).send({ result: 'approved' });
+    expect(intento.status).toBe(400);
+    expect((await comoMiembro(TEST_ORG_A).get(`/api/runs/${abierta.run.id}/ficha`)).body.run.result).toBeNull();
 
+    // Cerrada la corrida, el veredicto se deriva de las respuestas.
+    const cerrada = await comoMiembro(TEST_ORG_A).post(`/api/runs/${abierta.run.id}/completar`);
+    expect(cerrada.body.run.result).toBe('approved');
+
+    // Y ahora si se puede corregir el juicio equivocado, sin reabrir.
+    const corregida = await comoMiembro(TEST_ORG_A)
+      .patch(`/api/runs/${abierta.run.id}`)
+      .send({ result: 'rejected' });
+    expect(corregida.status).toBe(200);
+    expect(corregida.body.result).toBe('rejected');
+    expect(corregida.body.status).toBe('done');
+  });
+
+  it('cerrar por PATCH deriva el veredicto de las respuestas', async () => {
+    const { plantilla } = await plantillaConItems(TEST_ORG_A, 'Derivado por PATCH', ['Uno', 'Dos']);
     const derivada = await corridaDe(plantilla.id);
     await responder(derivada.run.id, 1, 'fail');
     await responder(derivada.run.id, 2, 'ok');
@@ -1364,8 +1388,11 @@ describe('los adjuntos', () => {
 
     const descarga = await comoMiembro(TEST_ORG_A).get(subida.body.url);
     expect(descarga.status).toBe(200);
-    expect(descarga.headers['content-type']).toContain('text/plain');
-    expect(descarga.text).toBe(contenido);
+    // El tipo servido no es el que subio el cliente, y siempre con `nosniff`.
+    expect(descarga.headers['content-type']).toBe('application/octet-stream');
+    expect(descarga.headers['x-content-type-options']).toBe('nosniff');
+    // Al servirse como binario, supertest lo deja en `.body` y no en `.text`.
+    expect(Buffer.from(descarga.body).toString('utf8')).toBe(contenido);
 
     const borrado = await comoMiembro(TEST_ORG_A).delete(
       `/api/runs/${run.id}/attachments/${subida.body.attachment.id}`,

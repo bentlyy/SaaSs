@@ -151,13 +151,23 @@ export function mountAmgAuth(config: AmgResolvedConfig, options: MountOptions = 
     void (async () => {
       const code = typeof req.query.code === 'string' ? req.query.code : undefined;
       const state = typeof req.query.state === 'string' ? req.query.state : undefined;
-      if (!code) return res.status(400).send(errorPage({ title: 'Falta el código', message: 'Volvé a iniciar sesión.', productName: options.productName }));
+      if (!code) return res.status(400).send(errorPage({ title: 'Falta el código', message: 'Volvé a iniciar sesión.', loginUrl: buildLoginUrl(config, '/'), productName: options.productName }));
 
       const exchanged = await exchangeCode(code, config, redirectUriFor(config));
       if (!exchanged.ok) {
-        return res
-          .status(exchanged.status ?? 400)
-          .send(errorPage({ title: 'No pudimos iniciar sesión', message: exchanged.reason, productName: options.productName }));
+        // Un límite de solicitudes (429) o un Core momentáneamente caído no son un
+        // callejón sin salida: el código ya se gastó, así que el reintento tiene que
+        // volver a arrancar el authorize completo, no repetir este callback.
+        const transitorio = exchanged.status === 429 || exchanged.status === 503;
+        return res.status(exchanged.status ?? 400).send(
+          errorPage({
+            title: 'No pudimos iniciar sesión',
+            message: exchanged.reason,
+            retryUrl: transitorio ? buildLoginUrl(config, isSafeReturnTo(state) ? state : '/') : undefined,
+            retryAfterSeconds: exchanged.retryAfterSeconds,
+            productName: options.productName,
+          }),
+        );
       }
       setSessionCookie(res, config, exchanged.accessToken);
       if (state && isSafeReturnTo(state)) return res.redirect(302, state);

@@ -184,7 +184,10 @@ export async function exchangeCode(
   config: AmgConfig,
   redirectUri: string,
   fetchImpl: typeof fetch = fetch,
-): Promise<{ ok: true; identity: AmgIdentity; accessToken: string } | { ok: false; reason: string; status?: number }> {
+): Promise<
+  | { ok: true; identity: AmgIdentity; accessToken: string }
+  | { ok: false; reason: string; status?: number; retryAfterSeconds?: number }
+> {
   try {
     const res = await fetchImpl(`${config.coreUrl}/api/sso/token`, {
       method: 'POST',
@@ -198,7 +201,12 @@ export async function exchangeCode(
     });
     const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok) {
-      return { ok: false, reason: String(body.error ?? 'El Core rechazó el código'), status: res.status };
+      return {
+        ok: false,
+        reason: String(body.error ?? 'El Core rechazó el código'),
+        status: res.status,
+        retryAfterSeconds: readRetryAfter(res),
+      };
     }
     const verified = verifyIdentity(String(body.access_token ?? ''), config);
     if (!verified.ok) {
@@ -210,4 +218,21 @@ export async function exchangeCode(
   } catch {
     return { ok: false, reason: 'No pudimos contactar al Core. Inténtalo en un momento.' };
   }
+}
+
+/**
+ * Cuántos segundos faltan para que el límite de solicitudes se libere.
+ *
+ * `Retry-After` puede venir en segundos o como fecha HTTP. Si no viene, devolvemos
+ * `undefined` y la página usa la espera por defecto, para que el usuario al menos
+ * tenga una espera creíble en vez de un callejón sin salida.
+ */
+function readRetryAfter(res: { headers: { get(name: string): string | null } }): number | undefined {
+  const header = res.headers.get('retry-after');
+  if (!header) return undefined;
+  const segundos = Number(header);
+  if (Number.isFinite(segundos) && segundos >= 0) return Math.ceil(segundos);
+  const fecha = Date.parse(header);
+  if (Number.isNaN(fecha)) return undefined;
+  return Math.max(0, Math.ceil((fecha - Date.now()) / 1000));
 }

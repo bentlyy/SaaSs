@@ -206,7 +206,15 @@ function pintarCobros() {
         AMIGO_UI.boton('Ficha', () => abrirFicha(c.id).catch((e) => avisar(e.message, true))),
         AMIGO_UI.boton('Editar', () => abrirCargo(c)),
       ];
-      if (puedeBorrar) {
+      // El boton solo aparece si el cargo no tiene nada cobrado. Un cargo con
+      // abonos no se borra (la API responde 409), asi que ofrecer el boton y
+      // dejar que revente seria mostrar algo que nunca puede funcionar.
+      //
+      // "Cobrado" se deduce del saldo sin pedir otra consulta: el saldo nunca es
+      // negativo, asi que saldo < total es exactamente "entro plata". Un cargo
+      // pagado queda en 0 y por eso tambien se cuenta aqui.
+      const tieneCobrado = saldoDe(c.id) < c.amountCents;
+      if (puedeBorrar && !tieneCobrado) {
         botones.push(
           AMIGO_UI.boton(
             'Borrar',
@@ -214,7 +222,7 @@ function pintarCobros() {
               try {
                 await api(`/api/charges/${c.id}`, { method: 'DELETE' });
                 await recargar();
-                avisar('Cargo borrado, con sus abonos');
+                avisar('Cargo borrado');
               } catch (err) {
                 avisar(err.message, true);
               }
@@ -541,7 +549,7 @@ $('#config-form').addEventListener('submit', async (e) => {
   }
 });
 
-AMIGO.montar({ nombre: 'Control de Pagos', paneles: ['tablero', 'cobros', 'reporte', 'ajustes'], alEntrar: conAviso(repintar) });
+AMIGO.montar({ nombre: 'Control de Pagos', paneles: ['tablero', 'cobros', 'reporte', 'ajustes'], alEntrar: () => conAviso(repintar) });
 
 /** Corre una parte de la pantalla y avisa si falla, en vez de dejarla a medias. */
 async function conAviso(fn) {

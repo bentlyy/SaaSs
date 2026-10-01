@@ -11,6 +11,7 @@ import {
   requireRole,
   type ProductContext,
   type ProductDb,
+  zonaHoraria,
 } from '@amg/product-runtime';
 import { quoteLines, quotes, settings } from './schema.js';
 
@@ -527,7 +528,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       const cuerpo = z
         .object({
           currency: z.string().trim().min(1).max(5).default('$'),
-          timezone: z.string().trim().min(1).max(60).default('America/Santiago'),
+          timezone: zonaHoraria.default('America/Santiago'),
           defaultTaxRateBp: z.coerce.number().int().min(0).max(10_000).default(0),
           validityDays: z.coerce.number().int().min(1).max(3_650).default(30),
         })

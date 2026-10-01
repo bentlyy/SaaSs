@@ -183,9 +183,10 @@ describe('artículos', () => {
     const creado = await comoAdmin(TEST_ORG_A)
       .post('/api/items')
       .send({ name: 'Con trampa', organization_id: TEST_ORG_B, organizationId: TEST_ORG_B });
-    expect(creado.body.organizationId).toBe(TEST_ORG_A);
+    expect(creado.status).toBe(400);
+    expect(creado.body.error).toContain('organization_');
 
-    const enB = await comoAdmin(TEST_ORG_B).get('/api/items');
+    const enB = await comoAdmin(TEST_ORG_B).get('/api/items?limit=500');
     expect(enB.body.items.map((i: { name: string }) => i.name)).not.toContain('Con trampa');
   });
 
@@ -196,7 +197,7 @@ describe('artículos', () => {
     const res = await comoAdmin(TEST_ORG_A)
       .patch(`/api/items/${it1.id}`)
       .send({ quantity: 9999 });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
 
     const despues = await comoAdmin(TEST_ORG_A).get(`/api/items/${it1.id}`);
     expect(despues.body.quantity).toBe(0);

@@ -135,7 +135,17 @@
       });
       window.addEventListener('popstate', function () { mostrar(panelDeUrl(paneles)); });
       marcar(inicial);
-      if (cfg.alEntrar) cfg.alEntrar(inicial);
+      // `alEntrar` pinta el panel: es adorno, no el arranque. Si viene mal (por
+      // ejemplo una Promise en vez de una función, que es lo que pasa al
+      // escribir `conAviso(fn)` en vez de `() => conAviso(fn)`) no debe tumbar el
+      // resto del montaje ni impedir cargar la cuenta de arriba.
+      if (typeof cfg.alEntrar === 'function') {
+        try {
+          cfg.alEntrar(inicial);
+        } catch (err) {
+          console.error('AMIGO.montar: alEntrar falló', err);
+        }
+      }
     }
 
     fetch('/api/inicio', { headers: { accept: 'application/json' } })

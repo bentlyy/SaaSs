@@ -353,8 +353,62 @@ describe('adjuntos', () => {
       `/api/requests/${idSol}/attachments/${a.id}/file`,
     );
     expect(descarga.status).toBe(200);
-    expect(descarga.headers['content-type']).toBe('image/png');
+    // El tipo que se sirve NO es el que subio el cliente: un PNG que se sirve
+    // como `text/html` se ejecuta en el origen del producto. Siempre baja como
+    // archivo, con `nosniff` para que el navegador no lo interprete.
+    expect(descarga.headers['content-type']).toBe('application/octet-stream');
+    expect(descarga.headers['x-content-type-options']).toBe('nosniff');
+    expect(descarga.headers['content-disposition']).toMatch(/^attachment/);
     expect(descarga.body).toEqual(contenido);
+  });
+
+  it('no sirve un HTML subido como si fuera una página del producto', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_A);
+    const subida = await comoAdmin(TEST_ORG_A)
+      .post(`/api/requests/${idSol}/attachments`)
+      .send({
+        filename: 'engano.html',
+        mimeType: 'text/html',
+        data: Buffer.from('<script>alert(1)</script>').toString('base64'),
+      });
+    expect(subida.status).toBe(415);
+
+    // Y si se disfraza de binario generico, igual baja como descarga.
+    const disfraz = await comoAdmin(TEST_ORG_A)
+      .post(`/api/requests/${idSol}/attachments`)
+      .send({
+        filename: 'engano.html',
+        mimeType: 'application/octet-stream',
+        data: Buffer.from('<script>alert(1)</script>').toString('base64'),
+      });
+    expect(disfraz.status).toBe(201);
+    const descarga = await comoAdmin(TEST_ORG_A).get(
+      `/api/requests/${idSol}/attachments/${disfraz.body.attachment.id}/file`,
+    );
+    expect(descarga.headers['content-type']).toBe('application/octet-stream');
+    expect(descarga.headers['x-content-type-options']).toBe('nosniff');
+  });
+
+  it('limpia el nombre del archivo para que no rompa la descarga', async () => {
+    const idSol = await nuevaSolicitud(TEST_ORG_A);
+    const subida = await comoAdmin(TEST_ORG_A)
+      .post(`/api/requests/${idSol}/attachments`)
+      .send({
+        filename: '../../etc/passwd".txt',
+        mimeType: 'text/plain',
+        data: Buffer.from('x').toString('base64'),
+      });
+    expect(subida.status, JSON.stringify(subida.body)).toBe(201);
+    const guardado = subida.body.attachment.filename;
+    expect(guardado).not.toMatch(/[/\\]/);
+    expect(guardado).not.toContain('"');
+    expect(guardado).not.toMatch(/^\.\./);
+
+    const descarga = await comoAdmin(TEST_ORG_A).get(
+      `/api/requests/${idSol}/attachments/${subida.body.attachment.id}/file`,
+    );
+    expect(descarga.status).toBe(200);
+    expect(descarga.headers['content-disposition']).not.toMatch(/path=|filename=".*[/\\]/);
   });
 
   it('acepta un data URI con prefijo', async () => {

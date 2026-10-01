@@ -1,5 +1,6 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { Router } from 'express';
+import { z } from 'zod';
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 import { crudRouter } from '../src/crud.js';
 import { orgId } from '../src/auth.js';
@@ -19,6 +20,7 @@ const cosas = sqliteTable('cosas', {
   organizationId: text('organization_id').notNull(),
   nombre: text('nombre').notNull(),
   cantidad: integer('cantidad').notNull().default(0),
+  estado: text('estado').notNull().default('pendiente'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at'),
 });
@@ -29,11 +31,14 @@ CREATE TABLE IF NOT EXISTS cosas (
   organization_id TEXT NOT NULL,
   nombre TEXT NOT NULL,
   cantidad INTEGER NOT NULL DEFAULT 0,
+  estado TEXT NOT NULL DEFAULT 'pendiente',
   created_at TEXT NOT NULL,
   updated_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_cosas_org ON cosas(organization_id);
 `;
+
+const ESTADOS = ['pendiente', 'pagado', 'anulado'] as const;
 
 const def: ProductDefinition = {
   slug: 'prueba',
@@ -45,9 +50,10 @@ const def: ProductDefinition = {
       '/api/cosas',
       crudRouter(ctx.handle, {
         table: cosas,
-        fields: { nombre: {}, cantidad: {} },
+        fields: { nombre: {}, cantidad: {}, estado: {} },
         idPrefix: 'cosa',
         search: [cosas.nombre],
+        filters: { estado: { column: cosas.estado, schema: z.enum(ESTADOS) } },
       }),
     ),
   ],
@@ -127,14 +133,26 @@ describe('sesion', () => {
 });
 
 describe('aislamiento entre organizaciones', () => {
-  it('crea en la organizacion de la sesion e ignora lo que mande el cliente', async () => {
+  it('rechaza organization_id en el cuerpo y no crea nada', async () => {
+    // Antes este caso pasaba con 201: la clave ajena se descartaba en silencio y
+    // la fila quedaba en la org de la sesion. Rechazar el 400 es mas fuerte --no
+    // se escribe nada-- y ademas deja la maniobra a la vista en vez de
+    // convertirla en un alta silenciosa.
     const res = await tp
       .as({ orgId: TEST_ORG_A })
       .post('/api/cosas')
       .send({ nombre: 'Cosa de Alpha', cantidad: 3, organization_id: TEST_ORG_B });
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('organization_id');
 
-    // Si el organization_id del cuerpo hubiera ganado, Beta la veria.
+    // Ni en la propia ni en la ajena: la escalada sigue siendo imposible.
+    expect((await tp.as({ orgId: TEST_ORG_A }).get('/api/cosas')).body.items).toHaveLength(0);
+    expect((await tp.as({ orgId: TEST_ORG_B }).get('/api/cosas')).body.items).toHaveLength(0);
+  });
+
+  it('crea en la organizacion de la sesion', async () => {
+    const res = await tp.as({ orgId: TEST_ORG_A }).post('/api/cosas').send({ nombre: 'Cosa de Alpha', cantidad: 3 });
+    expect(res.status).toBe(201);
     const enBeta = await tp.as({ orgId: TEST_ORG_B }).get('/api/cosas');
     expect(enBeta.body.items).toHaveLength(0);
   });
@@ -166,5 +184,82 @@ describe('aislamiento entre organizaciones', () => {
 
   it('orgId() tira si no hay identidad', () => {
     expect(() => orgId({} as any)).toThrow();
+  });
+});
+
+describe('campos desconocidos en el cuerpo', () => {
+  it('un campo mal escrito se rechaza y dice cual es', async () => {
+    // Sin esto, un `emial` mal tecleado se descartaba en silencio y el alta salia
+    // con el correo vacio: el usuario creia que lo habia guardado.
+    const res = await tp
+      .as({ orgId: TEST_ORG_A })
+      .post('/api/cosas')
+      .send({ nombre: 'Con correo', emial: 'casi@diez.cl' });
+    expect(res.status).toBe(400);
+    const mensaje = JSON.stringify(res.body);
+    expect(mensaje).toContain('emial');
+    expect(mensaje).toContain('Campo desconocido');
+  });
+
+  it('el rechazo no deja la fila a medias', async () => {
+    await tp.as({ orgId: TEST_ORG_A }).post('/api/cosas').send({ nombre: 'A medias', cantidad: 2, sobra: true });
+    const lista = await tp.as({ orgId: TEST_ORG_A }).get('/api/cosas?limit=100');
+    expect(lista.body.items.some((i: any) => i.nombre === 'A medias')).toBe(false);
+  });
+
+  it('tambien en PATCH, sin pisar lo que ya estaba', async () => {
+    const creada = await tp.as({ orgId: TEST_ORG_A }).post('/api/cosas').send({ nombre: 'Original', cantidad: 1 });
+    const id = creada.body.id;
+
+    const mal = await tp.as({ orgId: TEST_ORG_A }).patch(`/api/cosas/${id}`).send({ nombrez: 'Cambio' });
+    expect(mal.status).toBe(400);
+
+    const sigue = await tp.as({ orgId: TEST_ORG_A }).get(`/api/cosas/${id}`);
+    expect(sigue.body.nombre).toBe('Original');
+  });
+
+  it('un campo de solo lectura tampoco se acepta para escribir', async () => {
+    const creada = await tp.as({ orgId: TEST_ORG_A }).post('/api/cosas').send({ nombre: 'Normal', cantidad: 1 });
+    const falso = await tp
+      .as({ orgId: TEST_ORG_A })
+      .patch(`/api/cosas/${creada.body.id}`)
+      .send({ created_at: '1999-01-01T00:00:00.000Z' });
+    expect(falso.status).toBe(400);
+  });
+});
+
+describe('filtros declarados del listado', () => {
+  it('filtra de verdad en vez de ignorar el query', async () => {
+    const org = TEST_ORG_A;
+    await tp.as({ orgId: org }).post('/api/cosas').send({ nombre: 'F-A', estado: 'pendiente' });
+    await tp.as({ orgId: org }).post('/api/cosas').send({ nombre: 'F-B', estado: 'pagado' });
+    await tp.as({ orgId: org }).post('/api/cosas').send({ nombre: 'F-C', estado: 'pagado' });
+
+    const pagadas = await tp.as({ orgId: org }).get('/api/cosas?estado=pagado');
+    expect(pagadas.status).toBe(200);
+    expect(pagadas.body.items.map((i: any) => i.nombre).sort()).toEqual(['F-B', 'F-C']);
+    expect(pagadas.body.total).toBe(2);
+
+    // Sin filtro salen todas: el filtro no se queda pegado.
+    const todas = await tp.as({ orgId: org }).get('/api/cosas');
+    expect(todas.body.total).toBeGreaterThan(2);
+  });
+
+  it('un valor que no existe es 400, no una lista sin filtrar', async () => {
+    const res = await tp.as({ orgId: TEST_ORG_A }).get('/api/cosas?estado=inventado');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/estado/i);
+  });
+
+  it('un filtro sin valor devuelve todo, no una lista vacia', async () => {
+    const res = await tp.as({ orgId: TEST_ORG_A }).get('/api/cosas?estado=');
+    expect(res.status).toBe(200);
+    expect(res.body.total).toBeGreaterThan(0);
+  });
+
+  it('un filtro no declarado no filtra nada ni se cuela en la consulta', async () => {
+    const res = await tp.as({ orgId: TEST_ORG_A }).get('/api/cosas?organization_id=otra-cosa');
+    expect(res.status).toBe(200);
+    expect(res.body.items.every((i: any) => i.organizationId === TEST_ORG_A)).toBe(true);
   });
 });

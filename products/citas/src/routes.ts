@@ -10,6 +10,7 @@ import {
   orgId,
   requireRole,
   type ProductContext,
+  zonaHoraria,
 } from '@amg/product-runtime';
 import {
   appointmentServices,
@@ -69,13 +70,14 @@ const citaSchema = z
     customerId: id.nullable().optional(),
     staffId: id.nullable().optional(),
     startAt: isoFecha,
-    endAt: isoFecha,
+    /** Opcional: si no viene, lo calcula la duración del servicio. */
+    endAt: isoFecha.optional(),
     notes: z.string().trim().max(2000).nullable().optional(),
     status: z.enum(estadosCita).default('confirmed'),
-    /** Líneas de la cita. Si viene vacío se calculates con los servicios. */
+    /** Líneas de la cita. Si viene vacío se calcula con los servicios. */
     services: z.array(lineaSchema).default([]),
   })
-  .refine((v) => Date.parse(v.endAt) > Date.parse(v.startAt), {
+  .refine((v) => !v.endAt || Date.parse(v.endAt) > Date.parse(v.startAt), {
     message: 'La cita tiene que terminar después de empezar',
     path: ['endAt'],
   });
@@ -309,7 +311,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         throw new AppError(409, 'Ese profesional ya tiene un horario que se pisa ese día');
       }
 
-      const ahora = nowIso();
+const ahora = nowIso();
       const creado = db
         .insert(availability)
         .values({
@@ -548,8 +550,49 @@ export function buildRoutes(ctx: ProductContext): Router[] {
 
   const escribirCita = (req: Request) => {
     const org = orgId(req);
-    const cuerpo = citaSchema.parse(req.body);
     const idCita = req.method === 'POST' ? createId('cita') : id.parse(req.params.id);
+
+    // El PATCH se arma sobre la fila que ya existe. Antes se parseaba el cuerpo
+    // contra el schema COMPLETO, asi que un PATCH de una sola cosa (bajar el
+    // precio, corregir una nota) fallaba pidiendo el resto de campos, y el que
+    // insistia mandando todos arriesgaba pisar `customer_id` o `staff_id` con un
+    // vacio. Un PATCH parcial que solo toca lo que viene es lo que se espera.
+    let cuerpo: z.infer<typeof citaSchema>;
+    /** Si el PATCH trajo `services`. Distingue "no las mandaron" de "las borraste". */
+    let enviadoServicios = true;
+    /** El total ya guardado, para conservarlo cuando el PATCH no toca las lineas. */
+    let totalPrevio: number | null = null;
+    if (req.method === 'PATCH') {
+      const actual = db
+        .select()
+        .from(appointments)
+        .where(and(eq(appointments.id, idCita), eq(appointments.organizationId, org)))
+        .get();
+      if (!actual) throw new AppError(404, 'Esa cita no existe');
+      totalPrevio = actual.totalCents;
+      enviadoServicios = req.body?.services !== undefined;
+      const enviado = z
+        .object({
+          customerId: id.nullable().optional(),
+          staffId: id.nullable().optional(),
+          startAt: isoFecha.optional(),
+          endAt: isoFecha.optional(),
+          notes: z.string().trim().max(2000).nullable().optional(),
+          status: z.enum(estadosCita).optional(),
+          services: z.array(lineaSchema).optional(),
+        })
+        .parse(req.body);
+      cuerpo = citaSchema.parse({
+        ...actual,
+        ...enviado,
+        // Los defaults del schema no deben pisar lo que ya estaba: si el PATCH no
+        // manda `status` ni `services`, se conservan los de la cita.
+        status: enviado.status ?? actual.status,
+        services: enviado.services ?? [],
+      });
+    } else {
+      cuerpo = citaSchema.parse(req.body);
+    }
 
     if (cuerpo.staffId) {
       const pro = db
@@ -571,13 +614,39 @@ export function buildRoutes(ctx: ProductContext): Router[] {
     // El total sale de las líneas. Si no vienen líneas, se usan los precios
     // actuales de los servicios indicados; y si tampoco, queda en 0 y no se
     // inventa un número.
-    const lineas = cuerpo.services.length
-      ? cuerpo.services
-      : [];
-    const totalCents = lineas.reduce((s, l) => s + l.priceCents, 0);
+    // Las lineas se reescriben SOLO si el PATCH las trajo. Antes se borraban y se
+    // reinsertaban siempre, asi que corregir una nota dejaba la cita sin lineas y
+    // con `total_cents` en 0: el precio pactado desaparecia por editar un campo
+    // que no tiene nada que ver con el precio.
+    const tocaLineas = req.method === 'POST' || Boolean(enviadoServicios);
+    const lineas = cuerpo.services.length ? cuerpo.services : [];
+    const totalCents = tocaLineas ? lineas.reduce((s, l) => s + l.priceCents, 0) : (totalPrevio ?? 0);
 
-    const choca = cuerpo.staffId
-      ? solapes(org, cuerpo.startAt, cuerpo.endAt, cuerpo.staffId, req.method === 'PATCH' ? idCita : undefined)
+    // cuerpo todavia no tiene endAt garantizado: cita si. A partir de aca
+    // se usa cita, que es el cuerpo con el final ya resuelto.
+
+    // Cuando el cliente NO manda `endAt`, lo decide el servicio mas largo de la
+    // cita. Antes `endAt` era obligatorio y lo mandaba el navegador, con lo que
+    // una cita de 30 minutos se podia agendar de 8:00 a 17:00 y el profesional
+    // quedaba bloqueado horas de trabajo que nadie le pago. Cuando si viene se
+    // respeta: reprogramar a mano es una decision legitima. Va antes del chequeo
+    // de solapamiento, porque el solapamiento se mide contra el `endAt` final.
+    const pedidos = cuerpo.services.map((l) => l.serviceId).filter((s): s is string => Boolean(s));
+    const duracion = pedidos.length
+      ? Math.max(
+          ...db
+            .select({ d: services.durationMin })
+            .from(services)
+            .where(and(eq(services.organizationId, org), inArray(services.id, pedidos)))
+            .all()
+            .map((s) => s.d),
+        )
+      : 30;
+    const fin = cuerpo.endAt ?? new Date(Date.parse(cuerpo.startAt) + duracion * 60_000).toISOString();
+    const cita = { ...cuerpo, endAt: fin };
+
+    const choca = cita.staffId
+      ? solapes(org, cita.startAt, cita.endAt, cita.staffId, req.method === 'PATCH' ? idCita : undefined)
       : [];
     if (choca.length) {
       throw new AppError(
@@ -590,16 +659,16 @@ export function buildRoutes(ctx: ProductContext): Router[] {
     // Un bloqueo deja el rato inutilizable aunque el horario semanal diga lo
     // contrario: el profesional no agenda en un día libre, y eso se decide acá,
     // en el servidor, no pintando gris la franja en el navegador.
-    if (cuerpo.staffId) {
+    if (cita.staffId) {
       const bloqueado = db
         .select({ id: blocks.id, startAt: blocks.startAt, endAt: blocks.endAt, reason: blocks.reason })
         .from(blocks)
         .where(
           and(
             eq(blocks.organizationId, org),
-            eq(blocks.staffId, cuerpo.staffId),
-            sql`${blocks.startAt} < ${cuerpo.endAt}`,
-            sql`${blocks.endAt} > ${cuerpo.startAt}`,
+            eq(blocks.staffId, cita.staffId),
+            sql`${blocks.startAt} < ${cita.endAt}`,
+            sql`${blocks.endAt} > ${cita.startAt}`,
           ),
         )
         .get();
@@ -618,12 +687,12 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         .values({
           id: idCita,
           organizationId: org,
-          customerId: cuerpo.customerId ?? null,
-          staffId: cuerpo.staffId ?? null,
-          startAt: cuerpo.startAt,
-          endAt: cuerpo.endAt,
-          notes: cuerpo.notes ?? null,
-          status: cuerpo.status,
+          customerId: cita.customerId ?? null,
+          staffId: cita.staffId ?? null,
+          startAt: cita.startAt,
+          endAt: cita.endAt,
+          notes: cita.notes ?? null,
+          status: cita.status,
           totalCents,
           createdAt: ahora,
         })
@@ -637,22 +706,24 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       if (!existe) throw new AppError(404, 'Esa cita no existe');
       db.update(appointments)
         .set({
-          customerId: cuerpo.customerId ?? null,
-          staffId: cuerpo.staffId ?? null,
-          startAt: cuerpo.startAt,
-          endAt: cuerpo.endAt,
-          notes: cuerpo.notes ?? null,
-          status: cuerpo.status,
+          customerId: cita.customerId ?? null,
+          staffId: cita.staffId ?? null,
+          startAt: cita.startAt,
+          endAt: cita.endAt,
+          notes: cita.notes ?? null,
+          status: cita.status,
           totalCents,
           updatedAt: ahora,
         })
         .where(eq(appointments.id, idCita))
         .run();
-      // Las líneas se reemplazan enteras: son la foto del precio de esa cita.
-      db.delete(appointmentServices).where(eq(appointmentServices.appointmentId, idCita)).run();
+      if (tocaLineas) {
+        // Las líneas se reemplazan enteras: son la foto del precio de esa cita.
+        db.delete(appointmentServices).where(eq(appointmentServices.appointmentId, idCita)).run();
+      }
     }
 
-    for (const l of lineas) {
+    for (const l of tocaLineas ? lineas : []) {
       db.insert(appointmentServices)
         .values({
           id: createId('citaslin'),
@@ -842,7 +913,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       const org = orgId(req);
       const cuerpo = z
         .object({
-          timezone: z.string().trim().min(1).max(64),
+          timezone: zonaHoraria,
           currency: z.string().trim().min(1).max(5),
           reminderHours: z.coerce.number().int().min(0).max(720),
           emailEnabled: booleano,

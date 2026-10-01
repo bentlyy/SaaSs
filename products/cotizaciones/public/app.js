@@ -421,7 +421,7 @@ function pintarFiltroEstado() {
   );
 }
 
-AMIGO.montar({ nombre: 'Cotizaciones', paneles: ['inicio', 'cotizaciones', 'ajustes'], alEntrar: conAviso(pintar) });
+AMIGO.montar({ nombre: 'Cotizaciones', paneles: ['inicio', 'cotizaciones', 'ajustes'], alEntrar: () => conAviso(pintar) });
 
 /** Corre una parte de la pantalla y avisa si falla, en vez de dejar la vista a medias. */
 async function conAviso(fn) {

@@ -17,6 +17,9 @@ import {
   type ProductConfig,
   type ProductContext,
   type ProductDb,
+  enviarAdjunto,
+  nombreSeguro,
+  revisarAdjunto,
 } from '@amg/product-runtime';
 import { attachments, runItems, runs, sections, settings, templateItems, templates } from './schema.js';
 
@@ -128,7 +131,7 @@ export const ETIQUETAS_RESULTADO_GLOBAL: Record<ResultadoGlobal, string> = {
  * el default porque es el unico que convive con la maquina de `ok/fail/na` y con
  * todo el historial que se escribio con ella.
  */
-const itemSchema = z.object({
+const itemSchema = estricto({
   label: z.string().trim().min(1, 'Un punto necesita un texto').max(200),
   required: flag.default(1),
   type: z.enum(TIPOS).default('yes_no'),
@@ -136,7 +139,7 @@ const itemSchema = z.object({
 });
 
 /** Una seccion: el grupo con nombre que ordena los puntos de una plantilla. */
-const sectionSchema = z.object({
+const sectionSchema = estricto({
   name: z.string().trim().min(1, 'Una seccion necesita un nombre').max(150),
   items: z.array(itemSchema).default([]),
 });
@@ -216,6 +219,33 @@ function conSufijo(nombre: string, sufijo: string): string {
 }
 
 /**
+ * `z.object` en modo estricto, que es el default de este producto.
+ *
+ * Antes un campo mal escrito se descartaba en silencio y el alta salia incompleta
+ * sin que nadie se enterara. Los schemas de este archivo son cerrados: un
+ * `organizationId` en el cuerpo es un 400 que lo dice, no un dato que se pierde.
+ */
+function estricto<T extends z.ZodRawShape>(shape: T) {
+  return z.object(shape).strict();
+}
+
+/** Parsea el cuerpo ya normalizado y sube a `error` el nombre del campo sobrante. */
+function parseCuerpo<S extends z.ZodTypeAny>(schema: S, req: { body?: unknown }): z.output<S> {
+  const r = schema.safeParse(cuerpo(req));
+  if (r.success) return r.data;
+  const sobrantes = r.error.issues.filter((i) => i.code === 'unrecognized_keys');
+  if (sobrantes.length) {
+    const nombres = [...new Set(sobrantes.flatMap((i) => (i as { keys: string[] }).keys))];
+    throw new AppError(
+      400,
+      `Campo desconocido: ${nombres.join(', ')}. Revisa el nombre; si esta bien escrito, no lo mandes.`,
+      r.error.flatten(),
+    );
+  }
+  throw r.error;
+}
+
+/**
  * Normaliza el cuerpo de snake_case a camelCase ANTES de validarlo.
  *
  * El mismo endpoint acepta `template_id` y `templateId` porque el nombre de la
@@ -223,17 +253,20 @@ function conSufijo(nombre: string, sufijo: string): string {
  * cliente acierte una sola es una forma de romperse sola. La respuesta es SIEMPRE
  * camelCase, que es lo que habla el resto de la API del runtime.
  *
- * Las claves que no son de la tabla (por ejemplo `organizationId` en el cuerpo)
- * se descartan igual: los schemas de este archivo son `z.object` y zod tira lo que
- * no conoce. El `organization_id` lo pone el servidor, y por eso se puede mandar
- * en el cuerpo sin efecto.
+ * Se guarda UNA sola forma de cada clave. Antes se guardaban las dos, y con los
+ * schemas en modo estricto la propia copia de `template_id` habria sido un campo
+ * desconocido: el normalizador se habriaPolandado a si mismo. Si el cliente manda
+ * las dos, gana la camelCase, que es la que la respuesta usa.
  */
 function cuerpo(req: { body?: unknown }): Record<string, unknown> {
   const crudo = (req.body ?? {}) as Record<string, unknown>;
   const salida: Record<string, unknown> = {};
+  const aCamel = (clave: string) => clave.replace(/_([a-z])/g, (_, letra: string) => letra.toUpperCase());
   for (const [clave, valor] of Object.entries(crudo)) {
-    salida[clave] = valor;
-    const camel = clave.replace(/_([a-z])/g, (_, letra: string) => letra.toUpperCase());
+    if (aCamel(clave) === clave) salida[clave] = valor;
+  }
+  for (const [clave, valor] of Object.entries(crudo)) {
+    const camel = aCamel(clave);
     if (camel !== clave) salida[camel] ??= valor;
   }
   return salida;
@@ -624,7 +657,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
 
   // ───────────────────────────────────────────────────────────────── plantillas
 
-  const plantillaSchema = z.object({
+  const plantillaSchema = estricto({
     name: texto,
     description: z.string().trim().max(1000).nullable().optional(),
     active: flag.default(1),
@@ -704,7 +737,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
     requireRole('member'),
     asyncHandler(async (req, res) => {
       const org = orgId(req);
-      const body = plantillaSchema.parse(cuerpo(req));
+      const body = parseCuerpo(plantillaSchema, req);
       if (body.sections.length > 0 && body.items.length > 0) {
         throw new AppError(400, 'Manda secciones (con sus puntos) o puntos sueltos, no los dos');
       }
@@ -827,7 +860,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
     asyncHandler(async (req, res) => {
       const org = orgId(req);
       const plantillaId = id.parse(req.params.id);
-      const body = z.object({ name: sectionSchema.shape.name }).parse(cuerpo(req));
+      const body = parseCuerpo(z.object({ name: sectionSchema.shape.name }).strict(), req);
 
       const seccion = db.transaction((tx) => {
         plantillaVisible(org, plantillaId);
@@ -867,7 +900,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       const org = orgId(req);
       const plantillaId = id.parse(req.params.id);
       const seccionId = id.parse(req.params.sectionId);
-      const body = z.object({ name: sectionSchema.shape.name }).parse(cuerpo(req));
+      const body = parseCuerpo(z.object({ name: sectionSchema.shape.name }).strict(), req);
 
       const actualizada = db
         .update(sections)
@@ -899,7 +932,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
     asyncHandler(async (req, res) => {
       const org = orgId(req);
       const plantillaId = id.parse(req.params.id);
-      const body = z.object({ order: z.array(z.string().trim().min(1).max(64)) }).parse(cuerpo(req));
+      const body = parseCuerpo(z.object({ order: z.array(z.string().trim().min(1).max(64)) }).strict(), req);
 
       const reordenadas = db.transaction((tx) => {
         plantillaVisible(org, plantillaId);
@@ -1257,7 +1290,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
 
   // ─────────────────────────────────────────────────────────────────── corridas
 
-  const corridaSchema = z.object({
+  const corridaSchema = estricto({
     templateId: z.string().trim().min(1).max(64).optional(),
     items: z.array(itemSchema).optional(),
     location: z.string().trim().max(150).nullable().optional(),
@@ -1347,7 +1380,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
     requireRole('member'),
     asyncHandler(async (req, res) => {
       const org = orgId(req);
-      const body = corridaSchema.parse(cuerpo(req));
+      const body = parseCuerpo(corridaSchema, req);
       if (body.templateId && body.items) {
         throw new AppError(400, 'Manda templateId (que se copia) o items (corrida libre), no los dos');
       }
@@ -1486,7 +1519,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
   );
 
   /** La respuesta a un punto de la corrida. */
-  const respuestaSchema = z.object({
+  const respuestaSchema = estricto({
     result: z.enum(RESPUESTAS).optional(),
     valueText: z.string().trim().max(4000).nullable().optional(),
     note: z.string().trim().max(2000).nullable().optional(),
@@ -1548,7 +1581,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         .int('La posicion es un numero entero')
         .min(1, 'Las posiciones empiezan en 1')
         .parse(req.params.position);
-      const body = respuestaSchema.parse(cuerpo(req));
+      const body = parseCuerpo(respuestaSchema, req);
       const ahora = nowIso();
 
       const { run, item } = db.transaction((tx) => {
@@ -1675,7 +1708,10 @@ export function buildRoutes(ctx: ProductContext): Router[] {
    * `POST /completar`.
    *
    * El veredicto se puede fijar o limpiar (`result: null`) a proposito: es la
-   * forma de corregir un juicio equivocado sin reblar la corrida completa.
+   * forma de corregir un juicio equivocado sin reblar la corrida completa. Solo
+   * sobre una corrida ya cerrada: en una abierta el veredicto no existe todavia,
+   * y escribirlo ahi producia una inspeccion "firmada" que el tablero contaba y que
+   * nadie habia cerrado.
    *
    * Volver a `in_progress` DESELLA `completed_at` y quita el veredicto, y es la
    * unica forma de cambiar una respuesta de una corrida cerrada. Que quede
@@ -1709,7 +1745,23 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         const cambios: Partial<typeof runs.$inferInsert> = { updatedAt: ahora };
         if (body.location !== undefined) cambios.location = body.location;
         if (body.notes !== undefined) cambios.notes = body.notes;
-        if (body.result !== undefined) cambios.result = body.result;
+
+        // El veredicto pertenece a una corrida CERRADA. Antes se aceptaba en
+        // cualquier estado, y eso dejaba un registro con `result: "approved"` y
+        // `status: "in_progress"`: el tablero contaba una inspeccion firmada que
+        // en realidad no estaba completa ni habia pasado por los obligatorios.
+        // Se sigue permitiendo corregirlo sobre una corrida ya cerrada, que es
+        // justo lo para lo que existe este PATCH.
+        const cierraAqui = body.status === 'done';
+        if (body.result !== undefined) {
+          if (fila.status !== 'done' && !cierraAqui) {
+            throw new AppError(
+              400,
+              'El veredicto se escribe al cerrar la corrida. Cerrá la corrida para fijarlo, o editá una que ya esté cerrada.',
+            );
+          }
+          cambios.result = body.result;
+        }
 
         if (body.status !== undefined && body.status !== fila.status) {
           if (body.status === 'done') {
@@ -1783,17 +1835,16 @@ export function buildRoutes(ctx: ProductContext): Router[] {
 
       const luego = cuerpoAdjunto.data.includes(';base64,') ? cuerpoAdjunto.data.split(';base64,')[1] : cuerpoAdjunto.data;
       const buffer = Buffer.from(luego as string, 'base64');
-      // El limite de 750 KB es un poco menor al tope de 1 MB del JSON: el body
-      // en base64 ocupa 4/3 del archivo, y quien exceda el tope tiene que saberlo
-      // con un 413 que signifique algo.
-      if (buffer.length < 1 || buffer.length > 750_000) {
-        throw new AppError(413, 'El archivo no puede superar 750 KB');
-      }
+      revisarAdjunto(
+        { filename: cuerpoAdjunto.filename, mimeType: cuerpoAdjunto.mimeType, bytes: buffer.length },
+        750_000,
+      );
 
       const adjuntoId = createId('chlaj');
       // El nombre en disco se deriva del id, nunca del que envio el cliente: un
       // nombre llegado de afuera no vale para armar una ruta. El original se
-      // conserva solo en la columna `filename`, para mostrarlo y descargarlo.
+      // conserva solo en la columna `filename`, para mostrarlo y descargarlo, y
+      // se sanea para que no pueda romper la cabecera de la descarga.
       mkdirSync(carpetaAdjuntos, { recursive: true });
       writeFileSync(join(carpetaAdjuntos, adjuntoId), buffer);
 
@@ -1801,7 +1852,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         id: adjuntoId,
         organizationId: org,
         runId: corridaId,
-        filename: cuerpoAdjunto.filename,
+filename: nombreSeguro(cuerpoAdjunto.filename, 'adjunto'),
         path: `attachments/${adjuntoId}`,
         mimeType: cuerpoAdjunto.mimeType ?? null,
         sizeBytes: buffer.length,
@@ -1839,8 +1890,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       const ruta = join(carpetaAdjuntos, basename(adjunto.path));
       if (!existsSync(ruta)) throw new AppError(404, 'El archivo ya no existe');
 
-      if (adjunto.mimeType) res.setHeader('content-type', adjunto.mimeType);
-      res.download(ruta, adjunto.filename);
+      enviarAdjunto(res, ruta, { filename: adjunto.filename, mimeType: adjunto.mimeType });
     }),
   );
 

@@ -18,16 +18,37 @@ import { findSsoClient } from '../sso/registry.js';
  */
 export const ssoRouter = Router();
 
-const ssoLimiter = rateLimit({
+/**
+ * Dos límites distintos, y no uno compartido.
+ *
+ * `authorize` lo pide el NAVEGADOR del usuario, así que va por IP: un usuario
+ * que recarga o rebota entre herramientas no puede quedarse afuera, y una IP de
+ * oficina compartida tampoco se bloquea a sí misma.
+ *
+ * `token` e `introspect` los pide el BACKEND del producto, con su secreto. Ahí el
+ * límite va por cliente: si un producto entra en bucle no tiene por qué tumbar el
+ * inicio de sesión de los otros ocho. Con un único límite compartido, que es como
+ * estaba antes, una ráfaga en un solo producto dejaba a todos los usuarios sin
+ * poder entrar y sin ninguna forma de reintentar.
+ */
+const authorizeLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
-  limit: 120,
+  limit: 600,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   message: { error: 'Demasiadas solicitudes de acceso. Espera un momento.' },
+  keyGenerator: (req) => req.ip ?? 'desconocido',
 });
-const guard = platformConfig.isProd
-  ? ssoLimiter
-  : (_req: Request, _res: Response, next: (err?: unknown) => void) => next();
+const clientLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  limit: 1200,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Demasiadas solicitudes de acceso. Espera un momento.' },
+  keyGenerator: (_req) => 'sso-backend',
+});
+const noGuard = (_req: Request, _res: Response, next: (err?: unknown) => void) => next();
+const prod = platformConfig.isProd;
 
 const authorizeSchema = z.object({
   client_id: z.string().min(1, 'Falta la aplicación'),
@@ -46,7 +67,7 @@ const authorizeSchema = z.object({
  */
 ssoRouter.get(
   '/authorize',
-  guard,
+  prod ? authorizeLimiter : noGuard,
   asyncHandler(async (req, res) => {
     const input = authorizeSchema.parse(req.query);
     const outcome = authorize({
@@ -82,7 +103,7 @@ const tokenSchema = z.object({
 /** Paso 2. Autenticación de la aplicación con su secreto + canje del código. */
 ssoRouter.post(
   '/token',
-  guard,
+  prod ? clientLimiter : noGuard,
   asyncHandler(async (req, res) => {
     const input = tokenSchema.parse(req.body);
     return res.json(
@@ -109,7 +130,7 @@ const introspectSchema = z.object({
  */
 ssoRouter.post(
   '/introspect',
-  guard,
+  prod ? clientLimiter : noGuard,
   asyncHandler(async (req, res) => {
     const input = introspectSchema.parse(req.body);
     return res.json(introspectToken(input.token, input.client_id, input.client_secret));

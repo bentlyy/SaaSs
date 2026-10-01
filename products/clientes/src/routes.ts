@@ -665,6 +665,9 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       idPrefix: 'clicliente',
       label: 'cliente',
       search: [customers.name, customers.company, customers.email, customers.phone, customers.taxId],
+      // El selector de tipo de la pantalla manda `?kind=empresa`; sin esto el
+      // filtro se ignoraba y la lista daba igual los dos tipos.
+      filters: { kind: { column: customers.kind, schema: z.enum(TIPOS_CLIENTE) } },
       orderBy: customers.name,
       orderDirection: 'asc',
       archive: true,

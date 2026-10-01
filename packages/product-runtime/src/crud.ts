@@ -46,6 +46,18 @@ export interface CrudOptions {
   orderDirection?: 'asc' | 'desc';
   /** Columnas donde se busca con ?q= */
   search?: any[];
+  /**
+   * Filtros de igualdad permitidos en el listado, con su validador.
+   *
+   * Sin esto, `?status=pending` se ignora en silencio y la pantalla parece filtrada
+   * mientras muestra todo: es peor que un error, porque el usuario cree que está
+   * mirando una cartera y está mirando otra. Cada filtro se valida con su schema y
+   * un valor que no existe devuelve 400 en vez de caer a "sin filtro".
+   *
+   * Solo se lee lo que el producto declara acá, así que ningún endpoint puede
+   * terminar filtrando por una columna que la sesión no conoce.
+   */
+  filters?: Record<string, { column: any; schema: ZodTypeAny }>;
   /** Maximo de filas por pagina, para que un listar no se coma la memoria. */
   defaultLimit?: number;
   maxLimit?: number;
@@ -100,13 +112,40 @@ function pick(source: Record<string, unknown>, fields: Fields, partial: boolean)
  * Efecto útil: en un PATCH, un campo ausente queda en `undefined` y no se
  * escribe, aunque su schema tenga default. Un default sólo entra al crear.
  */
+/**
+ * Traduce el `unrecognized_keys` de zod a un error que diga QUE campo sobra.
+ *
+ * Sin esto el 400 llegaba como `Datos invalidos` con el texto en ingles
+ * ("Unrecognized key(s) in object: 'emial'") escondido en `errors.formErrors`, y
+ * el error que mas importa --el nombre mal escrito que el usuario creyo que se
+ * guardo-- no se leia. Se sube a `error` para que la UI lo muestre igual que
+ * cualquier otro.
+ */
+function parseCuerpo(schema: ZodTypeAny, cuerpo: unknown) {
+  const r = schema.safeParse(cuerpo ?? {});
+  if (r.success) return r.data;
+  const sobrantes = r.error.issues.filter((i) => i.code === 'unrecognized_keys');
+  if (sobrantes.length) {
+    const nombres = [...new Set(sobrantes.flatMap((i) => (i as { keys: string[] }).keys))];
+    throw new AppError(
+      400,
+      `Campo desconocido: ${nombres.join(', ')}. Revisa el nombre; si esta bien escrito, no lo mandes.`,
+      r.error.flatten(),
+    );
+  }
+  throw r.error;
+}
+
 function buildSchema(fields: Fields, partial: boolean) {
   const shape: Record<string, ZodTypeAny> = {};
   for (const [name, spec] of Object.entries(fields)) {
     if (spec.readonly) continue;
     shape[name] = spec.schema ?? z.any();
   }
-  const objeto = z.object(shape);
+  // `.strict()` y no el default (que borra lo sobrante en silencio): un `emial`
+  // mal escrito se aceptaba, se descartaba y el alta salia con el correo vacio,
+  // y el usuario no se enteraba hasta que intentaba mandarlo.
+  const objeto = z.object(shape).strict();
   return partial ? objeto.partial() : objeto;
 }
 
@@ -127,6 +166,7 @@ export function crudRouter(handle: Db, options: CrudOptions): Router {
     orderBy = table.createdAt,
     orderDirection = 'desc',
     search = [],
+    filters = {},
     defaultLimit = 200,
     maxLimit = 1000,
     archive = false,
@@ -167,6 +207,22 @@ export function crudRouter(handle: Db, options: CrudOptions): Router {
         const match = `%${q}%`;
         const parts = search.map((column) => like(column, match));
         where.push(or(...parts)!);
+      }
+
+      for (const [name, spec] of Object.entries(filters)) {
+        const raw = req.query[name];
+        if (raw === undefined) continue;
+        // Un filtro sin valor ("?status") se ignora: el usuario quiere todos, no
+        // una lista vacia. Un valor que NO existe es un error de la pantalla y se
+        // dice, en vez de devolver todo y dejar que el usuario crea que filtro.
+        if (raw === '') continue;
+        const parsed = spec.schema.safeParse(Array.isArray(raw) ? raw[0] : raw);
+        if (!parsed.success) {
+          throw new AppError(400, `El filtro ${name} no es valido`, {
+            fields: parsed.error.issues.map((i) => `${i.path.join('.') || name}: ${i.message}`),
+          });
+        }
+        where.push(eq(spec.column, parsed.data));
       }
 
       const limit = Math.min(Number(req.query.limit) || defaultLimit, maxLimit);
@@ -212,7 +268,7 @@ export function crudRouter(handle: Db, options: CrudOptions): Router {
     '/',
     puedeEscribir,
     asyncHandler(async (req: Request, res) => {
-      const data = pick(createSchema.parse(req.body ?? {}), fields, false);
+      const data = pick(parseCuerpo(createSchema, req.body), fields, false);
       const row = handle.db
         .insert(table)
         .values({
@@ -232,7 +288,7 @@ export function crudRouter(handle: Db, options: CrudOptions): Router {
     '/:id',
     puedeEscribir,
     asyncHandler(async (req: Request, res) => {
-      const data = pick(updateSchema.parse(req.body ?? {}), fields, true);
+      const data = pick(parseCuerpo(updateSchema, req.body), fields, true);
       const row = handle.db
         .update(table)
         .set({ ...data, ...(table.updatedAt ? { updatedAt: nowIso() } : {}) } as any)

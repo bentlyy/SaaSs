@@ -478,7 +478,7 @@ async function recargar() {
   await repintar();
 }
 
-AMIGO.montar({ nombre: 'Activos', paneles: ['tablero', 'activos', 'ajustes'], alEntrar: conAviso(repintar) });
+AMIGO.montar({ nombre: 'Activos', paneles: ['tablero', 'activos', 'ajustes'], alEntrar: () => conAviso(repintar) });
 
 /** Corre una parte de la pantalla y avisa si falla, en vez de dejarla a medias. */
 async function conAviso(fn) {

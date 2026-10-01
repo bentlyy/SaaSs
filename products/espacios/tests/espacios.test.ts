@@ -110,17 +110,19 @@ describe('sesión e identidad', () => {
 
   it('la API no acepta una organización que no viene del token', async () => {
     // El `organizationId` del cuerpo es una pista, no una autoridad: el que
-    // manda es el del token. Mandar el de otra no debe abrir esa puerta.
+    // manda es el del token. Con campos desconocidos rechazados, ni siquiera se
+    // llega a crear: antes se creaba en la org del token y la pista se perdia.
     const res = await comoAdmin(TEST_ORG_A)
       .post('/api/spaces')
       .send({ name: 'Invasor', organizationId: TEST_ORG_B, capacity: 2, pricePerHourCents: 1 });
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('organizationId');
 
-    // Se creó, pero en la organización del token, no en la que pedía.
-    expect(res.body.organizationId).toBe(TEST_ORG_A);
-
-    const enB = await comoAdmin(TEST_ORG_B).get('/api/spaces');
-    expect(enB.body.items.some((e: any) => e.name === 'Invasor')).toBe(false);
+    // Y en las dos organizaciones no hay ni rastro del intento.
+    for (const org of [TEST_ORG_A, TEST_ORG_B]) {
+      const lista = await comoAdmin(org).get('/api/spaces?limit=500');
+      expect(lista.body.items.some((e: any) => e.name === 'Invasor')).toBe(false);
+    }
   });
 });
 
@@ -437,6 +439,113 @@ describe('choques de horario', () => {
     // 2 horas a 30000, más 5000 del extra. El total queda guardado en la fila, no
     // se calcula al vuelo: si mañana suben la tarifa, esta reserva no cambia.
     expect(res.body.booking.totalCents).toBe(65000);
+  });
+});
+
+describe('la franja tiene que ser reservable', () => {
+  // La zona por defecto de las pruebas es America/Santiago, que en octubre va
+  // tres horas atras del UTC: 14:00Z son las 11:00 locales, dentro de la jornada
+  // de 08:00 a 22:00. Los casos de abajo eligen horas que en UTC parecen
+  // razonables y en horario local no lo son, que es justo el error que se
+  // estaba dejando pasar.
+  const enHoras = { startAt: '2026-11-10T14:00:00.000Z', endAt: '2026-11-10T16:00:00.000Z' };
+
+  it('acepta una reserva dentro de la jornada', async () => {
+    const espacio = await nuevoEspacio(TEST_ORG_A, { name: 'Cancha En Horario' });
+    const cliente = await nuevoCliente(TEST_ORG_A, 'Cliente En Horario');
+    const res = await comoMiembro(TEST_ORG_A)
+      .post('/api/bookings')
+      .send({ spaceId: espacio, customerId: cliente, ...enHoras });
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+  });
+
+  it('no deja reservar una fecha que ya paso', async () => {
+    const espacio = await nuevoEspacio(TEST_ORG_A, { name: 'Cancha del Pasado' });
+    const cliente = await nuevoCliente(TEST_ORG_A, 'Cliente del Pasado');
+    const res = await comoMiembro(TEST_ORG_A)
+      .post('/api/bookings')
+      .send({
+        spaceId: espacio,
+        customerId: cliente,
+        startAt: '2020-01-01T14:00:00.000Z',
+        endAt: '2020-01-01T16:00:00.000Z',
+      });
+    expect(res.status).toBe(400);
+    expect(String(res.body.error)).toMatch(/pasó|pasó|anticipación/i);
+  });
+
+  it('no deja reservar antes de que abra', async () => {
+    const espacio = await nuevoEspacio(TEST_ORG_A, { name: 'Cancha de Madrugada' });
+    const cliente = await nuevoCliente(TEST_ORG_A, 'Cliente de Madrugada');
+    // 04:00Z son la 01:00 en Santiago: de madrugada, con la cancha cerrada.
+    const res = await comoMiembro(TEST_ORG_A)
+      .post('/api/bookings')
+      .send({
+        spaceId: espacio,
+        customerId: cliente,
+        startAt: '2026-11-10T04:00:00.000Z',
+        endAt: '2026-11-10T06:00:00.000Z',
+      });
+    expect(res.status).toBe(400);
+    expect(String(res.body.error)).toMatch(/atiende/i);
+  });
+
+  it('no deja reservar despues de que cierre', async () => {
+    const espacio = await nuevoEspacio(TEST_ORG_A, { name: 'Cancha de Noche' });
+    const cliente = await nuevoCliente(TEST_ORG_A, 'Cliente de Noche');
+    // 19:00 a 23:00 locales: la segunda hora ya esta fuera de la jornada.
+    const res = await comoMiembro(TEST_ORG_A)
+      .post('/api/bookings')
+      .send({
+        spaceId: espacio,
+        customerId: cliente,
+        startAt: '2026-11-10T22:00:00.000Z',
+        endAt: '2026-11-11T02:00:00.000Z',
+      });
+    expect(res.status).toBe(400);
+  });
+
+  it('no deja una reserva que cruza la medianoche', async () => {
+    const espacio = await nuevoEspacio(TEST_ORG_A, { name: 'Cancha Trasnoche' });
+    const cliente = await nuevoCliente(TEST_ORG_A, 'Cliente Trasnoche');
+    // 01:00Z son las 22:00 del dia anterior en Santiago, y 04:00Z es la 01:00 del
+    // siguiente: la franja atraviesa las doce de la noche local.
+    const res = await comoMiembro(TEST_ORG_A)
+      .post('/api/bookings')
+      .send({
+        spaceId: espacio,
+        customerId: cliente,
+        startAt: '2026-11-11T01:00:00.000Z',
+        endAt: '2026-11-11T04:00:00.000Z',
+      });
+    expect(res.status).toBe(400);
+  });
+
+  it('la jornada se respeta segun los ajustes de cada organizacion', async () => {
+    const ORG = TEST_ORG_B;
+    const espacio = await nuevoEspacio(ORG, { name: 'Cancha 24h' });
+    const cliente = await nuevoCliente(ORG, 'Cliente 24h');
+    // 01:00 a 03:00 locales: fuera de la jornada de 08:00 a 22:00.
+    const madrugada = { startAt: '2026-11-10T04:00:00.000Z', endAt: '2026-11-10T06:00:00.000Z' };
+
+    const cerrada = await comoMiembro(ORG)
+      .post('/api/bookings')
+      .send({ spaceId: espacio, customerId: cliente, ...madrugada });
+    expect(cerrada.status).toBe(400);
+
+    await comoAdmin(ORG)
+      .put('/api/settings')
+      .send({ openingMinutes: 0, closingMinutes: 1439, timezone: 'America/Santiago' });
+
+    const abierta = await comoMiembro(ORG)
+      .post('/api/bookings')
+      .send({ spaceId: espacio, customerId: cliente, ...madrugada });
+    expect(abierta.status, JSON.stringify(abierta.body)).toBe(201);
+  });
+
+  it('rechaza una zona horaria que no existe', async () => {
+    const res = await comoAdmin(TEST_ORG_A).put('/api/settings').send({ timezone: 'Marte/Olympus' });
+    expect(res.status).toBe(400);
   });
 });
 

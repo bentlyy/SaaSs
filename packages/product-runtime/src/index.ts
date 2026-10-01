@@ -39,4 +39,14 @@ export { crudRouter, type CrudOptions, type FieldSpec, type Fields } from './cru
 export { createProductApp, startProduct, type ProductContext, type ProductDefinition, type BuiltProduct } from './app.js';
 export { AppError, asyncHandler, errorHandler, notFound } from './errors.js';
 export { createId, nowIso } from './ids.js';
+export {
+  enviarAdjunto,
+  nombreSeguro,
+  revisarAdjunto,
+  tipoDeAdjunto,
+  MAX_ADJUNTO_BYTES,
+  TIPOS_ADJUNTO,
+  type DatosAdjunto,
+} from './attachments.js';
+export { esZonaValida, hhmm, localDe, zonaHoraria, type Local } from './time.js';
 export { logger } from './logger.js';

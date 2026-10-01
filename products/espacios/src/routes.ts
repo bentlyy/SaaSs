@@ -11,6 +11,9 @@ import {
   requireRole,
   type ProductContext,
   type ProductDb,
+  hhmm,
+  localDe,
+  zonaHoraria,
 } from '@amg/product-runtime';
 import { addons, availability, bookingAddons, bookings, blocks, customers, settings, spaces } from './schema.js';
 
@@ -697,12 +700,58 @@ export function buildRoutes(ctx: ProductContext): Router[] {
    * es el envoltorio de abajo, porque express no mira el valor de retorno de un
    * handler: si nadie responde, la petición queda colgada para siempre.
    */
+  /**
+   * La franja cae dentro del horario de atencion, en la zona de la organizacion.
+   *
+   * Sin esto, la API aceptaba reservar una cancha a las 03:00 o un martes entero
+   * un domingo: la agenda mostraba un turno que nadie iba a atender. Se compara en
+   * HORARIO LOCAL, no en UTC: una cancha que abre a las 09:00 en Santiago abre a
+   * las 14:00 UTC, y si se comparara en UTC el mismo horario cerraria a una hora
+   * distinta en invierno que en verano.
+   */
+  function dentroDelHorario(org: string, body: z.infer<typeof reservaSchema>): void {
+    const pref = leerPreferencias(db, org);
+    const desde = localDe(body.startAt, pref.timezone);
+    const hasta = localDe(body.endAt, pref.timezone);
+
+    // Una reserva que cruza la medianoche no cabe en una jornada que cierra antes
+    // de medianoche, y ademas seria imposible de facturar por horas.
+    if (hasta.minutes <= desde.minutes) {
+      throw new AppError(400, 'La reserva no puede terminar el día siguiente.');
+    }
+    if (desde.minutes < pref.openingMinutes || hasta.minutes > pref.closingMinutes) {
+      throw new AppError(
+        400,
+        `${espacioDe(org, body.spaceId).name} se atiende de ${hhmm(pref.openingMinutes)} a ` +
+          `${hhmm(pref.closingMinutes)}. La reserva pide de ${hhmm(desde.minutes)} a ${hhmm(hasta.minutes)}.`,
+      );
+    }
+  }
+
   async function escribirReserva(
     org: string,
     body: z.infer<typeof reservaSchema>,
     idReserva?: string,
   ) {
     const espacio = espacioDe(org, body.spaceId);
+
+    // Solo al CREAR. Editar una reserva que ya paso no es un error: es la forma de
+    // corregirle las notas a un turno de ayer, y bloquear eso obligaria al usuario
+    // a dar de baja el turno en vez de anotarle lo que falto.
+    if (!idReserva) {
+      const pref = leerPreferencias(db, org);
+      const minimo = Date.now() + pref.minAdvanceMinutes * 60_000;
+      if (Date.parse(body.startAt) < minimo) {
+        throw new AppError(
+          400,
+          pref.minAdvanceMinutes > 0
+            ? `Hay que reservar con al menos ${pref.minAdvanceMinutes} minutos de anticipación.`
+            : 'No se puede reservar una fecha que ya pasó.',
+        );
+      }
+    }
+
+    dentroDelHorario(org, body);
 
     if (body.customerId) {
       const cliente = db
@@ -898,7 +947,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       const cuerpo = z
         .object({
           currency: z.string().trim().min(1).max(5).default('$'),
-          timezone: z.string().trim().min(1).max(60).default('America/Santiago'),
+          timezone: zonaHoraria.default('America/Santiago'),
           openingMinutes: z.coerce.number().int().min(0).max(1439).default(480),
           closingMinutes: z.coerce.number().int().min(1).max(1440).default(1320),
           slotMinutes: z.coerce.number().int().min(15).max(480).default(60),

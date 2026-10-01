@@ -1,6 +1,6 @@
 import { Router, type Request } from 'express';
 import { z } from 'zod';
-import { and, count, desc, eq, gt, inArray, lte, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gt, inArray, isNull, lte, sql } from 'drizzle-orm';
 import { AppError, asyncHandler, createId, crudRouter, nowIso, orgId, requireRole, type ProductContext } from '@amg/product-runtime';
 import { items, movements, settings } from './schema.js';
 import { seedDemo } from './seed.js';
@@ -75,6 +75,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
             eq(items.organizationId, orgId(req)),
             lte(items.quantity, items.minQuantity),
             eq(items.active, true),
+            isNull(items.archivedAt),
           ),
         )
         .orderBy(items.name)
@@ -98,13 +99,13 @@ export function buildRoutes(ctx: ProductContext): Router[] {
           valorCents: sql<number>`coalesce(sum(${items.quantity} * ${items.priceCents}), 0)`,
         })
         .from(items)
-        .where(and(eq(items.organizationId, org), eq(items.active, true)))
+        .where(and(eq(items.organizationId, org), eq(items.active, true), isNull(items.archivedAt)))
         .all();
 
       const [bajos] = db
         .select({ n: count() })
         .from(items)
-        .where(and(eq(items.organizationId, org), lte(items.quantity, items.minQuantity), eq(items.active, true)))
+        .where(and(eq(items.organizationId, org), lte(items.quantity, items.minQuantity), eq(items.active, true), isNull(items.archivedAt)))
         .all();
 
       const [movs] = db
@@ -247,7 +248,13 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         .from(settings)
         .where(eq(settings.organizationId, orgId(req)))
         .get();
-      res.json(fila ? { ...fila, configured: true } : { ...defaultSettings(), configured: false });
+      res.json({
+        ...(fila ? { ...fila, configured: true } : { ...defaultSettings(), configured: false }),
+        // La UI usa esto para esconder el botón de sembrar. Antes el botón salía
+        // siempre y en el despliegue real no hay ruta `/api/seed` (solo existe
+        // fuera de produccion), así que le daba a un admin a un 404 sin explicación.
+        seedAvailable: !ctx.config.isProd,
+      });
     }),
   );
 
@@ -318,21 +325,26 @@ export function buildRoutes(ctx: ProductContext): Router[] {
     }),
   );
 
-  /**
-   * Datos de ejemplo, para la organización de la sesión. Solo en desarrollo:
-   * en producción este camino ni existe, para que nadie siembre un catálogo
-   * falso en una empresa real.
+/**
+   * Datos de ejemplo, para la organizacion de la sesión. Solo en desarrollo:
+   * en producción sembrar es un camino que no existe, para que nadie cargue un
+   * catálogo falso en una empresa real.
+   *
+   * La ruta se registra SIEMPRE, y en producción responde 403 con un motivo. Antes
+   * no se registraba, así que el 404 no decía si el botón andaba mal, si faltaban
+   * permisos o si la función estaba apagada a propósito.
    */
-  if (!ctx.config.isProd) {
-    router.post(
-      '/api/seed',
-      requireRole('admin'),
-      asyncHandler(async (req: Request, res) => {
-        const creados = seedDemo(ctx, orgId(req));
-        res.json({ creados, nota: creados === 0 ? 'La organización ya tenía artículos' : undefined });
-      }),
-    );
-  }
+  router.post(
+    '/api/seed',
+    requireRole('admin'),
+    asyncHandler(async (req: Request, res) => {
+      if (ctx.config.isProd) {
+        throw new AppError(403, 'Cargar artículos de ejemplo está disponible solo en desarrollo.');
+      }
+      const creados = seedDemo(ctx, orgId(req));
+      res.json({ creados, nota: creados === 0 ? 'La organización ya tenía artículos' : undefined });
+    }),
+  );
 
   return [router];
 }

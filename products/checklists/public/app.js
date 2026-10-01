@@ -1176,7 +1176,7 @@ $('#config-form').addEventListener('submit', async (e) => {
 AMIGO.montar({
   nombre: 'Checklists',
   paneles: ['tablero', 'plantillas', 'corridas', 'ajustes'],
-  alEntrar: conAviso(repintar),
+  alEntrar: () => conAviso(repintar),
 });
 
 /** Corre una parte de la pantalla y avisa si falla, en vez de dejarla a medias. */
