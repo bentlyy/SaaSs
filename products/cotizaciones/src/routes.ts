@@ -99,12 +99,36 @@ const TRANSICIONES: Record<Estado, Estado[]> = {
   expired: ['sent'],
 };
 
-/** Linea de la cotizacion. El importe lo calcula el servidor, no el cliente. */
-const lineaSchema = z.object({
+/**
+ * Linea de la cotizacion. El importe lo calcula el servidor, no el cliente.
+ *
+ * `quantity` se acepta como sinonimo de `qty`, y se traduce ANTES de validar.
+ *
+ * No esolenancia: sin esto, un cliente que manda `quantity: 3` en vez de `qty: 3`
+ * no recibe ningun error. El campo desconocido lo descarta Zod, `qty` cae a su
+ * default de 1, y la cotizacion sale por una unidad de algo que se pidio tres. Es
+ * el peor falla de una API de plata: no se ve, y el total es plausible.
+ *
+ * El preprocess mantiene la forma de salida igual (el alias no aparece en el
+ * resultado), asi que `lineasConTotal` y el insert no se enteran de nada.
+ *
+ * Si vienen los dos, gana `qty`: es el nombre del modelo, y el que gana es el que
+ * el manduyo a proposito knowing it was the real one.
+ */
+const lineaSchema = z.preprocess((v) => {
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    const o = v as Record<string, unknown>;
+    if (o.quantity !== undefined && o.qty === undefined) {
+      const { quantity, ...resto } = o;
+      return { ...resto, qty: quantity };
+    }
+  }
+  return v;
+}, z.object({
   description: texto,
   qty: z.coerce.number().positive('La cantidad tiene que ser mayor que cero').max(1_000_000).default(1),
   unitPriceCents: centavos.default(0),
-});
+}));
 
 const quoteSchema = z.object({
   /** Si no viene, se propone el folio siguiente de la organizacion. */

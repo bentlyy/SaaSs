@@ -215,6 +215,36 @@ describe('cotizaciones', () => {
     expect(creada.subtotalCents).toBe(1667 + 3702);
   });
 
+  it('acepta `quantity` como sinonimo de `qty` en vez de ignorarlo', async () => {
+    // El fallo que motiva esto: `quantity` no es un campo del modelo, Zod lo
+    // descarta sin avisar, `qty` cae a su default de 1, y la cotizacion sale por
+    // una unidad de algo que se pidieron tres. Sin error, con un total plausible.
+    const creada = await nuevaCotizacion(TEST_ORG_A, {
+      lines: [{ description: 'Logo y tarjetas', quantity: 3, unitPriceCents: 25000 }],
+    });
+    const { body } = await comoMiembro(TEST_ORG_A).get(`/api/quotes/${creada.id}/lineas`);
+    expect(body.lines[0].qty).toBe(3);
+    expect(body.lines[0].lineTotalCents).toBe(75000);
+    expect(creada.subtotalCents).toBe(75000);
+    // El alias es solo de entrada: no se cuela en la forma que ve el resto.
+    expect(body.lines[0]).not.toHaveProperty('quantity');
+  });
+
+  it('si vienen los dos, gana `qty`', async () => {
+    const creada = await nuevaCotizacion(TEST_ORG_A, {
+      lines: [{ description: 'Logo y tarjetas', qty: 2, quantity: 99, unitPriceCents: 25000 }],
+    });
+    const { body } = await comoMiembro(TEST_ORG_A).get(`/api/quotes/${creada.id}/lineas`);
+    expect(body.lines[0].qty).toBe(2);
+  });
+
+  it('`quantity` sigue validando: no es un atajo para meter ceros', async () => {
+    const res = await comoMiembro(TEST_ORG_A)
+      .post('/api/quotes')
+      .send({ customerName: 'Ana', lines: [{ description: 'Nada', quantity: 0, unitPriceCents: 100 }] });
+    expect(res.status).toBe(400);
+  });
+
   it('el total no se recalcula al leer: cambiar la tasa de los ajustes no lo toca', async () => {
     const creada = await nuevaCotizacion(TEST_ORG_A, { title: 'Precio congelado' });
     expect(creada.totalCents).toBe(50000);
