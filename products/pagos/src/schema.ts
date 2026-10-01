@@ -236,6 +236,54 @@ export const chargePayments = sqliteTable(
 );
 
 /**
+ * Devoluciones: plata que SALIO de la empresa despues de haber entrado.
+ *
+ * Es una tabla aparte y no un abono con signo menos por tres razones:
+ *
+ *   1. `charge_payments` tiene `CHECK (amount_cents > 0)`. Ese CHECK es la ultima
+ *      linea de defensa del saldo, y un abono negativo lo reventaria desde adentro
+ *      de la base, que es el unico lugar del que no se puede recuperar con un 409.
+ *   2. Una devolucion necesita su propia razon ("se devuelve por el trabajo mal
+ *      hecho"), mientras que el abono es solo "entro plata". Meter el motivo en el
+ *      `reference` del abono seria disfrazar un dato de caja de texto libre.
+ *   3. Los dos se necesitan por separado para el tablero: lo que entro este mes y
+ *      lo que salio este mes son cifras distintas y sumarlas en una sola columna
+ *      daria un numero que no es ninguno de los dos.
+ *
+ * Es lo que los dos 409 de `routes.ts` ya prometian: borrar dice "se cancela",
+ * cancelar dice "primero hay que devolver esa plata". Sin esta tabla, las dos
+ * frases eran un consejo que el producto no sabia cumplir, y el abono quedaba
+ * atrapado para siempre porque tampoco se puede borrar.
+ */
+export const chargeRefunds = sqliteTable(
+  'charge_refunds',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id').notNull(),
+    chargeId: text('charge_id')
+      .notNull()
+      .references(() => charges.id, { onDelete: 'cascade' }),
+    /** Cuanto salio, en CENTAVOS enteros y positivo. */
+    amountCents: integer('amount_cents').notNull(),
+    /** Por que se devolvio. A diferencia del abono, aqui es obligatorio. */
+    reason: text('reason').notNull(),
+    /** cash | card | transfer | other. */
+    method: text('method').notNull().default('other'),
+    /** Comprobante de la salida: "recibo 8891", "transferencia 12345". */
+    reference: text('reference'),
+    /** Instante ISO UTC de cuando salio el dinero. */
+    refundedAt: text('refunded_at').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [
+    // La ficha del cargo y el saldo devuelto: la misma consulta que el abono.
+    index('idx_pagos_charge_refunds_charge').on(t.chargeId),
+    // Lo que salio por mes y por empresa, para el tablero.
+    index('idx_pagos_charge_refunds_org_refunded').on(t.organizationId, t.refundedAt),
+  ],
+);
+
+/**
  * Preferencias de la organizacion.
  *
  * Una fila por organizacion, con indice UNIQUE: es lo que evita que dos personas
@@ -264,5 +312,6 @@ export const settings = sqliteTable(
 export const pagosSchema = {
   charges,
   chargePayments,
+  chargeRefunds,
   settings,
 };

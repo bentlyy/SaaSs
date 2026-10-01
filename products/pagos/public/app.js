@@ -371,8 +371,11 @@ async function abrirFicha(idCargo) {
     ...dato('Concepto', c.concept),
     ...dato('Total', monto(ficha.charge.amountCents)),
     ...dato('Cobrado', monto(ficha.pagadoCents)),
-    ...dato('Saldo', monto(ficha.saldoCents)),
   );
+  // "Devuelto" solo aparece cuando hubo devoluciones: en una ficha sin ellas es una
+  // fila en cero que hace preguntar que se devolvio, y la respuesta es nada.
+  if (ficha.devueltoCents > 0) datos.append(...dato('Devuelto', monto(ficha.devueltoCents)));
+  datos.append(...dato('Saldo', monto(ficha.saldoCents)));
   if (c.customerEmail) datos.append(...dato('Correo', c.customerEmail));
   if (c.notes) datos.append(...dato('Notas', c.notes));
 
@@ -413,6 +416,53 @@ async function abrirFicha(idCargo) {
 
   caja.append(titulo, linea, datos, abonos, lista);
 
+  // Las devoluciones van en su propia seccion y solo se pinta si hay. Se ocultan
+  // igual que el boton que las crea cuando no hay nada que devolver: la razon es la
+  // misma del boton, un control que siempre va a fallar ensucia la pantalla.
+  const seccionDevoluciones = document.createElement('div');
+  seccionDevoluciones.hidden = ficha.refunds.length === 0;
+  const devoluciones = document.createElement('h3');
+  devoluciones.className = 'ui-tarjeta__cab';
+  devoluciones.textContent = 'Devoluciones';
+  const listaDevoluciones = document.createElement('div');
+  listaDevoluciones.className = 'ui-lista';
+
+  for (const d of ficha.refunds) {
+    const fila = document.createElement('div');
+    fila.className = 'ui-ficha';
+    const cuerpo = document.createElement('div');
+    cuerpo.className = 'ui-ficha__cuerpo';
+    const tit = document.createElement('span');
+    tit.className = 'ui-ficha__titulo';
+    tit.textContent = d.reason;
+    cuerpo.append(tit);
+    // El motivo va en el titulo y el comprobante en la nota, al reves del abono, y
+    // por una razon concreta: del abono el dato util es "como y cuando pago", y del
+    // motivo de una devolucion lo util es "por que salio".
+    if (d.reference) {
+      const nota = document.createElement('span');
+      nota.className = 'ui-ficha__nota';
+      nota.textContent = `${METODOS[d.method] ?? d.method} · ${d.reference}`;
+      cuerpo.append(nota);
+    } else {
+      const nota = document.createElement('span');
+      nota.className = 'ui-ficha__nota';
+      nota.textContent = METODOS[d.method] ?? d.method;
+      cuerpo.append(nota);
+    }
+    const cuando = document.createElement('div');
+    cuando.className = 'ui-ficha__acciones';
+    cuando.append(
+      AMIGO_UI.etiqueta(instanteCorto(d.refundedAt), 'neutro'),
+      AMIGO_UI.etiqueta(monto(d.amountCents), 'malo'),
+    );
+    fila.append(cuerpo, cuando);
+    listaDevoluciones.append(fila);
+  }
+
+  seccionDevoluciones.append(devoluciones, listaDevoluciones, formDevolucion(ficha));
+  caja.append(seccionDevoluciones);
+
   // El boton de cobrar y el de cancelar se esconden segun el estado, y no para
   // que la API los rechace: la API los rechaza igual (409), pero un boton que
   // siempre va a fallar ensucia la pantalla.
@@ -424,6 +474,121 @@ async function abrirFicha(idCargo) {
   $('#ficha-cancelar-cargo').hidden = cancelado || ficha.pagadoCents > 0;
   pintarMontos();
   $('#ficha-dialog').showModal();
+}
+
+/**
+ * El formulario de devolucion, armado en JS porque solo existe cuando hay plata
+ * cobrada que devolver.
+ *
+ * Va aparte del formulario de abono y no es el mismo formulario con el signo
+ * cambiado: la devolucion tiene una razon obligatoria y el abono no, y un solo
+ * formulario con un campo que a veces no aplica hace que la gente lo deje en
+ * blanco sin querer.
+ */
+function formDevolucion(ficha) {
+  const form = document.createElement('form');
+  form.className = 'ui-tarjeta ui-form';
+  form.id = 'devolucion-form';
+
+  const titulo = document.createElement('h3');
+  titulo.className = 'ui-tarjeta__cab';
+  titulo.textContent = 'Devolver plata';
+
+  const motivo = document.createElement('label');
+  motivo.textContent = 'Por que se devuelve';
+  const motivoInput = document.createElement('input');
+  motivoInput.name = 'reason';
+  motivoInput.type = 'text';
+  motivoInput.required = true;
+  motivoInput.maxLength = 500;
+  motivoInput.placeholder = 'trabajo mal hecho';
+
+  const montoLabel = document.createElement('label');
+  montoLabel.textContent = 'Monto (centavos)';
+  const montoInput = document.createElement('input');
+  montoInput.name = 'amountCents';
+  montoInput.type = 'number';
+  montoInput.min = '1';
+  montoInput.step = '1';
+  montoInput.required = true;
+  montoInput.value = String(ficha.pagadoCents);
+  const vista = document.createElement('span');
+  vista.className = 'ui-pista';
+  vista.textContent = `de ${monto(ficha.pagadoCents)} cobrados`;
+
+  const metodoLabel = document.createElement('label');
+  metodoLabel.textContent = 'Como salio';
+  const metodo = document.createElement('select');
+  metodo.name = 'method';
+  for (const [clave, texto] of Object.entries(METODOS)) {
+    const op = document.createElement('option');
+    op.value = clave;
+    op.textContent = texto;
+    metodo.append(op);
+  }
+
+  const refLabel = document.createElement('label');
+  refLabel.textContent = 'Comprobante';
+  const ref = document.createElement('input');
+  ref.name = 'reference';
+  ref.type = 'text';
+  ref.maxLength = 120;
+
+  const fechaLabel = document.createElement('label');
+  fechaLabel.textContent = 'Salio el (vacio = ahora)';
+  const fecha = document.createElement('input');
+  fecha.name = 'refundedAt';
+  fecha.type = 'date';
+
+  const enviar = document.createElement('button');
+  enviar.type = 'submit';
+  enviar.className = 'ui-btn';
+  enviar.textContent = 'Registrar devolucion';
+
+  // El monto por defecto es TODO lo cobrado, porque devolver todo es lo que se
+  // quiere casi siempre (el abono estaba mal) y es lo que habilita el cancelar que
+  // la API exige. Escribir a mano el saldo a devolver obliga a sumar a mano.
+  montoInput.addEventListener('input', () => {
+    vista.textContent = `de ${monto(ficha.pagadoCents)} cobrados`;
+  });
+
+  form.append(
+    titulo,
+    motivo,
+    motivoInput,
+    montoLabel,
+    montoInput,
+    vista,
+    metodoLabel,
+    metodo,
+    refLabel,
+    ref,
+    fechaLabel,
+    fecha,
+    enviar,
+  );
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const cuerpo = {
+      amountCents: Number(montoInput.value),
+      reason: motivoInput.value.trim(),
+      method: metodo.value,
+      reference: ref.value.trim() || null,
+    };
+    if (fecha.value) cuerpo.refundedAt = new Date(`${fecha.value}T12:00:00Z`).toISOString();
+    try {
+      await api(`/api/charges/${estado.fichaId}/devoluciones`, { method: 'POST', body: cuerpo });
+    } catch (error) {
+      avisar(error.message, true);
+      return;
+    }
+    avisar('Devolucion registrada');
+    await abrirFicha(estado.fichaId);
+    await recargar();
+  });
+
+  return form;
 }
 
 $('#ficha-cerrar').addEventListener('click', () => $('#ficha-dialog').close());

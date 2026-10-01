@@ -78,6 +78,24 @@ CREATE INDEX IF NOT EXISTS idx_pagos_charge_payments_org_received ON charge_paym
 -- Cuanto se ha cobrado de un cargo: la consulta de la ficha y del saldo.
 CREATE INDEX IF NOT EXISTS idx_pagos_charge_payments_charge ON charge_payments(charge_id);
 
+-- La plata que sale despues de entrar. Tabla aparte del abono por el CHECK (> 0)
+-- de amount_cents: un abono negativo romperia el saldo desde adentro de la base.
+-- Es lo que hace posible deshacer un cobro, y por eso los dos 409 de la API
+-- (borrar y cancelar un cargo con plata) tienen una salida real.
+CREATE TABLE IF NOT EXISTS charge_refunds (
+  id TEXT PRIMARY KEY,
+  organization_id TEXT NOT NULL,
+  charge_id TEXT NOT NULL REFERENCES charges(id) ON DELETE CASCADE,
+  amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+  reason TEXT NOT NULL,
+  method TEXT NOT NULL DEFAULT 'other',
+  reference TEXT,
+  refunded_at TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pagos_charge_refunds_charge ON charge_refunds(charge_id);
+CREATE INDEX IF NOT EXISTS idx_pagos_charge_refunds_org_refunded ON charge_refunds(organization_id, refunded_at);
+
 CREATE TABLE IF NOT EXISTS settings (
   id TEXT PRIMARY KEY,
   organization_id TEXT NOT NULL,

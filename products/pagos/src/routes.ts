@@ -12,7 +12,14 @@ import {
   type ProductContext,
   type ProductDb,
 } from '@amg/product-runtime';
-import { chargePayments, charges, settings, ESTADOS_CARGO, type EstadoCargo } from './schema.js';
+import {
+  chargePayments,
+  chargeRefunds,
+  charges,
+  settings,
+  ESTADOS_CARGO,
+  type EstadoCargo,
+} from './schema.js';
 
 /**
  * API de control de pagos: la cartera por cobrar de la empresa.
@@ -185,14 +192,33 @@ function estadoDesdeSaldo(pagado: number, total: number): Estado {
   return pagado >= total ? 'paid' : 'partial';
 }
 
-/** Cuanto se ha cobrado de un cargo, en centavos. SIEMPRE derivado, nunca columna. */
+/** Cuanto se ha devuelto de un cargo, en centavos. Como el abono, derivado. */
+function devueltoDe(c: Consulta, org: string, cargoId: string): number {
+  const fila = c
+    .select({ n: sql<number>`coalesce(sum(${chargeRefunds.amountCents}), 0)` })
+    .from(chargeRefunds)
+    .where(and(eq(chargeRefunds.organizationId, org), eq(chargeRefunds.chargeId, cargoId)))
+    .get();
+  return fila?.n ?? 0;
+}
+
+/**
+ * Cuanto se ha cobrado NETO de un cargo: lo que entro menos lo que salio.
+ * SIEMPRE derivado, nunca columna.
+ *
+ * El neto es una sola cifra a proposito. Si el saldo, el estado y el tablero tuvieran
+ * que restar las devoluciones por su cuenta, cada uno seria un lugar mas donde
+ * olvidarse, y el fallo se veria como "la cartera no cuadra" sin poder senalado. Con
+ * un unico `pagadoDe`, devolver plata baja el saldo y reabre el cargo por el mismo
+ * camino por el que lo subio un abono, que es lo unico que puede ser.
+ */
 function pagadoDe(c: Consulta, org: string, cargoId: string): number {
   const fila = c
     .select({ n: sql<number>`coalesce(sum(${chargePayments.amountCents}), 0)` })
     .from(chargePayments)
     .where(and(eq(chargePayments.organizationId, org), eq(chargePayments.chargeId, cargoId)))
     .get();
-  return fila?.n ?? 0;
+  return (fila?.n ?? 0) - devueltoDe(c, org, cargoId);
 }
 
 /** La misma cifra para TODOS los cargos de la empresa, en UNA sola consulta. */
@@ -206,7 +232,20 @@ function pagadoPorCargo(c: Consulta, org: string): Map<string, number> {
     .where(eq(chargePayments.organizationId, org))
     .groupBy(chargePayments.chargeId)
     .all();
-  return new Map(filas.map((f) => [f.cargoId, f.pagado]));
+  const devoluciones = c
+    .select({
+      cargoId: chargeRefunds.chargeId,
+      devuelto: sql<number>`coalesce(sum(${chargeRefunds.amountCents}), 0)`,
+    })
+    .from(chargeRefunds)
+    .where(eq(chargeRefunds.organizationId, org))
+    .groupBy(chargeRefunds.chargeId)
+    .all();
+  const porCargo = new Map(filas.map((f) => [f.cargoId, f.pagado]));
+  for (const d of devoluciones) {
+    porCargo.set(d.cargoId, (porCargo.get(d.cargoId) ?? 0) - d.devuelto);
+  }
+  return porCargo;
 }
 
 /**
@@ -331,6 +370,27 @@ const abonoSchema = z.object({
   receivedAt: instante.optional(),
 });
 
+/**
+ * La devolucion.
+ *
+ * `amountCents` es un entero POSITIVO, igual que el abono, y no un numero con
+ * signo: la devolucion es un documento que dice "salieron 5000", no "el abono de
+ * 5000 ahora es -5000". La diferencia no es de forma, es de contabilidad, y la
+ * tabla `charge_refunds` con su `CHECK (> 0)` es la que la defiende.
+ *
+ * `reason` es obligatorio y `min(1)`: una devolucion sin motivo es exactamente el
+ * tipo de movimiento que despues nadie sabe explicar, que es lo que el abono
+ * nunca fue porque un abono siempre tiene un comprobante.
+ */
+const devolucionSchema = z.object({
+  amountCents: centavos,
+  reason: z.string().trim().min(1, 'Deci por que se devuelve').max(500),
+  method: z.enum(METODOS).default('other'),
+  reference: z.string().trim().max(120).nullable().optional(),
+  /** Si no viene, la devolucion se registra ahora. */
+  refundedAt: instante.optional(),
+});
+
 const cancelarSchema = z.object({
   /** Por que se cancela. Opcional: el estado se cancela igual. */
   notes: z.string().trim().max(2000).nullable().optional(),
@@ -453,6 +513,22 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         )
         .get();
 
+      // Y lo que salio este mes, por el mismo `refunded_at`. Va aparte y no restado
+      // del cobrado porque son dos cifras distintas: "lo que entro" y "lo que
+      // devolvimos" se leen distinto en el tablero, y restarlos dari un "neto" que
+      // no es ni lo uno ni lo otro. Las dos se devuelven y la pantalla decide.
+      const devuelto = db
+        .select({ total: sql<number>`coalesce(sum(${chargeRefunds.amountCents}), 0)` })
+        .from(chargeRefunds)
+        .where(
+          and(
+            eq(chargeRefunds.organizationId, org),
+            gte(chargeRefunds.refundedAt, mes.desde),
+            lt(chargeRefunds.refundedAt, mes.hasta),
+          ),
+        )
+        .get();
+
       const recientes = todos
         .slice()
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -464,6 +540,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         porStatus: Object.fromEntries(ESTADOS.map((e) => [e, todos.filter((c) => c.status === e).length])),
         pendienteCents,
         cobradoMesCents: cobrado?.total ?? 0,
+        devueltoMesCents: devuelto?.total ?? 0,
         vencidoCents,
         recientes,
       });
@@ -547,10 +624,31 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         .orderBy(desc(chargePayments.receivedAt), desc(chargePayments.createdAt))
         .all();
 
-      const pagadoCents = abonos.reduce((acc, a) => acc + a.amountCents, 0);
+      // Las devoluciones van aparte de los abonos, no mezcladas: la ficha es donde
+      // alguien mira "cuando fue la ultima vez que me pagado" y revisa que cuadre,
+      // y una lista unica de movimientos con signos hace falta una calculadora
+      // mental para entenderla. Abonos primero, devoluciones despues.
+      const devoluciones = db
+        .select()
+        .from(chargeRefunds)
+        .where(and(eq(chargeRefunds.organizationId, org), eq(chargeRefunds.chargeId, cargoId)))
+        .orderBy(desc(chargeRefunds.refundedAt), desc(chargeRefunds.createdAt))
+        .all();
+
+      // El NETO es la cifra que manda, y sale del MISMO `pagadoDe` que usan el
+      // tablero y el reporte. Que la ficha pueda decir una cosa y la cartera otra
+      // seria el peor fallo posible del producto: el saldo de la ficha es
+      // exactamente el saldo que el cliente ve en la factura.
+      const pagadoCents = pagadoDe(db, org, cargoId);
+      const devueltoCents = devoluciones.reduce((acc, d) => acc + d.amountCents, 0);
       res.json({
         charge: cargo,
         payments: abonos,
+        refunds: devoluciones,
+        // Lo que entro en total, que no es el mismo numero que el neto cuando hubo
+        // devoluciones. Se devuelven los dos para que la ficha se pueda auditar.
+        abonadoCents: abonos.reduce((acc, a) => acc + a.amountCents, 0),
+        devueltoCents,
         pagadoCents,
         saldoCents: saldoDe(pagadoCents, cargo.amountCents, cargo.status),
       });
@@ -649,6 +747,111 @@ export function buildRoutes(ctx: ProductContext): Router[] {
     }),
   );
 
+  // ────────────────────────────────────────────────────────────────── devoluciones
+
+  /**
+   * Registrar una devolucion: la plata que salio despues de haber entrado.
+   *
+   * Esta es la salida que los dos 409 de mas abajo prometen. Sin ella, "primero hay
+   * que devolver esa plata" era un consejo que el producto no sabia cumplir, y el
+   * abono quedaba atrapado: los abonos no se borran (el DELETE es 409 justamente
+   * para no perder el registro de lo que entro) y un abono negativo lo rechaza el
+   * schema y el `CHECK (> 0)`.
+   *
+   * ES UN DOCUMENTO NUEVO, y esa es la decision de fondo. La alternativa obvia
+   * seria borrar el abono equivocado y dejar el correcto, pero eso borra un hecho
+   * de caja que ocurrio de verdad: la empresa recibio esa plata, se fue y volvio.
+   * Con una devolucion aparte, las dos operaciones quedan las dos, y el cargo que
+   * se queria anular conserva su historia completa.
+   *
+   * Que no se pueda devolver mas de lo cobrado, ni lo que nunca se cobro, es el
+   * mismo invariante del abono pero al reves, y por la misma razon: el chequeo va
+   * DENTRO de la transaccion que escribe. Comprobar antes deja la ventana en la
+   * que dos devoluciones simultaneas pasan las dos el chequeo.
+   *
+   * El saldo y el estado los vuelve a calcular el mismo `estadoDesdeSaldo` de
+   * siempre, alimentado por el cobrado NETO de `pagadoDe`. Por eso devolver todo lo
+   * cobrado reabre el cargo como `pending` sin que nadie escriba el estado a mano,
+   * y por eso devolver de mas es 409 y no un saldo negativo.
+   */
+  router.post(
+    '/api/charges/:id/devoluciones',
+    requireRole('member'),
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const cargoId = id.parse(req.params.id);
+      const body = devolucionSchema.parse(req.body ?? {});
+      const ahora = nowIso();
+      // La fecha es la del movimiento de plata, no la del click: una devolucion
+      // pueden meterla a posteriori y tiene que caer en el mes en que salio el
+      // dinero, que es donde el tablero la suma.
+      const devuelto = body.refundedAt ?? ahora;
+
+      const escrito = db.transaction((tx) => {
+        const cargo = tx
+          .select()
+          .from(charges)
+          .where(and(eq(charges.id, cargoId), eq(charges.organizationId, org)))
+          .get();
+        if (!cargo) throw new AppError(404, 'Ese cargo no existe');
+
+        if (cargo.status === 'canceled') {
+          throw new AppError(
+            409,
+            'Ese cargo esta cancelado: no se devuelve nada de un cargo que ya no se cobra',
+          );
+        }
+
+        const pagado = pagadoDe(tx, org, cargoId);
+        if (pagado <= 0) {
+          throw new AppError(
+            409,
+            'Ese cargo no tiene plata cobrada que devolver: se borra o se cancela nomas',
+          );
+        }
+        if (body.amountCents > pagado) {
+          throw new AppError(
+            409,
+            `Ese cargo tiene ${pagado} centavos cobrados y la devolucion es de ` +
+              `${body.amountCents}: no se devuelve mas de lo que entro`,
+          );
+        }
+
+        const devolucion = {
+          id: createId('pagref'),
+          organizationId: org,
+          chargeId: cargoId,
+          amountCents: body.amountCents,
+          reason: body.reason,
+          method: body.method,
+          reference: body.reference ?? null,
+          refundedAt: devuelto,
+          createdAt: ahora,
+        };
+        tx.insert(chargeRefunds).values(devolucion).run();
+
+        const pagadoTotal = pagadoDe(tx, org, cargoId);
+        const estado = estadoDesdeSaldo(pagadoTotal, cargo.amountCents);
+        const actualizado = tx
+          .update(charges)
+          .set({ status: estado, updatedAt: ahora })
+          .where(and(eq(charges.id, cargoId), eq(charges.organizationId, org)))
+          .returning()
+          .get();
+
+        return {
+          charge: actualizado,
+          refund: devolucion,
+          // El NETO, que es lo que la cartera debe mostrar despues de esto.
+          pagadoCents: pagadoTotal,
+          saldoCents: saldoDe(pagadoTotal, cargo.amountCents),
+        };
+      });
+
+      res.status(201).json(escrito);
+    }),
+  );
+
   // ────────────────────────────────────────────────────────────────── cancelar
 
   /**
@@ -692,7 +895,8 @@ export function buildRoutes(ctx: ProductContext): Router[] {
           throw new AppError(
             409,
             `No se cancela un cargo con ${pagado} centavos ya cobrados: primero hay que devolver esa plata. ` +
-              'Cancelar significa "no se va a cobrar", no "se borro la historia"',
+              'Registra la devolucion y despues cancelalo. Cancelar significa "no se va a cobrar", ' +
+              'no "se borro la historia"',
           );
         }
 
@@ -918,9 +1122,9 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         if (pagado > 0) {
           throw new AppError(
             409,
-            `Este cargo tiene ${pagado} centavos ya cobrados y no se borra: se cancela. ` +
+            `Este cargo tiene ${pagado} centavos ya cobrados y no se borra: se devuelve la plata y se cancela. ` +
               'Borrarlo eliminaria el registro de la plata que entro. Si el abono estaba mal, ' +
-              'registra la devolucion como una anotacion nueva en vez de borrar la anterior',
+              'registra una devolucion en vez de tratar de borrar el abono',
           );
         }
 

@@ -2,8 +2,9 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ProductDefinition } from '@amg/product-runtime';
 import { DDL } from './ddl.js';
+import { MIGRACIONES } from './migrations.js';
 import { buildRoutes } from './routes.js';
-import { chargePayments, charges, settings } from './schema.js';
+import { chargePayments, chargeRefunds, charges, settings } from './schema.js';
 
 const aqui = fileURLToPath(new URL('.', import.meta.url));
 
@@ -36,9 +37,11 @@ export const definicion: ProductDefinition = {
   schema: {
     charges,
     chargePayments,
+    chargeRefunds,
     settings,
   },
   ddl: DDL,
+  migrations: MIGRACIONES,
   routes: buildRoutes,
   // El HTML tambien pide sesion: sin identidad no se sirve ni el shell.
   staticDir: join(aqui, '..', 'public'),

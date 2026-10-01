@@ -54,6 +54,25 @@ async function abonar(orgId: string, cargoId: string, amountCents: number, datos
   return comoMiembro(orgId).post(`/api/charges/${cargoId}/abonos`).send({ amountCents, method: 'transfer', ...datos });
 }
 
+/**
+ * Registra una devolucion y devuelve la respuesta tal cual.
+ *
+ * El agente va como parametro y no como id de organizacion porque estos tests
+ * correan sobre una base limpia propia, y las credenciales de esa base no son las
+ * de `tp`. Que el agente lo elija quien llama es lo que permite probar el
+ * aislamiento (misma llamada, dos organizaciones) sin duplicar la funcion.
+ */
+async function devolver(
+  agente: { post: (ruta: string) => any },
+  cargoId: string,
+  amountCents: number,
+  datos: Record<string, unknown> = {},
+) {
+  return agente
+    .post(`/api/charges/${cargoId}/devoluciones`)
+    .send({ amountCents, reason: 'abono cargado por error', method: 'transfer', ...datos });
+}
+
 /** El dia de hoy en la zona de la empresa, igual que lo saca la API. */
 function hoyEn(zona = 'America/Santiago'): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: zona, year: 'numeric', month: '2-digit', day: '2-digit' }).format(
@@ -567,6 +586,170 @@ describe('cancelar un cargo', () => {
 
 // ─────────────────────────────────────────────────────────────────────── cascada
 
+describe('devolver plata', () => {
+  // Una base LIMPIA por test, igual que el tablero: estas pruebas miden saldos
+  // conocidos y con la base compartida dependerian del orden en que corrieron las
+  // anteriores.
+  let limpio: TestProduct;
+  const como = (orgId: string) => limpio.as({ orgId, role: 'member' });
+
+  /**
+   * El cargo y el abono sobre la base LIMPIA.
+   *
+   * No se reusan `nuevoCargo` ni `abonar` porque esos escriben en `tp` y el tablero
+   * de estos tests lee `limpio`: el cargo estaria en una base y la consulta en otra,
+   * y el fallo se veria como "las cifras estan en cero" en vez de como "estas
+   * mirando la base equivocada".
+   */
+  const cargoEnLimpio = async (orgId: string, datos: Record<string, unknown> = {}) => {
+    const res = await como(orgId)
+      .post('/api/charges')
+      .send({ customerName: 'Constructora Spa', concept: 'Instalacion de red', amountCents: 100_000, ...datos });
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    return res.body.charge as any;
+  };
+
+  const abonarEnLimpio = (orgId: string, cargoId: string, amountCents: number, datos: Record<string, unknown> = {}) =>
+    como(orgId).post(`/api/charges/${cargoId}/abonos`).send({ amountCents, method: 'transfer', ...datos });
+
+  beforeEach(() => {
+    limpio = startTestProduct(definicion);
+  });
+
+  afterEach(() => limpio.close());
+
+  it('descuenta el cobrado y reabre el cargo sin que nadie escriba el estado', async () => {
+    const cargo = await cargoEnLimpio(TEST_ORG_A, { amountCents: 100_000 });
+    await abonarEnLimpio(TEST_ORG_A, cargo.id, 100_000);
+    expect((await como(TEST_ORG_A).get(`/api/charges/${cargo.id}`)).body.status).toBe('paid');
+
+    const res = await devolver(como(TEST_ORG_A), cargo.id, 100_000);
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    // El NETO es lo que la cartera debe mostrar, y el estado sale de esa misma
+    // aritmetica. Devolver todo reabre el cargo como pendiente, que es lo unico
+    // razonable: la plata se fue.
+    expect(res.body.pagadoCents).toBe(0);
+    expect(res.body.saldoCents).toBe(100_000);
+    expect(res.body.charge.status).toBe('pending');
+
+    const ficha = await como(TEST_ORG_A).get(`/api/charges/${cargo.id}/ficha`);
+    expect(ficha.body.pagadoCents).toBe(0);
+    expect(ficha.body.refunds).toHaveLength(1);
+    // El abono NO se borra: se sigue viendo lo que entro de verdad.
+    expect(ficha.body.payments).toHaveLength(1);
+    expect(ficha.body.abonadoCents).toBe(100_000);
+    expect(ficha.body.devueltoCents).toBe(100_000);
+  });
+
+  it('devolver de mas es 409 y NO escribe nada', async () => {
+    const cargo = await cargoEnLimpio(TEST_ORG_A, { amountCents: 100_000 });
+    await abonarEnLimpio(TEST_ORG_A, cargo.id, 30_000);
+
+    const intento = await devolver(como(TEST_ORG_A), cargo.id, 30_001);
+    expect(intento.status).toBe(409);
+    // La devolucion imposible no se guarda a medias: una fila de mas haria que el
+    // saldo se volviera NEGATIVO, que es justo lo que el invariante prohibe.
+    const n = limpio.sqlite
+      .prepare('SELECT COUNT(*) AS n FROM charge_refunds WHERE charge_id = ?')
+      .get(cargo.id) as { n: number };
+    expect(n.n).toBe(0);
+  });
+
+  it('devolver dos veces es la suma de las dos, y el segundo no revalida de mas', async () => {
+    const cargo = await cargoEnLimpio(TEST_ORG_A, { amountCents: 100_000 });
+    await abonarEnLimpio(TEST_ORG_A, cargo.id, 50_000);
+
+    // El chequeo mira el NETO, no el total de abonos: por eso devolver por partes
+    // tiene que funcionar hasta agotar lo cobrado, y el error del ultimo centavo
+    // tiene que ser el mismo que el de devolver de una.
+    expect((await devolver(como(TEST_ORG_A), cargo.id, 20_000)).status).toBe(201);
+    const segunda = await devolver(como(TEST_ORG_A), cargo.id, 30_000);
+    expect(segunda.status).toBe(201);
+    expect(segunda.body.pagadoCents).toBe(0);
+    expect(segunda.body.charge.status).toBe('pending');
+    expect((await devolver(como(TEST_ORG_A), cargo.id, 1)).status).toBe(409);
+  });
+
+  it('no se devuelve de un cargo sin plata cobrada', async () => {
+    const cargo = await cargoEnLimpio(TEST_ORG_A, { amountCents: 100_000 });
+    const intento = await devolver(como(TEST_ORG_A), cargo.id, 1_000);
+    // No es 404 ni 500: el cargo existe y no tiene nada que devolver, asi que el
+    // mensaje tiene que decir eso.
+    expect(intento.status).toBe(409);
+    expect(intento.body.error).toContain('no tiene plata cobrada');
+  });
+
+  it('la devolucion exige un motivo', async () => {
+    const cargo = await cargoEnLimpio(TEST_ORG_A, { amountCents: 100_000 });
+    await abonarEnLimpio(TEST_ORG_A, cargo.id, 30_000);
+
+    // Un motivo obligatorio, y no por validacion formal: una devolucion sin
+    // explicacion es el movimiento que despues nadie sabe defender frente a un
+    // cliente que pregunta por que le devolvieron la plata.
+    const vacio = await como(TEST_ORG_A)
+      .post(`/api/charges/${cargo.id}/devoluciones`)
+      .send({ amountCents: 1_000 });
+    expect(vacio.status).toBe(400);
+    const n = limpio.sqlite
+      .prepare('SELECT COUNT(*) AS n FROM charge_refunds WHERE charge_id = ?')
+      .get(cargo.id) as { n: number };
+    expect(n.n).toBe(0);
+  });
+
+  it('acepta un importe negativo con un mensaje, y no un saldo negativo', async () => {
+    const cargo = await cargoEnLimpio(TEST_ORG_A, { amountCents: 100_000 });
+    await abonarEnLimpio(TEST_ORG_A, cargo.id, 30_000);
+    const intento = await como(TEST_ORG_A)
+      .post(`/api/charges/${cargo.id}/devoluciones`)
+      .send({ amountCents: -5_000, reason: 'prueba' });
+    expect(intento.status).toBe(400);
+  });
+
+  it('no se devuelve de un cargo cancelado', async () => {
+    const cargo = await cargoEnLimpio(TEST_ORG_A, { amountCents: 100_000 });
+    // Un cargo sin plata cobrada no se puede dejar en una situacion con plata que
+    // devolver: la unica forma de tener cobrado es un abono, y el abono es lo
+    // primero que se necesita. Se cubre la guarda igual, porque el endpoint existe
+    // y un dia puede haber un camino que si.
+    await como(TEST_ORG_A).post(`/api/charges/${cargo.id}/cancelar`).send({});
+    expect((await devolver(como(TEST_ORG_A), cargo.id, 1_000)).status).toBe(409);
+  });
+
+  it('otra empresa no ve ni devuelve sobre el cargo de otra', async () => {
+    const cargo = await cargoEnLimpio(TEST_ORG_A, { amountCents: 100_000 });
+    await abonarEnLimpio(TEST_ORG_A, cargo.id, 30_000);
+
+    // Ni leer la devolucion ajena ni crearla: el aislamiento se prueba por el
+    // "no lo veo", porque un 403 confirmaria que el id existe.
+    expect((await como(TEST_ORG_B).get(`/api/charges/${cargo.id}`)).status).toBe(404);
+    expect((await como(TEST_ORG_B).get(`/api/charges/${cargo.id}/ficha`)).status).toBe(404);
+    expect((await devolver(como(TEST_ORG_B), cargo.id, 1_000)).status).toBe(404);
+  });
+
+  it('el tablero separa lo que entro de lo que salio', async () => {
+    const cargo = await cargoEnLimpio(TEST_ORG_A, { amountCents: 100_000 });
+    await abonarEnLimpio(TEST_ORG_A, cargo.id, 60_000);
+    await devolver(como(TEST_ORG_A), cargo.id, 20_000, { refundedAt: diaDeEsteMes('15') });
+
+    const tablero = await como(TEST_ORG_A).get('/api/dashboard');
+    // Restarlos y mostrar un "neto" seria mostrar un numero que no es ni lo que entro
+    // ni lo que salio. Son dos preguntas distintas y merecen dos numeros.
+    expect(tablero.body.cobradoMesCents).toBe(60_000);
+    expect(tablero.body.devueltoMesCents).toBe(20_000);
+  });
+
+  it('la devolucion cuenta en su mes, no en el de cuando se registro', async () => {
+    const cargo = await cargoEnLimpio(TEST_ORG_A, { amountCents: 100_000 });
+    await abonarEnLimpio(TEST_ORG_A, cargo.id, 60_000);
+    // Registrada hoy pero salida el 15: lo que salio el 15 fue en el mes del 15,
+    // igual que el abono cuenta por `received_at` y no por cuando se escribio la fila.
+    await devolver(como(TEST_ORG_A), cargo.id, 20_000, { refundedAt: diaDeEsteMes('15') });
+
+    const tablero = await como(TEST_ORG_A).get('/api/dashboard');
+    expect(tablero.body.devueltoMesCents).toBe(20_000);
+  });
+});
+
 describe('borrar un cargo', () => {
   it('un cargo sin abonos se borra', async () => {
     const cargo = await nuevoCargo(TEST_ORG_A, { amountCents: 100_000 });
@@ -593,17 +776,32 @@ describe('borrar un cargo', () => {
     expect(abonos.n).toBe(1);
   });
 
-  it('el camino para deshacer un cargo cobrado es cancelar, no borrar', async () => {
+  it('el camino para deshacer un cargo cobrado es devolver y cancelar, no borrar', async () => {
     const cargo = await nuevoCargo(TEST_ORG_A, { amountCents: 100_000 });
     await abonar(TEST_ORG_A, cargo.id, 30_000);
 
     // Cancelar con plata cobrada tampoco: primero hay que devolverla.
     const cancelar = await comoMiembro(TEST_ORG_A).post(`/api/charges/${cargo.id}/cancelar`).send({});
     expect(cancelar.status).toBe(409);
+    // El 409 tiene que decir QUE HACER, no solo que no se puede: un error que dice
+    // "primero hay que devolver esa plata" sin que exista forma de devolverla es un
+    // callejon sin salida, y esa es exactamente la forma que tenia antes.
+    expect(cancelar.body.error).toContain('devolucion');
 
     // Y borrar tampoco. Los dos caminos cierran la puerta, que es lo correcto: la
     // plata que entra no se deshace, se devuelve con su propio documento.
     expect((await comoAdmin(TEST_ORG_A).delete(`/api/charges/${cargo.id}`)).status).toBe(409);
+
+    // Y esa devolucion se puede hacer, con lo cual la puerta vuelve a abrir por
+    // donde corresponde: devolver, y despues cancelar.
+    const devuelto = await devolver(
+      comoMiembro(TEST_ORG_A),
+      cargo.id,
+      30_000,
+      { reason: 'abono cargado dos veces' },
+    );
+    expect(devuelto.status).toBe(201);
+    expect((await comoMiembro(TEST_ORG_A).post(`/api/charges/${cargo.id}/cancelar`).send({})).status).toBe(200);
   });
 
   it('un abono de 0 centavos no bloquea el borrado', async () => {
