@@ -2,7 +2,15 @@ import express, { type Express } from 'express';
 import path from 'node:path';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { errorHandler, notFound, logger } from '@saas-mini/core';
+import {
+  errorHandler,
+  notFound,
+  logger,
+  assetVersion,
+  htmlPages,
+  ASSET_CACHE_CONTROL,
+  HTML_CACHE_CONTROL,
+} from '@saas-mini/core';
 import { platformConfig } from './config.js';
 import { cookieParser } from './http/middleware.js';
 import { authRouter } from './http/auth-routes.js';
@@ -94,18 +102,26 @@ export function createPlatformApp(options: PlatformAppOptions = {}): Express {
 
   if (options.staticDir) {
     const dir = path.resolve(options.staticDir);
+    // Con la huella en la URL, `immutable` es seguro: si el archivo cambia, la URL
+    // cambia con el. Sin ella, un despliegue no llegaba al navegador hasta que
+    // expiraba el TTL de Cloudflare, y peor: mezclaba un JS viejo con uno nuevo.
+    const version = assetVersion(dir);
     app.use(
       express.static(dir, {
         index: false,
+        maxAge: platformConfig.isProd ? ASSET_CACHE_CONTROL : 0,
         setHeaders(res, filePath) {
-          // La UI de la plataforma cambia seguido; la API nunca se cachea.
-          if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache');
+          // El HTML se pide siempre: es el que trae el `?v=` de esta entrega.
+          if (filePath.endsWith('.html')) res.setHeader('Cache-Control', HTML_CACHE_CONTROL);
         },
       }),
     );
 
-    const page = (name: string) => (_req: express.Request, res: express.Response) =>
-      res.sendFile(path.join(dir, name));
+    const leer = htmlPages(dir, version);
+    const page = (name: string) => (_req: express.Request, res: express.Response) => {
+      res.setHeader('Cache-Control', HTML_CACHE_CONTROL);
+      res.type('html').send(leer(name));
+    };
 
     // Público
     app.get('/', page('index.html'));

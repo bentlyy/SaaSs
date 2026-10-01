@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assetVersion, htmlPages, ASSET_CACHE_CONTROL, HTML_CACHE_CONTROL } from '@saas-mini/core';
 import { loadProductConfig, type ProductConfig } from './config.js';
 import { openProductDb, type OpenOptions, type ProductDb, type ProductSchema } from './db.js';
 import { mountAmgProductAuth, type MountAuthOptions } from './auth.js';
@@ -140,11 +141,27 @@ export function createProductApp(def: ProductDefinition, env: NodeJS.ProcessEnv 
   // 4. La UI, que tambien pide sesion: sin ella no hay ni el HTML.
   // La hoja compartida va antes que el `public` del producto: mismo nombre en
   // los dos, gana la de la plataforma para que el estilo no se pueda bifurcar.
-  app.use(express.static(sharedAssetsDir, { index: false, fallthrough: true, maxAge: config.isProd ? '1h' : 0 }));
-  if (app.locals.staticDir) {
-    const dir = app.locals.staticDir as string;
-    app.use(express.static(dir, { index: false }));
-    app.get('/', (_req, res) => res.sendFile(path.join(dir, 'index.html')));
+  // 5. Los assets. El `immutable` va con la huella en la URL: una URL con `?v=` es
+  // una URL distinta, asi que cachearla un ano no puede servir un archivo viejo. Y
+  // el HTML va `no-cache` para que en la primera carga de cada despliegue aparezca
+  // el `?v=` nuevo y no el del dia anterior.
+  const dirProducto = app.locals.staticDir as string | undefined;
+  const cacheAsset = config.isProd ? ASSET_CACHE_CONTROL : 0;
+  app.use(
+    express.static(sharedAssetsDir, { index: false, fallthrough: true, maxAge: cacheAsset }),
+  );
+  if (dirProducto) {
+    app.use(express.static(dirProducto, { index: false, maxAge: cacheAsset }));
+    // La huella junta las dos carpetas: `amigo.js` es de la plataforma y `app.js`
+    // del producto, y un despliegue cambia los dos a la vez. Con una sola version
+    // para los dos, `/amigo.js?v=abc` y `/app.js?v=abc` viajan siempre juntos, que es
+    // justo la mezcla que rompia la pantalla.
+    const version = assetVersion(sharedAssetsDir) + assetVersion(dirProducto);
+    const leer = htmlPages(dirProducto, version);
+    app.get('/', (_req, res) => {
+      res.setHeader('cache-control', HTML_CACHE_CONTROL);
+      res.type('html').send(leer('index.html'));
+    });
   }
 
   app.use(notFound);

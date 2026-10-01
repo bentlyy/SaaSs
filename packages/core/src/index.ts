@@ -17,6 +17,13 @@ export {
 } from './money.js';
 export { authRequired, requireRole, signSession, cookieParser, verifyToken, type Session } from './middleware/auth.js';
 export { AppError, asyncHandler, notFound, errorHandler } from './utils/http.js';
+export {
+  assetVersion,
+  versionAssets,
+  htmlPages,
+  ASSET_CACHE_CONTROL,
+  HTML_CACHE_CONTROL,
+} from './utils/assets.js';
 export { startReminderScheduler, stopReminderScheduler, processDueReminders } from './modules/reminders/scheduler.js';
 export { reminderService, type SendResult } from './modules/reminders/service.js';
 export { resourcesRouter } from './modules/resources/routes.js';
