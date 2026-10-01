@@ -65,8 +65,36 @@ export function versionAssets(html: string, version: string): string {
  * la URL cambia con el. El HTML va `no-cache` para que en la primera carga de cada
  * despliegue aparezca el `?v=` nuevo y no el de ayer.
  */
-export const ASSET_CACHE_CONTROL = 'public, max-age=31536000, immutable';
 export const HTML_CACHE_CONTROL = 'no-cache';
+
+/**
+ * Un AÑO en milisegundos, que es lo que espera el `maxAge` de Express.
+ *
+ * OJO, y esta es la razon de que sean dos constantes y no una: `express.static`
+ * NO acepta un `Cache-Control` completo en `maxAge`. Pasa el valor por `ms()`, que
+ * solo entiende numeros y textos de duracion (`'1y'`), asi que
+ * `maxAge: 'public, max-age=31536000, immutable'` devuelve `undefined` y el header
+ * no se escribe nunca. Se ve bien en el codigo y en la respuesta no hay ni una linea
+ * de `cache-control`, que es justo el fallo que esta pareja de constantes vino a
+ * arreglar.
+ *
+ * Por eso el `immutable` lo pone `setHeaders`, que si escribe el header completo.
+ */
+export const ASSET_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000;
+
+/** El header final del asset: el TTL de arriba, mas el `immutable` que lo justifica. */
+export const ASSET_CACHE_CONTROL = 'public, max-age=31536000, immutable';
+
+/**
+ * El `setHeaders` que aplica a los assets: escribe el `Cache-Control` completo.
+ *
+ * Vive aqui y no en cada producto porque el `immutable` depende de que la URL
+ * tenga la huella, y la huella la pone este mismo modulo. Un producto que sirva
+ * sus assets con `express.static` no tiene que acordarse de la regla.
+ */
+export function assetHeaders(res: { setHeader: (k: string, v: string) => void }): void {
+  res.setHeader('cache-control', ASSET_CACHE_CONTROL);
+}
 
 /**
  * Sirve las paginas de `dir` con la huella puesta, sin releer el disco en cada

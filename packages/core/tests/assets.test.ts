@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { assetVersion, versionAssets, htmlPages } from '../src/utils/assets.js';
+import {
+  assetVersion,
+  versionAssets,
+  htmlPages,
+  assetHeaders,
+  ASSET_MAX_AGE_MS,
+  ASSET_CACHE_CONTROL,
+  HTML_CACHE_CONTROL,
+} from '../src/utils/assets.js';
 
 describe('assetVersion', () => {
   it('devuelve una huella corta y estable', async () => {
@@ -61,6 +69,44 @@ describe('versionAssets', () => {
   it('no duplica la huella si el HTML ya venia con query', () => {
     const una = versionAssets('<script src="/app.js?v=zzz"></script>', 'abc123');
     expect(una).toBe('<script src="/app.js?v=zzz"></script>');
+  });
+});
+
+/**
+ * El `Cache-Control` de los assets.
+ *
+ * Estos tests existen por un fallo que no se ve en el codigo: `maxAge` de
+ * `express.static` NO es un `Cache-Control`, son milisegundos, y el header lo arma
+ * `send` despues de pasarlo por `ms()`. Entregarle el header completo se ve bien,
+ * compila, y no escribe NADA en la respuesta.
+ */
+describe('la cache de los assets', () => {
+  it('ASSET_MAX_AGE_MS es un numero, que es lo que maxAge sabe leer', () => {
+    expect(typeof ASSET_MAX_AGE_MS).toBe('number');
+    expect(Number.isFinite(ASSET_MAX_AGE_MS)).toBe(true);
+  });
+
+  it('el header completo NO es un maxAge valido: por eso son dos constantes', () => {
+    // Este es el fallo. `maxAge` se pasa por `ms()`, que solo entiende numeros o
+    // textos de duracion. El header completo no es ninguna de las dos cosas, asi
+    // que la Asercion lo documenta: si alguien los vuelve a unir, esto falla.
+    expect(Number.isNaN(Number(ASSET_CACHE_CONTROL))).toBe(true);
+    expect(ASSET_CACHE_CONTROL).not.toBe(String(ASSET_MAX_AGE_MS));
+  });
+
+  it('el TTL son los mismos 365 dias que dice el header', () => {
+    expect(ASSET_MAX_AGE_MS).toBe(365 * 24 * 60 * 60 * 1000);
+  });
+
+  it('assetHeaders escribe el Cache-Control completo, con su immutable', () => {
+    const escrito: Record<string, string> = {};
+    assetHeaders({ setHeader: (k, v) => { escrito[k] = v; } });
+    expect(escrito['cache-control']).toBe(ASSET_CACHE_CONTROL);
+    expect(escrito['cache-control']).toContain('immutable');
+  });
+
+  it('el HTML se pide siempre', () => {
+    expect(HTML_CACHE_CONTROL).toBe('no-cache');
   });
 });
 

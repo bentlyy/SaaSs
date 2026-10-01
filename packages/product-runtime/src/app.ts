@@ -4,7 +4,13 @@ import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assetVersion, htmlPages, ASSET_CACHE_CONTROL, HTML_CACHE_CONTROL } from '@saas-mini/core';
+import {
+  assetVersion,
+  htmlPages,
+  assetHeaders,
+  ASSET_MAX_AGE_MS,
+  HTML_CACHE_CONTROL,
+} from '@saas-mini/core';
 import { loadProductConfig, type ProductConfig } from './config.js';
 import { openProductDb, type OpenOptions, type ProductDb, type ProductSchema } from './db.js';
 import { mountAmgProductAuth, type MountAuthOptions } from './auth.js';
@@ -146,12 +152,17 @@ export function createProductApp(def: ProductDefinition, env: NodeJS.ProcessEnv 
   // el HTML va `no-cache` para que en la primera carga de cada despliegue aparezca
   // el `?v=` nuevo y no el del dia anterior.
   const dirProducto = app.locals.staticDir as string | undefined;
-  const cacheAsset = config.isProd ? ASSET_CACHE_CONTROL : 0;
+  // En desarrollo NO hay cache: se esta cambiando el codigo en cada iteracion y un
+  // `max-age` de un ano sirve la version anterior sin avisar. En produccion el TTL
+  // va en `maxAge` (que son milisegundos) y el `immutable` en `setHeaders`, porque
+  // `maxAge` no sabe escribir un `Cache-Control` completo. Ver `assetHeaders`.
+  const maxAge = config.isProd ? ASSET_MAX_AGE_MS : 0;
+  const setHeaders = config.isProd ? assetHeaders : undefined;
   app.use(
-    express.static(sharedAssetsDir, { index: false, fallthrough: true, maxAge: cacheAsset }),
+    express.static(sharedAssetsDir, { index: false, fallthrough: true, maxAge, setHeaders }),
   );
   if (dirProducto) {
-    app.use(express.static(dirProducto, { index: false, maxAge: cacheAsset }));
+    app.use(express.static(dirProducto, { index: false, maxAge, setHeaders }));
     // La huella junta las dos carpetas: `amigo.js` es de la plataforma y `app.js`
     // del producto, y un despliegue cambia los dos a la vez. Con una sola version
     // para los dos, `/amigo.js?v=abc` y `/app.js?v=abc` viajan siempre juntos, que es

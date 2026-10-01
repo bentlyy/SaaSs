@@ -8,7 +8,8 @@ import {
   logger,
   assetVersion,
   htmlPages,
-  ASSET_CACHE_CONTROL,
+  assetHeaders,
+  ASSET_MAX_AGE_MS,
   HTML_CACHE_CONTROL,
 } from '@saas-mini/core';
 import { platformConfig } from './config.js';
@@ -109,10 +110,17 @@ export function createPlatformApp(options: PlatformAppOptions = {}): Express {
     app.use(
       express.static(dir, {
         index: false,
-        maxAge: platformConfig.isProd ? ASSET_CACHE_CONTROL : 0,
+        // `maxAge` son MILISEGUNDOS, no un `Cache-Control` completo: pasarle el
+        // header entero devuelve `undefined` y no escribe nada. El `immutable` va
+        // en `setHeaders` abajo. Ver `assetHeaders`.
+        maxAge: platformConfig.isProd ? ASSET_MAX_AGE_MS : 0,
         setHeaders(res, filePath) {
           // El HTML se pide siempre: es el que trae el `?v=` de esta entrega.
-          if (filePath.endsWith('.html')) res.setHeader('Cache-Control', HTML_CACHE_CONTROL);
+          if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', HTML_CACHE_CONTROL);
+            return;
+          }
+          if (platformConfig.isProd) assetHeaders(res);
         },
       }),
     );

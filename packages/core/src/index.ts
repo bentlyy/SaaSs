@@ -21,6 +21,8 @@ export {
   assetVersion,
   versionAssets,
   htmlPages,
+  assetHeaders,
+  ASSET_MAX_AGE_MS,
   ASSET_CACHE_CONTROL,
   HTML_CACHE_CONTROL,
 } from './utils/assets.js';
