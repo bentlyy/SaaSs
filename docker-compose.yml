@@ -270,7 +270,13 @@ services:
       PRODUCT: '@amg/pagos'
       PORT: "3000"
       DB_PATH: /app/data/pagos.sqlite
-      DB_SCHEMA_VERSION: "1"
+      # v2 por `charge_refunds`: los dos 409 de la cartera (borrar y cancelar un
+      # cargo con plata) dicen que hay que devolver la plata, y sin esa tabla no
+      # habia forma. El runtime SALTA toda migracion por encima de este numero
+      # (`runMigrations`), asi que dejarlo en 1 no era "no migrar": era tener una
+      # migracion escrita que nunca corre, y la tabla existiendo solo porque el
+      # DDL la crea en cada arranque.
+      DB_SCHEMA_VERSION: "2"
       APP_NAME: Control de Pagos
       APP_URL: https://pagos.amgdeveloper.cl
       CORE_URL: https://desarrollo.amgdeveloper.cl
