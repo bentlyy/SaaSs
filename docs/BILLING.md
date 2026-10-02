@@ -30,7 +30,7 @@ Los precios del Core son **los que ya están publicados en la landing** (tabla
 | `inventario` | Inventario | $9.000 |
 | `solicitudes` | Solicitudes y Órdenes | $18.000 |
 | `cotizaciones` | Cotizaciones | $8.000 |
-| `clientes` | Gestión de Clientes | $7.000 |
+| `crm` | Gestión de Clientes | $7.000 |
 | `activos` | Control de Activos | $16.900 |
 | `checklists` | Checklists e Inspecciones | $14.900 |
 | `pagos` | Control de Pagos | $15.900 |
@@ -56,7 +56,7 @@ regla que `catalog.test.ts` verifica para los nueve.
 | `inventario` | `inventario.amgdeveloper.cl` |
 | `solicitudes` | `solicitudes.amgdeveloper.cl` |
 | `cotizaciones` | `cotizaciones.amgdeveloper.cl` |
-| `clientes` | `clientes.amgdeveloper.cl` |
+| `crm` | `crm.amgdeveloper.cl` |
 | `activos` | `activos.amgdeveloper.cl` |
 | `checklists` | `checklists.amgdeveloper.cl` |
 | `pagos` | `pagos.amgdeveloper.cl` |

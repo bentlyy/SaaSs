@@ -9,7 +9,7 @@ import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqli
  *   - Los REPUESTOS que se venden son del producto `inventario`, con su stock y
  *     su precio. Aca no hay ni un solo stock: lo que se controla es lo que la
  *     empresa POSEE.
- *   - La persona que usa un equipo no es un `customer` de `clientes` ni un
+ *   - La persona que usa un equipo no es un `customer` de `crm` ni un
  *     `staff` de `citas`. Es un nombre escrito al vuelo en `assigned_to`, y esa
  *     es una decision importante: un activo se le entrega a un proveedor, a un
  *     tecnico o al socio que lo lleva puesto, y ninguno de esos es una ficha
@@ -27,7 +27,7 @@ import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqli
  *
  * `assigned_to` es TEXTO LIBRE a proposito, por lo mismo que `solicitudes` no
  * exige patente: el responsable de un activo es casi siempre alguien que no
- * tiene cuenta en el sistema, y una FK a `clientes` obligaria a inventar una
+ * tiene cuenta en el sistema, y una FK a `crm` obligaria a inventar una
  * ficha para poder entregar un taladro.
  *
  * `cost_cents` es el unico importe del producto, y esta en CENTAVOS enteros

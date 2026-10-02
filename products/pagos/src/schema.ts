@@ -31,12 +31,12 @@ import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqli
  *
  * MAS COSAS QUE ESTE PRODUCTO ES, Y MAS COSAS QUE NO ES
  *
- *   - EL CLIENTE NO SE DUPLICA. Los clientes viven en el producto `clientes`, que
+ *   - EL CLIENTE NO SE DUPLICA. Los clientes viven en el producto `crm`, que
  *     es su dueno y esta en otra base. Por eso `customer_id` va SUELTO (sin llave
  *     foranea, como en `cotizaciones`) y el nombre se COPIA en `customer_name`:
  *     un cargo tiene que poder leerse aunque el cliente se renombre, se de de
  *     baja o nunca se migre. `customer_name` es un SNAPSHOT, no una copia de
- *     confianza: la fuente de verdad del cliente sigue siendo `clientes`.
+ *     confianza: la fuente de verdad del cliente sigue siendo `crm`.
  *   - NO es contabilidad ni facturacion electrona. Esto no emite comprobantes
  *     fiscales, no calcula impuestos y no se entera de retenciones. Es el
  *     control de la cartera: que emitiste, cuanto te deben y cuanto te han
@@ -133,12 +133,12 @@ export const charges = sqliteTable(
      *
      * Es un SNAPSHOT y por eso es NOT NULL aunque `customer_id` sea nulo: un
      * cargo tiene que poder leerse solo. Si el nombre se buscara en vivo en el
-     * producto `clientes`, cambiar el nombre de un cliente reescribiria la
+     * producto `crm`, cambiar el nombre de un cliente reescribiria la
      * historia de cartera vieja.
      */
     customerName: text('customer_name').notNull(),
     /**
-     * Id del cliente en el producto `clientes`. Referencia SUELTA, sin FK.
+     * Id del cliente en el producto `crm`. Referencia SUELTA, sin FK.
      *
      * No puede llevar llave foranea: los clientes viven en la base de otro
      * producto, y SQLite no valida referencias entre bases. Declararla daria la

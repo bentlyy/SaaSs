@@ -95,7 +95,7 @@ const reales = servicios(compose);
 /** Los nueve, y el Core. Este es el contrato de despliegue. */
 const LOS_NUEVE = [
   'espacios', 'citas', 'inventario', 'solicitudes', 'cotizaciones',
-  'clientes', 'activos', 'checklists', 'pagos',
+  'crm', 'activos', 'checklists', 'pagos',
 ];
 
 /**
@@ -117,7 +117,7 @@ const RETIRADO_ABSORBIDO_POR: Record<string, string> = {
   peluqueria: 'citas',
   deportes: 'espacios',
   talleres: 'solicitudes',
-  crm: 'clientes',
+  clientes: 'crm',
   documentos: 'cotizaciones',
   recordatorios: 'citas',
 };

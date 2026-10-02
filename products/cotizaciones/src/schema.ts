@@ -8,12 +8,12 @@ import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-or
  * tablas y este producto es dueno de DOS de ellas (`documents` de los productos
  * legacy `cotizaciones` y `documentos`):
  *
- *   - El cliente NO se duplica aca. Lo absorbio el producto `clientes`, que es su
+ *   - El cliente NO se duplica aca. Lo absorbio el producto `crm`, que es su
  *     dueno. Por eso `customer_id` va SUELTO (sin llave foranea) y el nombre del
  *     cliente se COPIA en `customer_name`: una cotizacion tiene que poder leerse
  *     aunque el cliente se renombre, se de de baja o nunca se migre. Es un
  *     snapshot, no una copia de confianza: la fuente de verdad del cliente sigue
- *     siendo el producto `clientes`.
+ *     siendo el producto `crm`.
  *   - La agenda es de `citas`, el stock de `inventario`, los espacios de
  *     `espacios`. Aca no hay ni una fila de eso.
  *
@@ -63,12 +63,12 @@ export const quotes = sqliteTable(
      *
      * Es un SNAPSHOT y por eso es NOT NULL aunque `customer_id` sea nulo: la
      * linea de un presupuesto tiene que poder leerse sola. Si el nombre se
-     * buscara en vivo en el producto `clientes`, cambiar el nombre de un cliente
+     * buscara en vivo en el producto `crm`, cambiar el nombre de un cliente
      * reescribiria la historia de cotizaciones viejas.
      */
     customerName: text('customer_name').notNull(),
     /**
-     * Id del cliente en el producto `clientes`. Referencia SUELTA, sin FK.
+     * Id del cliente en el producto `crm`. Referencia SUELTA, sin FK.
      *
      * No puede llevar llave foranea: los clientes viven en la base de otro
      * producto, y SQLite no valida referencias entre bases. Declararla daria la

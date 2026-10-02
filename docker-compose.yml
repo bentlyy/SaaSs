@@ -27,7 +27,7 @@
 #   3102    solicitudes.amgdeveloper.cl        solicitudes
 #   3103    inventario.amgdeveloper.cl         inventario
 #   3104    cotizaciones.amgdeveloper.cl       cotizaciones
-#   3105    clientes.amgdeveloper.cl           clientes
+#   3105    crm.amgdeveloper.cl                crm
 #   3106    activos.amgdeveloper.cl            activos
 #   3107    checklists.amgdeveloper.cl         checklists
 #   3108    desarrollo.amgdeveloper.cl         Core
@@ -35,7 +35,7 @@
 
 # El rango 3100-3109 queda COMPLETO a proposito: los productos que ocupaban 3105
 # (docs) y 3106 (recordatorios) se retiraron y sus puertos se reasignaron a
-# clientes y activos para no dejar huecos. Es seguro porque los dominios viejos
+# crm y activos para no dejar huecos. Es seguro porque los dominios viejos
 # redirigen por NOMBRE (301 a cotizaciones/citas, ver ops/nginx.conf), nunca por
 # puerto: reciclar el numero no cruza a nadie. 3110 y 3111 quedan libres hacia
 # arriba para productos futuros.
@@ -70,7 +70,7 @@ x-app: &app
 services:
   # peluqueria, recordatorios, deportes, talleres, crm y documentos ya NO tienen
   # servicio ni volumen: sus datos se migraron a los productos que los absorben
-  # (citas, espacios, solicitudes, clientes y cotizaciones). El portafolio nuevo
+  # (citas, espacios, solicitudes, crm y cotizaciones). El portafolio nuevo
   # solo usa los nueve volumenes de abajo.
 
   # Espacios: reservas de salas/canchas con disponibilidad y bloques. Producto
@@ -188,25 +188,28 @@ services:
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_COTIZACIONES_SECRET:?falta AMG_SSO_COTIZACIONES_SECRET en .env}
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
 
-  # Clientes: la ficha del cliente y sus seguimientos.
-  clientes:
+  # CRM: la ficha del cliente y sus seguimientos. Se llamaba `clientes` hasta que
+  # Cloudflare marco `clientes.amgdeveloper.cl` como phishing; el slug y el host
+  # se renombraron a la vez, asi que el producto, el DNS, el nginx, la base y el
+  # login vuelven a ser un solo nombre. `clientes` queda en RETIRED_SLUGS.
+  crm:
     <<: *app
-    container_name: saasmini-clientes
+    container_name: saasmini-crm
     volumes:
-      - saasmini_data_clientes:/app/data
+      - saasmini_data_crm:/app/data
     ports:
       - "127.0.0.1:3105:3000"
     environment:
       <<: *base-env
-      PRODUCT: '@amg/clientes'
+      PRODUCT: '@amg/crm'
       PORT: "3000"
-      DB_PATH: /app/data/clientes.sqlite
+      DB_PATH: /app/data/crm.sqlite
       DB_SCHEMA_VERSION: "1"
       APP_NAME: Clientes
-      APP_URL: https://clientes.amgdeveloper.cl
+      APP_URL: https://crm.amgdeveloper.cl
       CORE_URL: https://desarrollo.amgdeveloper.cl
-      AMG_SSO_CLIENT_ID: clientes
-      AMG_SSO_CLIENT_SECRET: ${AMG_SSO_CLIENTES_SECRET:?falta AMG_SSO_CLIENTES_SECRET en .env}
+      AMG_SSO_CLIENT_ID: crm
+      AMG_SSO_CLIENT_SECRET: ${AMG_SSO_CRM_SECRET:?falta AMG_SSO_CRM_SECRET en .env}
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
 
   # Activos: nuevo producto, sin fuente legacy. Control de patrimonio con
@@ -324,7 +327,7 @@ volumes:
   saasmini_data_inventario:
   saasmini_data_solicitudes:
   saasmini_data_cotizaciones:
-  saasmini_data_clientes:
+  saasmini_data_crm:
   saasmini_data_activos:
   saasmini_data_checklists:
   saasmini_data_pagos:

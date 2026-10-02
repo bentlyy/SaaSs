@@ -56,7 +56,7 @@ ORG_NAME="${AMG_ORG_NAME:-Talleres El Mecanico}"
 ORG_EMAIL="${AMG_ORG_EMAIL:-demo@talleres.com}"
 ORG_ROL=owner
 
-PRODUCTOS=(espacios citas inventario solicitudes cotizaciones clientes activos checklists pagos)
+PRODUCTOS=(espacios citas inventario solicitudes cotizaciones crm activos checklists pagos)
 
 paso()  { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 info()  { printf '    %s\n' "$*"; }

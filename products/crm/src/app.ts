@@ -19,7 +19,7 @@ const aqui = fileURLToPath(new URL('.', import.meta.url));
  * es justo lo que esta arquitectura prohibe.
  */
 export const definicion: ProductDefinition = {
-  slug: 'clientes',
+  slug: 'crm',
   name: 'Clientes',
   schema: {
     customers,

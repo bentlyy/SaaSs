@@ -17,7 +17,7 @@ const ESPERADO: Record<string, string> = {
   inventario: 'inventario',
   solicitudes: 'solicitudes',
   cotizaciones: 'cotizaciones',
-  clientes: 'clientes',
+  crm: 'crm',
   activos: 'activos',
   checklists: 'checklists',
   pagos: 'pagos',

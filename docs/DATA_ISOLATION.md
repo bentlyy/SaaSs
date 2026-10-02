@@ -13,7 +13,7 @@ los demás.**
 | `solicitudes.sqlite` | solicitudes, líneas de trabajo, repuestos, clientes, técnicos | solicitudes | 3102 |
 | `inventario.sqlite` | artículos, movimientos, proveedores | inventario | 3103 |
 | `cotizaciones.sqlite` | cotizaciones, líneas, clientes | cotizaciones | 3104 |
-| `clientes.sqlite` | clientes y seguimientos | clientes | 3105 |
+| `crm.sqlite` | clientes y seguimientos | crm | 3105 |
 | `activos.sqlite` | activos, movimientos, estados | activos | 3106 |
 | `checklists.sqlite` | plantillas, ejecuciones, items firmados | checklists | 3107 |
 | `pagos.sqlite` | cargos, abonos, saldos | pagos | 3109 |

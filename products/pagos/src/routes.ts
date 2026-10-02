@@ -352,7 +352,7 @@ const cargoSchema = z.object({
   /** Si no viene, se propone el folio siguiente de la organizacion. */
   number: z.coerce.number().int().min(1).max(9_999_999).nullable().optional(),
   customerName: texto,
-  /** Referencia suelta al producto `clientes`. Sin FK: es otra base. */
+  /** Referencia suelta al producto `crm`. Sin FK: es otra base. */
   customerId: id.nullable().optional(),
   customerEmail: z.union([email, z.literal(''), z.null()]).nullable().optional(),
   concept: texto,

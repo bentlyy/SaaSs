@@ -14,9 +14,10 @@
 ;   espacios       -> espacios      (reemplaza a canchas)
 ;   solicitudes    -> solicitudes   (reemplaza a ordenes)
 ;   inventario     -> inventario    (reemplaza a stock)
-;   cotizaciones   -> cotizaciones  (reemplaza a presupuestos)
-;   clientes       -> clientes      (sin cambios)
-;   activos        -> activos       [NUEVO]
+;   cotizaciones   -> cotizaciones   (reemplaza a presupuestos)
+;   crm            -> crm            [RENOMBRADO desde clientes: Cloudflare marco
+;                                     clientes.amgdeveloper.cl como phishing]
+;   activos        -> activos        [NUEVO]
 ;   checklists     -> checklists    [NUEVO]
 ;   pagos          -> pagos         [NUEVO]
 ;   desarrollo     -> el Core (la plataforma: acceso, catalogo, mi cuenta)
@@ -39,7 +40,7 @@ espacios	IN	A	146.181.55.59
 solicitudes	IN	A	146.181.55.59
 inventario	IN	A	146.181.55.59
 cotizaciones	IN	A	146.181.55.59
-clientes	IN	A	146.181.55.59
+crm		IN	A	146.181.55.59
 activos		IN	A	146.181.55.59
 checklists	IN	A	146.181.55.59
 pagos		IN	A	146.181.55.59
@@ -54,5 +55,11 @@ desarrollo	IN	A	146.181.55.59
 ; los cubra y el 301 exista son inofensivos: el borrado sin quitar el redirect
 ; deja a quien los teclee con un error de certificado, que es peor que una
 ; redireccion.
+;
+; `clientes` esta en el mismo caso: el producto ahora se llama `crm` y hay un 301
+; clientes->crm. Ojo con una diferencia: mientras Cloudflare sirva la pantalla de
+; phishing en `clientes`, ese 301 no lo ve NADIE, porque la respuesta se genera en
+; el borde y nunca llega al origen.
 docs		IN	A	146.181.55.59
 recordatorios	IN	A	146.181.55.59
+clientes	IN	A	146.181.55.59

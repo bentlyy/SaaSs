@@ -11,7 +11,7 @@ import { join } from 'node:path';
  * ruta despues, el Core apuntaria al `data/core/core.sqlite` de desarrollo y el
  * test escribiria organizaciones de mentira en la base real.
  */
-const dir = mkdtempSync(join(tmpdir(), 'amg-clientes-tests-'));
+const dir = mkdtempSync(join(tmpdir(), 'amg-crm-tests-'));
 
 process.env.CORE_DB_PATH = join(dir, 'core.sqlite');
 process.env.NODE_ENV = 'test';

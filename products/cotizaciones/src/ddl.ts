@@ -17,7 +17,7 @@
  * significa nada.
  *
  * `quotes.customer_id` NO lleva llave foranea, a proposito: los clientes viven
- * en la base de `clientes`, que es OTRA base. SQLite no valida FK entre bases,
+ * en la base de `crm`, que es OTRA base. SQLite no valida FK entre bases,
  * asi que declararla daria la sensacion de integridad sin ella. El nombre del
  * cliente viaja congelado en `customer_name` para que la cotizacion se pueda
  * leer sin abrir el otro producto.

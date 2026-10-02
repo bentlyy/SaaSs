@@ -94,7 +94,7 @@ describe('la interfaz', () => {
     expect(html.text).toContain('/auth/logout');
   });
 
-  it('la UI no gestiona clientes: son del producto `clientes`', async () => {
+  it('la UI no gestiona clientes: son del producto `crm`', async () => {
     const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
     // Este producto NO es dueno del cliente. Si la UI tuviera una pantalla de
     // clientes, habria vuelto el producto viejo, que si los tenia.

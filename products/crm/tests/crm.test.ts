@@ -106,7 +106,7 @@ describe('sesión e identidad', () => {
   it('/api/me dice de qué organización se entra', async () => {
     const res = await tp.as({ orgId: TEST_ORG_A }).get('/api/me');
     expect(res.body.organization.id).toBe(TEST_ORG_A);
-    expect(res.body.product).toBe('clientes');
+    expect(res.body.product).toBe('crm');
   });
 });
 

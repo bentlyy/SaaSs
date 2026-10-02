@@ -150,7 +150,7 @@
     solicitudes: 'amber',
     inventario: 'purple',
     cotizaciones: 'teal',
-    clientes: 'blue',
+    crm: 'blue',
     activos: 'sky',
     checklists: 'cyan',
     pagos: 'orange',

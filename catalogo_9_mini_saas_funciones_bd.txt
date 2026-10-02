@@ -344,7 +344,7 @@ Tablas:
 
 
 6. GESTIÓN DE CLIENTES
-Dominio: clientes.amgdeveloper.cl
+Dominio: crm.amgdeveloper.cl
 
 Funciones:
 - Crear, editar y archivar clientes.
@@ -359,7 +359,7 @@ Funciones:
 - Importar clientes por CSV.
 - Exportar clientes.
 
-Base de datos: clientes.sqlite
+Base de datos: crm.sqlite
 
 Tablas:
 - customers

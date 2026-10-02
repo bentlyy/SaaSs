@@ -15,7 +15,7 @@ runtime, con una sola imagen Docker y una SQLite por producto, en un solo VPS.
 │   ├── activos/             ← patrimonio con historial de movimientos
 │   ├── checklists/          ← plantillas de inspección y su ejecución con snapshot
 │   ├── citas/               ← agenda por profesional y servicio, con bloqueos y avisos
-│   ├── clientes/            ← ficha del cliente y seguimientos
+│   ├── crm/                 ← ficha del cliente y seguimientos
 │   ├── cotizaciones/        ← presupuestos con líneas, folio y estados
 │   ├── espacios/            ← reservas de salas/canchas con disponibilidad y bloques
 │   ├── inventario/          ← artículos y movimientos trazables
@@ -43,7 +43,7 @@ cada request. Una SQLite por producto, aislada por `organization_id`. Ver
 | Solicitudes y Órdenes | `solicitudes.amgdeveloper.cl` | 3102 |
 | Inventario | `inventario.amgdeveloper.cl` | 3103 |
 | Cotizaciones | `cotizaciones.amgdeveloper.cl` | 3104 |
-| Gestión de Clientes | `clientes.amgdeveloper.cl` | 3105 |
+| Gestión de Clientes | `crm.amgdeveloper.cl` | 3105 |
 | Control de Activos | `activos.amgdeveloper.cl` | 3106 |
 | Checklists e Inspecciones | `checklists.amgdeveloper.cl` | 3107 |
 | Core | `desarrollo.amgdeveloper.cl` | 3108 |
@@ -72,7 +72,7 @@ npm run dev:core
 # Y cada producto en su propio puerto:
 npm run dev:espacios
 npm run dev:citas
-# ... dev:inventario, dev:solicitudes, dev:cotizaciones, dev:clientes,
+# ... dev:inventario, dev:solicitudes, dev:cotizaciones, dev:crm,
 #     dev:activos, dev:checklists, dev:pagos
 ```
 

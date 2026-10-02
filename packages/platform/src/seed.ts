@@ -95,14 +95,14 @@ export const CATALOG: CatalogProduct[] = [
     sortOrder: 50,
   },
   {
-    slug: 'clientes',
+    slug: 'crm',
     name: 'Gestión de Clientes',
     tagline: 'Ficha única por cliente, con historial',
     description:
       'CRM mínimo: ficha del cliente, historial, notas y seguimientos pendientes. Sin CRM gigante, solo lo que un negocio chico usa de verdad.',
     price: 7000,
     billingPeriod: 'monthly',
-    appUrl: 'https://clientes.amgdeveloper.cl',
+    appUrl: 'https://crm.amgdeveloper.cl',
     sortOrder: 60,
   },
   {
@@ -151,7 +151,7 @@ export const CATALOG: CatalogProduct[] = [
 export const RETIRED_SLUGS: Array<{ slug: string; becomes: string | null; note: string }> = [
   { slug: 'documentos', becomes: 'cotizaciones', note: 'El PDF se emite dentro de cada producto que lo necesita.' },
   { slug: 'recordatorios', becomes: 'citas', note: 'Los avisos son infraestructura, no un producto vendible.' },
-  { slug: 'crm', becomes: 'clientes', note: 'Mismo producto, nombre nuevo.' },
+  { slug: 'clientes', becomes: 'crm', note: 'Mismo producto, nombre nuevo: el host quedo marcado como phishing en Cloudflare.' },
   { slug: 'talleres', becomes: 'solicitudes', note: 'Mismo producto, sin vehículos.' },
   { slug: 'peluqueria', becomes: 'citas', note: 'Servicio anterior; nunca estuvo en el catálogo público.' },
   { slug: 'deportes', becomes: 'espacios', note: 'Servicio anterior; nunca estuvo en el catálogo público.' },
@@ -165,7 +165,7 @@ export const EXPECTED_SLUGS = [
   'inventario',
   'solicitudes',
   'cotizaciones',
-  'clientes',
+  'crm',
   'activos',
   'checklists',
   'pagos',

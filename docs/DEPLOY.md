@@ -45,7 +45,7 @@ slug** de cada uno, todos `A` a `146.181.55.59`:
 | `solicitudes` | solicitudes | 3102 |
 | `inventario` | inventario | 3103 |
 | `cotizaciones` | cotizaciones | 3104 |
-| `clientes` | clientes | 3105 |
+| `crm` | crm | 3105 |
 | `activos` | activos | 3106 |
 | `checklists` | checklists | 3107 |
 | `pagos` | pagos | 3109 |
@@ -69,7 +69,7 @@ un certificado nuevo con otra ruta, dejando los dos bloques sin el suyo.
 sudo certbot certonly --cert-name saasmini-nuevo --expand \
   -d citas.amgdeveloper.cl -d espacios.amgdeveloper.cl \
   -d solicitudes.amgdeveloper.cl -d inventario.amgdeveloper.cl \
-  -d cotizaciones.amgdeveloper.cl -d clientes.amgdeveloper.cl \
+  -d cotizaciones.amgdeveloper.cl -d crm.amgdeveloper.cl \
   -d docs.amgdeveloper.cl -d recordatorios.amgdeveloper.cl \
   -d activos.amgdeveloper.cl -d checklists.amgdeveloper.cl \
   -d pagos.amgdeveloper.cl
