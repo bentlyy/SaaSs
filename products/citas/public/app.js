@@ -55,8 +55,7 @@ const ESTADOS_AVISO = {
 
 /** Formatea centavos. El símbolo sale de la organización, no de una constante. */
 function pesos(centavos) {
-  const simbolo = estado.settings?.currency ?? '$';
-  return `${simbolo} ${(Math.round(centavos / 100)).toLocaleString('es-CL')}`;
+  return AMIGO_UI.dinero(centavos, { simbolo: estado.settings?.currency ?? '$' });
 }
 
 /** Envuelve una acción para que un error llegue a la barra y no se pierda. */
@@ -68,13 +67,120 @@ async function conAviso(fn) {
   }
 }
 
+// --- hora de la organización --------------------------------------------------
+
+/**
+ * La agenda vive en `settings.timezone`, no en la del navegador.
+ *
+ * El servidor guarda UTC, asi que "las 10:00 del jueves" son un instante y
+ * medio dia de fabrica. Si se armara con `new Date('2026-10-02T10:00')` ese
+ * instante sale del huso de quien esta mirando, y un taller de Mexico City
+ * abierto desde Santiago veria sus citas corridas tres horas.
+ */
+
+/** La zona configurada, o UTC si todavia no llego (o si alguien la dejo mala). */
+function zona() {
+  const z = estado.settings?.timezone;
+  if (!z) return 'UTC';
+  try {
+    new Intl.DateTimeFormat('es-CL', { timeZone: z });
+    return z;
+  } catch {
+    return 'UTC';
+  }
+}
+
+/** Cuanto le falta a UTC para que en `z` sean las `fecha`. En minutos. */
+function offsetZona(z, fecha) {
+  const partes = new Intl.DateTimeFormat('en-US', {
+    timeZone: z,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(fecha);
+  const n = (tipo) => Number(partes.find((p) => p.type === tipo)?.value ?? 0);
+  const comoUtc = Date.UTC(n('year'), n('month') - 1, n('day'), n('hour') % 24, n('minute'), n('second'));
+  return (comoUtc - fecha.getTime()) / 60000;
+}
+
+/**
+ * "2026-10-02" + "10:00" en la zona `z` -> `Date` del instante que corresponde.
+ *
+ * Se corrige dos veces porque el offset depende del propio instante que se esta
+ * calculando: en el cambio de horario de verano la primera cuenta se pasa por
+ * una hora y la segunda ya cae del lado correcto.
+ */
+function instanteEnZona(fecha, hora, z) {
+  const [a, m, d] = fecha.split('-').map(Number);
+  const [h, min] = hora.split(':').map(Number);
+  const naive = Date.UTC(a, m - 1, d, h, min, 0);
+  const primera = new Date(naive - offsetZona(z, new Date(naive)) * 60000);
+  return new Date(naive - offsetZona(z, primera) * 60000);
+}
+
+/** El instante de las 00:00 del `fecha` en la zona `z`. */
+function inicioDelDia(fecha, z) {
+  return instanteEnZona(fecha, '00:00', z);
+}
+
+/** La hora de un instante, vista desde la zona `z`. */
+function horaEnZona(iso, z) {
+  return new Date(iso).toLocaleTimeString('es-CL', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: z,
+  });
+}
+
+/** La fecha de un instante, vista desde la zona `z`. */
+function fechaEnZona(iso, z) {
+  const p = new Intl.DateTimeFormat('en-CA', {
+    timeZone: z,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(iso));
+  const n = (tipo) => p.find((x) => x.type === tipo)?.value ?? '01';
+  return `${n('year')}-${n('month')}-${n('day')}`;
+}
+
+/** El `fecha` de hoy en la zona `z`, que no siempre es el del navegador. */
+function hoyEnZona(z) {
+  return fechaEnZona(new Date().toISOString(), z);
+}
+
+/** "2026-10-07T15:00" de un `<input type="datetime-local">` -> ["2026-10-07", "15:00"]. */
+function partesDeDateTime(valor) {
+  const [fecha, hora = '00:00'] = String(valor).split('T');
+  return [fecha, hora.slice(0, 5)];
+}
+
 // --- carga ------------------------------------------------------------------
+
+/**
+ * Si los ajustes del taller ya se/leyeron.
+ *
+ * `AMIGO.montar()` pinta el panel inicial antes de que `cargar()` termine, y sin
+ * `settings.timezone` `zona()` cae en UTC. Si la agenda pidiera su rango en ese
+ * momento, saldría con la medianoche de UTC: un request de más y, entre las dos
+ * respuestas, un parpadeo con el día equivocado. `cargar()` pinta la agenda
+ * apenas sabe la zona, así que el primer `alEntrar` no tiene que pedirla.
+ */
+let zonaResuelta = false;
 
 async function cargar() {
   const [resumen, settings] = await Promise.all([api('/api/resumen'), api('/api/settings')]);
   estado.resumen = resumen;
   estado.settings = settings.settings;
 
+  // "Hoy" es hoy en la zona del taller. Con el `new Date()` pelado, un taller
+  // de Mexico City abierto desde Santiago arrancaba con el dia de ayer.
+  estado.fecha = hoyEnZona(zona());
+  zonaResuelta = true;
   $('#fecha').value = estado.fecha;
   $('#c-fecha').value = estado.fecha;
 
@@ -85,25 +191,53 @@ async function cargar() {
   ]);
 
   renderConfig();
-  await cargarAgenda();
+  await Promise.all([cargarAgenda(), cargarCatalogos()]);
+}
+
+/**
+ * Los tres catálogos, que el formulario de cita necesita para poder llenarse.
+ *
+ * Se piden con la pantalla, no cuando se abre cada panel: el boton "Nueva cita"
+ * esta en la barra de arriba, o sea disponible sin haber pasado nunca por
+ * Clientes. Antes cada lista se cargaba al entrar a su panel, asi que una cita
+ * nueva se abria con los selectores vacios y no habia forma de elegir.
+ *
+ * `items` y no un nombre propio: es lo que devuelve `crudRouter`, con
+ * `{ items, total, limit, offset }`.
+ */
+async function cargarCatalogos() {
+  const [clientes, servicios, profesionales] = await Promise.all([
+    api('/api/customers?limit=200'),
+    api('/api/services?limit=200'),
+    api('/api/staff?limit=200'),
+  ]);
+  estado.clientes = clientes.items ?? [];
+  estado.servicios = servicios.items ?? [];
+  estado.profesionales = profesionales.items ?? [];
 }
 
 /**
  * La agenda del día, con el rango en UTC.
  *
- * El `new Date(fecha)` se parsea como medianoche local y se manda en ISO: el
- * servidor guarda UTC, y si se mandara `YYYY-MM-DD` pelado no se sabría de qué
+ * El rango se arma con las 00:00 y las 23:59 del día EN LA ZONA DEL TALLER, que
+ * traducidas a UTC no es lo mismo que la medianoche del navegador. Mandar
+ * `YYYY-MM-DD` pelado tampoco sirve: el servidor guarda UTC y no sabría de qué
  * día se trata.
  */
 async function cargarAgenda() {
-  const desde = new Date(`${estado.fecha}T00:00:00`).toISOString();
-  const hasta = new Date(`${estado.fecha}T23:59:59`).toISOString();
+  // Sin los ajustes todavia no hay zona que mandar: se espera a que `cargar()`
+  // los traiga, en vez de pedir un rango en UTC y volver a pedirlo.
+  if (!zonaResuelta) return;
+  const z = zona();
+  const desde = inicioDelDia(estado.fecha, z).toISOString();
+  const hasta = instanteEnZona(estado.fecha, '23:59', z).toISOString();
   const { appointments } = await api(`/api/agenda?from=${desde}&to=${hasta}`);
-  estado.citas = appointments;
+  estado.citas = appointments ?? [];
   renderAgenda();
 }
 
 function renderAgenda() {
+  const z = zona();
   const filtro = ($('#buscar').value || '').trim().toLowerCase();
   const citas = estado.citas.filter(
     (c) =>
@@ -129,7 +263,7 @@ function renderAgenda() {
     for (const c of citas) {
       const hora = document.createElement('span');
       hora.className = 'mono';
-      hora.textContent = new Date(c.startAt).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+      hora.textContent = horaEnZona(c.startAt, z);
       cuerpo.append(
         AMIGO_UI.fila([
           hora,
@@ -158,24 +292,24 @@ function tablaDe(columnas, filas, vacio) {
 
 async function cargarClientes() {
   const q = $('#buscar-cli').value.trim();
-  const { customers } = await api(`/api/customers?limit=200${q ? `&q=${encodeURIComponent(q)}` : ''}`);
-  estado.clientes = customers;
+  const { items } = await api(`/api/customers?limit=200${q ? `&q=${encodeURIComponent(q)}` : ''}`);
+  estado.clientes = items ?? [];
   $('#clientes').replaceChildren(
     tablaDe(
       ['Nombre', 'Teléfono', 'Correo', 'Etiquetas'],
-      customers.map((c) => [c.name, c.phone ?? '—', c.email ?? '—', c.tags ?? '—']),
+      estado.clientes.map((c) => [c.name, c.phone ?? '—', c.email ?? '—', c.tags ?? '—']),
       'No hay clientes.',
     ),
   );
 }
 
 async function cargarServicios() {
-  const { services } = await api('/api/services?limit=200');
-  estado.servicios = services;
+  const { items } = await api('/api/services?limit=200');
+  estado.servicios = items ?? [];
   $('#servicios').replaceChildren(
     tablaDe(
       ['Nombre', { titulo: 'Duración', num: true }, { titulo: 'Precio', num: true }, 'Estado'],
-      services.map((s) => [
+      estado.servicios.map((s) => [
         s.name,
         `${s.durationMin} min`,
         pesos(s.priceCents),
@@ -187,12 +321,12 @@ async function cargarServicios() {
 }
 
 async function cargarProfesionales() {
-  const { staff } = await api('/api/staff?limit=200');
-  estado.profesionales = staff;
+  const { items } = await api('/api/staff?limit=200');
+  estado.profesionales = items ?? [];
   $('#profesionales').replaceChildren(
     tablaDe(
       ['Nombre', 'Teléfono', 'Color', 'Estado'],
-      staff.map((p) => {
+      estado.profesionales.map((p) => {
         // El punto de color va antes del nombre: es lo que permite recorrer la
         // tabla de un vistazo y decir de quién es cada fila sin leerla.
         const punto = document.createElement('span');
@@ -214,12 +348,12 @@ async function cargarProfesionales() {
 
 async function cargarAvisos() {
   const { reminders } = await api('/api/reminders?limit=100');
-  estado.avisos = reminders;
+  estado.avisos = reminders ?? [];
   $('#avisos').replaceChildren(
     tablaDe(
       ['Cuándo', 'Canal', 'Destino', 'Estado', 'Error'],
-      reminders.map((r) => [
-        AMIGO_UI.fecha(r.sentAt ?? r.createdAt, true),
+      estado.avisos.map((r) => [
+        AMIGO_UI.fecha(r.sentAt ?? r.createdAt, true, zona()),
         r.channel,
         r.to ?? '—',
         AMIGO_UI.estadoDe(r.status, ESTADOS_AVISO),
@@ -287,18 +421,30 @@ $('#config-form').addEventListener('submit', async (ev) => {
 
 /** Llena los `<select>` del formulario de cita con lo que hay cargado. */
 function llenarSelectores() {
-  const select = (sel, lista, texto) => {
+  const select = (sel, lista, texto, vacio) => {
     const el = $(sel);
     el.replaceChildren();
+    // Con la lista vacia el desplegable queda sin una sola opcion y no hay forma
+    // de explicarlo: `required` dispara el aviso nativo del navegador y el
+    // usuario cree que la pantalla esta rota. Un renglon que lo diga es mejor.
+    if (lista.length === 0) {
+      el.append(new Option(vacio, ''));
+      el.disabled = true;
+      return;
+    }
+    el.disabled = false;
     for (const x of lista) el.append(new Option(texto(x), x.id));
   };
 
-  select('#c-cliente', estado.clientes, (c) => c.name);
-  select('#c-profesional', estado.profesionales, (p) => p.name);
+  select('#c-cliente', estado.clientes, (c) => c.name, '— sin clientes cargados —');
+  select('#c-profesional', estado.profesionales, (p) => p.name, '— sin profesionales cargados —');
 
   const servicio = $('#c-servicio');
   servicio.replaceChildren(new Option('— sin servicio —', ''));
   for (const s of estado.servicios) servicio.append(new Option(`${s.name} · ${pesos(s.priceCents)}`, s.id));
+  // Al abrir el dialogo el precio sale del catálogo, no de lo que quedara de la
+  // cita anterior.
+  $('#c-precio').value = precioDeCatalogo();
 }
 
 // --- horarios ---------------------------------------------------------------
@@ -314,15 +460,21 @@ function aMinutos(hora) {
 }
 
 async function cargarHorarios() {
-  // Los profesionales se cargan en su propia vista; si no se ha abierto, se
-  // traen acá para poder elegir "el horario de quién".
+  // Los profesionales se cargan con la pantalla; si no estan, se traen aca para
+  // poder elegir "el horario de quién".
   if (estado.profesionales.length === 0) {
-    const { staff } = await api('/api/staff?limit=200');
-    estado.profesionales = staff;
+    const { items } = await api('/api/staff?limit=200');
+    estado.profesionales = items ?? [];
   }
   const sel = $('#horario-profesional');
   sel.replaceChildren();
-  for (const p of estado.profesionales) sel.append(new Option(p.name, p.id));
+  if (estado.profesionales.length === 0) {
+    sel.append(new Option('— sin profesionales cargados —', ''));
+    sel.disabled = true;
+  } else {
+    sel.disabled = false;
+    for (const p of estado.profesionales) sel.append(new Option(p.name, p.id));
+  }
 
   const dia = $('#horario-dia');
   if (dia.options.length === 0) {
@@ -403,9 +555,15 @@ function renderHorarios() {
         }),
       );
       cuerpo.append(
-        AMIGO_UI.fila([AMIGO_UI.fecha(b.startAt, true), AMIGO_UI.fecha(b.endAt, true), b.reason ?? '—', acciones], {
-          className: 'acciones',
-        }),
+        AMIGO_UI.fila(
+          [
+            AMIGO_UI.fecha(b.startAt, true, zona()),
+            AMIGO_UI.fecha(b.endAt, true, zona()),
+            b.reason ?? '—',
+            acciones,
+          ],
+          { className: 'acciones' },
+        ),
       );
     }
     $('#bloqueos').replaceChildren(AMIGO_UI.cajaTabla(tabla));
@@ -475,8 +633,10 @@ $('#bloqueo-form').addEventListener('submit', async (ev) => {
       method: 'POST',
       body: {
         staffId: profesional,
-        startAt: new Date($('#bloqueo-inicio').value).toISOString(),
-        endAt: new Date($('#bloqueo-fin').value).toISOString(),
+        // `datetime-local` da "2026-10-07T15:00" sin zona: se interpreta en la
+        // del taller, no en la del navegador.
+        startAt: instanteEnZona(...partesDeDateTime($('#bloqueo-inicio').value), zona()).toISOString(),
+        endAt: instanteEnZona(...partesDeDateTime($('#bloqueo-fin').value), zona()).toISOString(),
         reason: $('#bloqueo-motivo').value || null,
       },
     });
@@ -492,6 +652,25 @@ $('#horario-profesional').addEventListener('change', () => conAviso(refrescarHor
 
 // --- acciones ---------------------------------------------------------------
 
+/**
+ * El precio del servicio elegido, en la unidad del campo: centavos.
+ *
+ * El campo se rellena solo porque antes se quedaba en 0 y la cita se guardaba
+ * con `totalCents: 0`: se vendia el trabajo y la agenda no abria nada. Es un
+ * campo editable, asi que el que quiera otra cosa la cambia a mano.
+ *
+ * La conversion a money no va en este archivo: la hace `AMIGO_UI.dinero`, en un
+ * solo lugar para los nueve productos. Por eso el campo dice "en centavos".
+ */
+function precioDeCatalogo() {
+  const elegido = estado.servicios.find((s) => s.id === $('#c-servicio').value);
+  return elegido ? Number(elegido.priceCents ?? 0) : 0;
+}
+
+$('#c-servicio').addEventListener('change', () => {
+  $('#c-precio').value = precioDeCatalogo();
+});
+
 async function guardarCita(evento) {
   evento.preventDefault();
   const caja = $('#c-error');
@@ -499,30 +678,45 @@ async function guardarCita(evento) {
 
   const fecha = $('#c-fecha').value;
   const servicio = $('#c-servicio').value;
+  const z = zona();
   try {
     await api('/api/appointments', {
       method: 'POST',
       body: {
         customerId: $('#c-cliente').value || null,
         staffId: $('#c-profesional').value,
-        startAt: new Date(`${fecha}T${$('#c-hora').value}:00`).toISOString(),
-        endAt: new Date(`${fecha}T${$('#c-hora-fin').value}:00`).toISOString(),
+        // "Las 10:00" son las 10:00 DEL TALLER. Armarlo con `new Date(...)` lo
+        // convertia al huso de quien esta mirando, y la cita se guardaba corrida.
+        startAt: instanteEnZona(fecha, $('#c-hora').value, z).toISOString(),
+        endAt: instanteEnZona(fecha, $('#c-hora-fin').value, z).toISOString(),
         status: $('#c-estado').value,
         notes: $('#c-notas').value || null,
         services: servicio ? [{ serviceId: servicio, priceCents: Number($('#c-precio').value || 0) }] : [],
       },
     });
-    $('#dlg').close();
-    estado.fecha = fecha;
-    await cargar();
   } catch (e) {
     // El 409 de solapamiento se muestra acá, pero la decisión ya la tomó el
     // servidor: si el navegador mintiera, la cita igual no se guarda.
     caja.textContent = e.message;
     caja.hidden = false;
+    return;
   }
+
+  $('#dlg').close();
+  estado.fecha = fecha;
+  avisar('Cita agendada');
+  await conAviso(cargar);
 }
 
+/**
+ * Alta de catálogo: guardar y refrescar son dos cosas distintas.
+ *
+ * Antes iban en el mismo `try`: si el refresco fallaba, el `catch` reportaba el
+ * error de la recarga como si el alta hubiera fallado, y lo escribia en una caja
+ * que estaba DENTRO del dialogo recien cerrado. Resultado: el POST volvia 201 y
+ * el usuario no veia ni un mensaje. Aqui el alta se confirma apenas ocurre, y la
+ * recarga se avisa por separado.
+ */
 async function guardarCliente(evento) {
   evento.preventDefault();
   try {
@@ -535,14 +729,15 @@ async function guardarCliente(evento) {
         tags: $('#cli-tags').value || null,
       },
     });
-    $('#dlg-cli').close();
-    evento.target.reset();
-    await cargarClientes();
-    avisar('Cliente creado');
   } catch (e) {
     $('#cli-error').textContent = e.message;
     $('#cli-error').hidden = false;
+    return;
   }
+  $('#dlg-cli').close();
+  evento.target.reset();
+  avisar('Cliente creado');
+  await conAviso(cargarClientes);
 }
 
 async function guardarServicio(evento) {
@@ -556,14 +751,15 @@ async function guardarServicio(evento) {
         priceCents: Number($('#srv-precio').value),
       },
     });
-    $('#dlg-srv').close();
-    evento.target.reset();
-    await cargarServicios();
-    avisar('Servicio creado');
   } catch (e) {
     $('#srv-error').textContent = e.message;
     $('#srv-error').hidden = false;
+    return;
   }
+  $('#dlg-srv').close();
+  evento.target.reset();
+  avisar('Servicio creado');
+  await conAviso(cargarServicios);
 }
 
 async function guardarProfesional(evento) {
@@ -577,14 +773,15 @@ async function guardarProfesional(evento) {
         color: $('#per-color').value,
       },
     });
-    $('#dlg-per').close();
-    evento.target.reset();
-    await cargarProfesionales();
-    avisar('Profesional creado');
   } catch (e) {
     $('#per-error').textContent = e.message;
     $('#per-error').hidden = false;
+    return;
   }
+  $('#dlg-per').close();
+  evento.target.reset();
+  avisar('Profesional creado');
+  await conAviso(cargarProfesionales);
 }
 
 // --- navegación -------------------------------------------------------------
@@ -614,10 +811,28 @@ $('#fecha').addEventListener('change', (e) => {
 $('#buscar').addEventListener('input', renderAgenda);
 $('#buscar-cli').addEventListener('input', () => conAviso(cargarClientes));
 
-$('#nueva').addEventListener('click', () => {
-  llenarSelectores();
+/**
+ * Abre el formulario de cita.
+ *
+ * Recarga los catálogos antes de abrir, y abre SIEMPRE. Antes el `showModal()`
+ * venía después de `llenarSelectores()`, así que cualquier falla de esa función
+ * dejaba el botón sin hacer nada y sin decir por qué. Si la recarga falla, se
+ * abre igual con lo que haya y la barra de avisos lo cuenta.
+ */
+async function abrirDialogoCita() {
   $('#c-error').hidden = true;
+  await conAviso(cargarCatalogos);
+  try {
+    llenarSelectores();
+  } catch (e) {
+    avisar(e.message, true);
+  }
+  $('#c-fecha').value = estado.fecha;
   $('#dlg').showModal();
+}
+
+$('#nueva').addEventListener('click', () => {
+  void abrirDialogoCita();
 });
 $('#c-cancelar').addEventListener('click', () => $('#dlg').close());
 $('#c-cerrar').addEventListener('click', () => $('#dlg').close());

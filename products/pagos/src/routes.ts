@@ -1009,6 +1009,29 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         );
       }
 
+      // Mismo criterio para los campos que el esquema no conoce: `totalCents`
+      // o `paidCents` en el cuerpo se descartarian en silencio por el `...req.body`
+      // del parse, y el cliente creeria que edito el total. Se rechazan.
+      const editables = new Set([
+        'number',
+        'customerName',
+        'customerId',
+        'customerEmail',
+        'concept',
+        'amountCents',
+        'issuedDate',
+        'dueDate',
+        'notes',
+      ]);
+      for (const clave of Object.keys(req.body ?? {})) {
+        if (!editables.has(clave)) {
+          throw new AppError(
+            400,
+            `Campo desconocido: ${clave}. Campos editables: ${[...editables].join(', ')}`,
+          );
+        }
+      }
+
       // El PATCH parte del cargo que ya existe, asi que se puede mandar solo el
       // concepto y no perder el resto. Un `parse` sobre el cuerpo pelado exigiria
       // mandar todos los campos siempre, y el que olvide uno se queda sin guardar

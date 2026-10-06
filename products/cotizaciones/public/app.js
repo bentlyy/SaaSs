@@ -103,12 +103,14 @@ function repintar() {
 
 async function pintarInicio() {
   const d = await api('/api/dashboard');
+  // La tupla es [etiqueta, valor]: el valor va en la cifra grande. Los
+  // montos pasan por `dinero()` porque `totalCents` son centavos, no pesos.
   AMIGO_UI.kpis($('#resumen'), [
-    [d.total, 'Cotizaciones'],
-    [d.porEstado.sent, 'Enviadas'],
-    [d.porEstado.accepted, 'Aceptadas'],
-    [d.mesCents, `Del mes (${d.mes})`, true],
-    [d.totalCents, 'En la mesa'],
+    ['Cotizaciones', d.total],
+    ['Enviadas', d.porEstado.sent],
+    ['Aceptadas', d.porEstado.accepted],
+    [`Del mes (${d.mes})`, dinero(d.mesCents), true],
+    ['En la mesa', dinero(d.totalCents)],
   ]);
 
   // "Pendientes de respuesta" son las enviadas y las borradores: lo que todavia

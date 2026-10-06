@@ -52,6 +52,8 @@ const MESSAGES: Record<AmgErrorReason, string> = {
   'sin-acceso': 'Tu organización no tiene acceso a este producto.',
   'core-caido': 'No pudimos contactar al servidor de acceso. Probá en unos segundos.',
   'otro-producto': 'Ese inicio de sesión es de otro producto.',
+  'sin-rol': 'Tu rol no permite hacer esta acción.',
+  'sin-organizacion': 'Tu sesión no tiene una organización asignada.',
 };
 
 export function describeReason(reason: AmgErrorReason): string {

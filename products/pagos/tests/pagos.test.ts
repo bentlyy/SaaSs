@@ -158,9 +158,11 @@ describe('la interfaz', () => {
   it('la pantalla convierte el dinero solo para mostrarlo', async () => {
     const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
     // El `* 100` es el bug que se repite: convertir dos veces rompe los precios.
-    // Los centavos viajan como centavos y solo se dividen para pintar.
+    // Los centavos viajan como centavos y el formato vive en `AMIGO_UI.dinero`,
+    // que es quien divide entre 100. Esta pantalla no debe tener su propia
+    // conversion.
     expect(js.text).not.toMatch(/\*\s*100/);
-    expect(js.text).toMatch(/\/\s*100/);
+    expect(js.text).toContain('AMIGO_UI.dinero');
   });
 });
 

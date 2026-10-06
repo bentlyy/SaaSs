@@ -108,17 +108,87 @@
     }
   }
 
+  /**
+   * El pintado de cada panel, el que el producto le paso a `montar`.
+   *
+   * Antes se leia de `window.AMIGO_alEntrar`, un global que NADIE define: los
+   * ocho productos que pintan con `alEntrar` se lo pasan a `montar`, y `montar`
+   * solo lo usaba en el primer pintado. Consecuencia: cambiar de seccion con el
+   * canal solo cambiaba que panel se veia, sin pedirle nada a nadie, y el panel
+   * aparecia vacio. Parecia un bug de cada producto, y hacia falta recargar la
+   * pagina con `?panel=` para ver los datos.
+   */
+  var alEntrar = null;
+
   function mostrar(clave) {
     marcar(clave);
-    if (typeof window.AMIGO_alEntrar === 'function') window.AMIGO_alEntrar(clave);
+    var fn = alEntrar || window.AMIGO_alEntrar;
+    if (typeof fn === 'function') fn(clave);
+  }
+
+  /* ── el cajon movil ─────────────────────────────────────────────────── */
+
+  /**
+   * Hamburguesa + cajon para el canal en pantallas chicas.
+   *
+   * Se inyecta aca y no en cada HTML: los nueve index.html son identicos en
+   * el esqueleto, y editarlos a mano es como se termina con ocho que abren
+   * y uno que no. El boton va como primer hijo del topbar, el canal se marca
+   * con `ui-canal--abierta` y un scrim detras cierra al tocar fuera.
+   */
+  function montarCanalMovil() {
+    var canal = document.querySelector('.ui-canal');
+    var topbar = document.querySelector('.ui-topbar');
+    if (!canal || !topbar) return;
+
+    var scrim = document.createElement('div');
+    scrim.className = 'ui-scrim';
+    scrim.hidden = true;
+    document.body.append(scrim);
+
+    var boton = document.createElement('button');
+    boton.type = 'button';
+    boton.className = 'ui-hamburguesa';
+    boton.setAttribute('aria-label', 'Abrir navegación');
+    boton.setAttribute('aria-expanded', 'false');
+    boton.setAttribute('aria-controls', 'canal-nav');
+    boton.textContent = '☰';
+    if (!canal.id) canal.id = 'canal-nav';
+    topbar.prepend(boton);
+
+    function abrir(abierto) {
+      canal.classList.toggle('ui-canal--abierta', abierto);
+      scrim.classList.toggle('ui-scrim--visible', abierto);
+      scrim.hidden = !abierto;
+      boton.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+      boton.setAttribute('aria-label', abierto ? 'Cerrar navegación' : 'Abrir navegación');
+      boton.textContent = abierto ? '✕' : '☰';
+    }
+
+    boton.addEventListener('click', function () {
+      abrir(!canal.classList.contains('ui-canal--abierta'));
+    });
+    scrim.addEventListener('click', function () { abrir(false); });
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape' && canal.classList.contains('ui-canal--abierta')) abrir(false);
+    });
+    // Al tocar una seccion el cajon se cierra: el usuario pidio navegar, no
+    // mirar el menu. En desktop no hace falta porque el canal no es overlay.
+    canal.addEventListener('click', function (ev) {
+      var destino = ev.target;
+      if (destino && destino.closest && destino.closest('[data-tab]')) abrir(false);
+    });
   }
 
   /* ── arranque ──────────────────────────────────────────────────────── */
 
   function montar(opciones) {
     var cfg = opciones || {};
+    alEntrar = typeof cfg.alEntrar === 'function' ? cfg.alEntrar : null;
     if (cfg.color) document.documentElement.style.setProperty('--acento', cfg.color);
     if (cfg.acentoTenue) document.documentElement.style.setProperty('--acento-tenue', cfg.acentoTenue);
+
+    montarCanalMovil();
 
     // Se acepta `['agenda', 'espacios']` o `[{clave: 'agenda', titulo: '…'}]`.
     var paneles = (cfg.paneles || []).map(function (p) {
@@ -138,10 +208,11 @@
       // `alEntrar` pinta el panel: es adorno, no el arranque. Si viene mal (por
       // ejemplo una Promise en vez de una función, que es lo que pasa al
       // escribir `conAviso(fn)` en vez de `() => conAviso(fn)`) no debe tumbar el
-      // resto del montaje ni impedir cargar la cuenta de arriba.
-      if (typeof cfg.alEntrar === 'function') {
+      // resto del montaje ni impedir cargar la cuenta de arriba. El primer pintado
+      // pasa por `mostrar` para que sea el mismo camino que el resto.
+      if (alEntrar) {
         try {
-          cfg.alEntrar(inicial);
+          mostrar(inicial);
         } catch (err) {
           console.error('AMIGO.montar: alEntrar falló', err);
         }

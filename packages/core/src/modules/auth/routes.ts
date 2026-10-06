@@ -1,4 +1,4 @@
-import { Router, type Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
@@ -130,10 +130,34 @@ authRouter.post(
   }),
 );
 
-authRouter.post('/logout', authRequired, (_req, res) => {
-  res.clearCookie('token');
-  return res.json({ ok: true });
-});
+/**
+ * Cierre de sesión en el Core.
+ *
+ * Los productos redirigen a `/api/logout?redirect=<producto>` desde su
+ * `auth/logout` (ver `@amg/auth-client`). Sin esta ruta el "Salir" aterrizaba
+ * en un 404 y la sesión del Core seguía viva: el usuario creía que salió y al
+ * volver al producto seguía adentro.
+ *
+ * GET y POST: el navegador puede llegar por cualquiera de los dos (link o
+ * formulario). No exige sesión: cerrar una sesión que ya no existe tiene que
+ * responder igual de bien que cerrar una que sí.
+ */
+export function logoutHandler(req: Request, res: Response) {
+  res.clearCookie('token', { path: '/' });
+  const destino = typeof req.query.redirect === 'string' ? req.query.redirect : '';
+  // Solo rutas relativas internas o URLs https: un `redirect` arbitrario
+  // convertiría el logout en un open-redirect.
+  const seguro =
+    destino.startsWith('/') && !destino.startsWith('//') && !destino.includes('\\')
+      ? destino
+      : destino.startsWith('https://')
+        ? destino
+        : '';
+  return res.redirect(302, seguro || `${config.appUrl}/`);
+}
+
+authRouter.post('/logout', logoutHandler);
+authRouter.get('/logout', logoutHandler);
 
 authRouter.get(
   '/me',

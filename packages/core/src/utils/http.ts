@@ -27,10 +27,26 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
   if (isZodError(err)) {
     return res.status(400).json({ error: 'Datos inválidos', errors: err.flatten() });
   }
+  // Un body que no es JSON no es un error interno: es una petición mal armada.
+  if (isEntityTooLarge(err)) {
+    return res.status(413).json({ error: 'La petición es demasiado grande' });
+  }
+  if (isMalformedJson(err)) {
+    return res.status(400).json({ error: 'El cuerpo de la petición no es JSON válido' });
+  }
   console.error(err);
   return res.status(500).json({ error: 'Error interno del servidor' });
 }
 
 function isZodError(e: unknown): e is ZodError {
   return typeof (e as { name?: string })?.name === 'string' && (e as { name: string }).name === 'ZodError';
+}
+
+function isEntityTooLarge(e: unknown): boolean {
+  return (e as { type?: string })?.type === 'entity.too.large';
+}
+
+function isMalformedJson(e: unknown): boolean {
+  const type = (e as { type?: string })?.type;
+  return type === 'entity.parse.failed' || (e instanceof SyntaxError && 'body' in (e as object));
 }

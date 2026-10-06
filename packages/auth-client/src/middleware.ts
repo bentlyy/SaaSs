@@ -116,7 +116,11 @@ export function mountAmgAuth(config: AmgResolvedConfig, options: MountOptions = 
       if (req.method === 'GET' && !wantsJson(req)) {
         return res.redirect(302, buildLoginUrl(config, req.originalUrl));
       }
-      return res.status(401).json({ error: 'sin-sesion', loginUrl: buildLoginUrl(config, req.originalUrl) });
+      return res.status(401).json({
+        error: 'sin-sesion',
+        message: 'Tu sesión expiró o no existe. Iniciá sesión para continuar.',
+        loginUrl: buildLoginUrl(config, req.originalUrl),
+      });
     }
 
     const verified = verifyIdentity(token, config);
@@ -128,7 +132,11 @@ export function mountAmgAuth(config: AmgResolvedConfig, options: MountOptions = 
       if (req.method === 'GET' && !wantsJson(req)) {
         return res.redirect(302, buildLoginUrl(config, req.originalUrl));
       }
-      return res.status(401).json({ error: verified.reason, loginUrl: buildLoginUrl(config, req.originalUrl) });
+      return res.status(401).json({
+        error: verified.reason,
+        message: describeReason(verified.reason),
+        loginUrl: buildLoginUrl(config, req.originalUrl),
+      });
     }
 
     req.amg = verified.identity;
@@ -198,7 +206,13 @@ export function identity(req: Request): AmgIdentity {
 /** Para rutas que necesitan como mínimo un rol. */
 export function requireRole(minimum: 'member' | 'admin' | 'owner'): RequestHandler {
   return (req, res, next) => {
-    if (!req.amg) return res.status(401).json({ error: 'sin-sesion' });
+    if (!req.amg) {
+      return res.status(401).json({
+        error: 'sin-sesion',
+        message: 'Necesitás iniciar sesión para continuar.',
+        loginUrl: undefined,
+      });
+    }
     if ((ROLE_RANK[req.amg.role] ?? 0) < ROLE_RANK[minimum]) {
       return res.status(403).json({ error: 'rol-insuficiente', necesario: minimum, actual: req.amg.role });
     }

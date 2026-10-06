@@ -1,0 +1,18 @@
+{
+  "url": "http://localhost:4322/qa",
+  "cookie": "app_session=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfdGVzdF8wMDAwMDAwMDAwMDAwMDAwIiwiYXVkIjoiZXNwYWNpb3MiLCJpc3MiOiJodHRwczovL2NvcmUudGVzdCIsIm9yZ19pZCI6Im9yZ19sb2NhbF9xYV8wMDAwMDAiLCJvcmdfc2x1ZyI6ImJldGEiLCJyb2xlIjoib3duZXIiLCJlbWFpbCI6ImRlbW9Ac2Fsb25lcy5jb20iLCJuYW1lIjoiU2Fsb25lcyBkZWwgQ2VudHJvIiwicHJvZHVjdCI6ImVzcGFjaW9zIiwic2lkIjoic2VzX3Rlc3RfMDAwMDAwMDAwMDAwMDAwMDAwIiwic2NvcGUiOiJwcm9kdWN0OmFjY2VzcyIsImlhdCI6MTc5MDk1NDQ4MSwiZXhwIjoxNzkwOTU1MzgxfQ.Iwd7pjR6eohaCPwTciCUk29n37VgB47x0ZAFYWyx4g8",
+  "hoy": "2026-10-02",
+  "dia3": "2026-10-05",
+  "dia4": "2026-10-06",
+  "resumen": {
+    "date": "2026-10-02",
+    "hoy": 1,
+    "confirmadas": 1,
+    "porConfirmar": 0,
+    "futuras": 3,
+    "ingresos": 68000
+  },
+  "reservas": 4,
+  "agenda": 1,
+  "franjas": 4
+}

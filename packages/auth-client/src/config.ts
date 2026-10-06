@@ -82,4 +82,6 @@ export type AmgErrorReason =
   | 'invalido'
   | 'sin-acceso'
   | 'core-caido'
-  | 'otro-producto';
+  | 'otro-producto'
+  | 'sin-rol'
+  | 'sin-organizacion';

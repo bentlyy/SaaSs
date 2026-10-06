@@ -24,11 +24,9 @@ const estado = { articulos: [], me: null, editando: null };
 /**
  * Formatea centavos. El símbolo sale de la configuración de la organización, no
  * de una constante: cada empresa guarda sus precios como quiere verlos.
+ * Un solo camino de formato en toda la pantalla: `AMIGO_UI.dinero`.
  */
-const pesos = (centavos) => {
-  const simbolo = estado.settings?.currency ?? '$';
-  return `${simbolo} ${fmt.format(Math.round(centavos / 100))}`;
-};
+const pesos = (centavos) => AMIGO_UI.dinero(centavos, { simbolo: estado.settings?.currency ?? '$' });
 
 const cuando = (iso) => (iso ? AMIGO_UI.fecha(iso, true) : '—');
 

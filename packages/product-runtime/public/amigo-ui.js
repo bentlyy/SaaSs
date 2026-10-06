@@ -40,30 +40,41 @@
   }
 
   /**
-   * Centavos -> "$1.500". El separador de miles lo pone el navegador según el
-   * locale, no una expresión regular propia: escribir el separador a mano es
-   * como se termina con "1.500,00" en un sitio que cobra en pesos enteros.
+   * Centavos -> "$1.500" o "$1.500,00" si se le piden decimales.
    *
-   * `simbolo` existe porque la moneda no es siempre el peso: la elige la
-   * organización en sus ajustes, y un producto que hardcodara el `$` le
-   * mostraria la cifra equivocada a quien cobra en otra cosa. Por defecto es `$`,
-   * que es lo que usan la mayoria.
+   * El separador de miles lo pone el navegador segun el locale. `simbolo`
+   * existe porque la moneda la elige la organizacion. Negativos salen con el
+   * signo delante (`-$500`), que es como se leen de un vistazo.
    */
   function dinero(centavos, opciones) {
     var op = Object.assign({ minimumFractionDigits: 0, simbolo: '$' }, opciones);
     var simbolo = op.simbolo;
     delete op.simbolo;
-    return simbolo + (Number(centavos || 0) / 100).toLocaleString('es-CL', op);
+    var n = Number(centavos || 0);
+    var signo = n < 0 ? '-' : '';
+    return signo + simbolo + (Math.abs(n) / 100).toLocaleString('es-CL', op);
   }
 
-  /** Fecha ISO -> "12 oct 2026", sin la zona horaria del navegador de por medio. */
-  function fecha(iso, conHora) {
+  /**
+   * Fecha ISO -> "12 oct 2026".
+   *
+   * El tercer argumento es la zona IANA en que se quiere VER el instante, que no
+   * es la del navegador: un taller en Mexico City abre la agenda desde Santiago
+   * y las 09:00 del taller no pueden aparecer como las 12:00. Sin `zona` el
+   * comportamiento es el de siempre (la del navegador), para no cambiarle el
+   * dia a los productos que todavia no pasan la suya.
+   */
+  function fecha(iso, conHora, zona) {
     if (!iso) return '';
     var d = new Date(iso);
     if (Number.isNaN(d.getTime())) return String(iso);
-    var dia = d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' });
+    var base = { day: 'numeric', month: 'short', year: 'numeric' };
+    if (zona) base.timeZone = zona;
+    var dia = d.toLocaleDateString('es-CL', base);
     if (!conHora) return dia;
-    return dia + ' ' + d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+    var reloj = { hour: '2-digit', minute: '2-digit' };
+    if (zona) reloj.timeZone = zona;
+    return dia + ' ' + d.toLocaleTimeString('es-CL', reloj);
   }
 
   /**
@@ -219,9 +230,10 @@
   /**
    * Las tarjetas de arriba.
    *
-   * `filas` son [etiqueta, valor, esAcento]. Se pintan todas juntas porque
-   * cuatro tarjetas que se rellenan una por una en cuatro partes del codigo
-   * terminan con tres del mismo ancho y la cuarta distinta.
+   * `filas` son [etiqueta, valor, esAcento]. El VALOR va en la cifra grande
+   * y la etiqueta arriba: si un producto invierte la tupla, el numero se
+   * pinta como si fuera texto. Se castean a string porque `textContent` con
+   * un numero es valido pero un undefined pinta "undefined" en la tarjeta.
    */
   function kpis(contenedor, filas) {
     contenedor.replaceChildren();
@@ -231,15 +243,15 @@
       div.className = 'ui-kpi';
       var cifra = document.createElement('span');
       cifra.className = 'ui-kpi__cifra' + (f[2] ? ' ui-kpi__cifra--acento' : '');
-      cifra.textContent = f[1];
+      cifra.textContent = f[1] == null ? '—' : String(f[1]);
       var etiquetaTexto = document.createElement('span');
       etiquetaTexto.className = 'ui-kpi__etiqueta';
-      etiquetaTexto.textContent = f[0];
+      etiquetaTexto.textContent = f[0] == null ? '' : String(f[0]);
       div.append(cifra, etiquetaTexto);
       if (f[3]) {
         var nota = document.createElement('span');
         nota.className = 'ui-kpi__nota';
-        nota.textContent = f[3];
+        nota.textContent = String(f[3]);
         div.append(nota);
       }
       contenedor.append(div);

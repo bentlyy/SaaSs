@@ -54,16 +54,16 @@ const MOVIMIENTOS = {
 /**
  * Centavos a texto legible, con el centavo SIEMPRE a la vista.
  *
- * Aqui no se usa `AMIGO_UI.dinero` a proposito: ese redondea al peso, que es lo
- * correcto en una venta, y aqui no. Un costo de $45,01 mostrado como $45 hace
- * pensar que el activo costo menos de lo que costo, y en un inventario la
- * diferencia entre el valor contable y el real se nota. La division por 100 es
- * la UNICA operacion de dinero de esta pantalla, porque el numero que llega de
- * la API ya esta en la unidad en que se guarda.
+ * Se reutiliza `AMIGO_UI.dinero` pidiendole dos decimales: el helper ya sabe
+ * formatear y simbolo de la organización; solo hay que no redondear. Un costo
+ * de $45,01 mostrado como $45 hace pensar que el activo costo menos.
  */
-const fmtMonto = new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function monto(centavos) {
-  return `${estado.cfg?.currency ?? '$'} ${fmtMonto.format(Math.trunc(Number(centavos ?? 0)) / 100)}`;
+  return AMIGO_UI.dinero(centavos, {
+    simbolo: estado.cfg?.currency ?? '$',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 /** `AAAA-MM-DD` a `DD/MM`: como lo lee una persona, sin cambiar el dato. */

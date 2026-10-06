@@ -92,11 +92,11 @@ describe('followups (API /api/followups)', () => {
   it('crea un seguimiento y lo devuelve con el cliente', async () => {
     const tenant = await currentTenant();
     const c = addCustomer(tenant.id);
-    const res = await post('/api/followups', { customerId: c.id, title: 'Llamar para propuesta', dueDate: '2026-09-30' });
+    const res = await post('/api/followups', { customerId: c.id, title: 'Llamar para propuesta', dueDate: '2026-12-30' });
     expect(res.status).toBe(201);
     const { followup } = await res.json();
     expect(followup.status).toBe('pending');
-    expect(followup.due_date).toBe('2026-09-30');
+    expect(followup.due_date).toBe('2026-12-30');
 
     const list = await (await get('/api/followups')).json();
     expect(list.followups).toHaveLength(1);

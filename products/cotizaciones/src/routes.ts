@@ -506,6 +506,29 @@ export function buildRoutes(ctx: ProductContext): Router[] {
        * aceptar una cotizacion sin sello.
        */
       const { status: _estadoPorPatch, ...cambios } = (req.body ?? {}) as Record<string, unknown>;
+      // Los campos que el esquema no conoce se rechazan: el `parse` de zod los
+      // descartaria en silencio y el cliente creeria que edito un total o un
+      // impuesto. Mismo criterio que customers y que el PATCH de pagos.
+      const editables = new Set([
+        'number',
+        'customerName',
+        'customerId',
+        'customerEmail',
+        'title',
+        'issueDate',
+        'validUntil',
+        'taxRateBp',
+        'notes',
+        'lines',
+      ]);
+      for (const clave of Object.keys(cambios)) {
+        if (!editables.has(clave)) {
+          throw new AppError(
+            400,
+            `Campo desconocido: ${clave}. Campos editables: ${[...editables].join(', ')}`,
+          );
+        }
+      }
       const body = quotePatchSchema.parse({
         number: existente.number,
         customerName: existente.customerName,

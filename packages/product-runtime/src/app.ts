@@ -92,7 +92,19 @@ export function createProductApp(def: ProductDefinition, env: NodeJS.ProcessEnv 
   app.locals.product = def.slug;
   if (config.isProd) app.set('trust proxy', 1);
 
-  app.use(helmet({ contentSecurityPolicy: false }));
+  // helmet en producción convive con nginx, que ya pone X-Frame-Options,
+  // X-Content-Type-Options y Referrer-Policy: sin esto, cada respuesta traía
+  // las cabeceras dos veces (nosniff, nosniff) y el Referrer-Policy duplicado.
+  // Local no pasa por nginx, así que acá se mantienen; en prod manda nginx.
+  const trasNginx = config.isProd;
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      frameguard: trasNginx ? false : undefined,
+      noSniff: trasNginx ? false : undefined,
+      referrerPolicy: trasNginx ? false : undefined,
+    }),
+  );
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: false, limit: '1mb' }));
   app.use(cookieParser());
@@ -102,6 +114,9 @@ export function createProductApp(def: ProductDefinition, env: NodeJS.ProcessEnv 
       limit: def.rateLimitPer15Min ?? 600,
       standardHeaders: 'draft-8',
       legacyHeaders: false,
+      // El default de express-rate-limit es texto plano. La API siempre
+      // responde JSON: un 429 en texto rompe el manejo de errores del cliente.
+      message: { error: 'Demasiadas peticiones. Espera unos minutos e inténtalo de nuevo.' },
     }),
   );
 

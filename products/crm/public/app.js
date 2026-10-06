@@ -197,7 +197,10 @@ function pintarClientes() {
   const cuerpo = AMIGO_UI.cuerpoDe(tabla);
 
   if (lista.length === 0) {
-    cuerpo.append(AMIGO_UI.filaVacia(6, 'No hay clientes que coincidan'));
+    const mensaje = estado.clientes.length === 0
+      ? 'Todavía no hay clientes. Creá el primero.'
+      : 'No hay clientes que coincidan';
+    cuerpo.append(AMIGO_UI.filaVacia(6, mensaje));
   } else {
     for (const c of lista) {
       // El documento va debajo del nombre y no en su propia columna: es un dato

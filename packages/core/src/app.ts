@@ -55,7 +55,17 @@ export function createApp(product: ProductConfig): Express {
   // mismo contador, avisando con ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
   if (config.isProd) app.set('trust proxy', 1);
 
-  app.use(helmet({ contentSecurityPolicy: false }));
+  // En prod nginx ya pone estas cabeceras: duplicarlas daba dos nosniff y
+  // dos Referrer-Policy en la misma respuesta.
+  const trasNginx = config.isProd;
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      frameguard: trasNginx ? false : undefined,
+      noSniff: trasNginx ? false : undefined,
+      referrerPolicy: trasNginx ? false : undefined,
+    }),
+  );
   app.use(cors({ origin: config.appUrl, credentials: true }));
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser);
@@ -65,6 +75,7 @@ export function createApp(product: ProductConfig): Express {
       limit: 600,
       standardHeaders: 'draft-8',
       legacyHeaders: false,
+      message: { error: 'Demasiadas peticiones. Espera unos minutos e inténtalo de nuevo.' },
     }),
   );
 
@@ -80,7 +91,20 @@ export function createApp(product: ProductConfig): Express {
     app.get('/', (_req, res) => res.sendFile(path.join(dir, 'index.html')));
   }
 
+  // Alias en `/api/logout`: los productos (auth-client) redirigen a esta ruta,
+  // no a `/api/auth/logout`. Sin el alias, "Salir" caía en un 404.
   app.use('/api/auth', authRouter);
+  app.use('/api/logout', (req, res) => {
+    res.clearCookie('token', { path: '/' });
+    const destino = typeof req.query.redirect === 'string' ? req.query.redirect : '';
+    const seguro =
+      destino.startsWith('/') && !destino.startsWith('//') && !destino.includes('\\')
+        ? destino
+        : destino.startsWith('https://')
+          ? destino
+          : '';
+    return res.redirect(302, seguro || `${config.appUrl}/`);
+  });
   if (routers.customers) app.use('/api/customers', customersRouter);
   if (routers.services) app.use('/api/services', servicesRouter);
   if (routers.staff) app.use('/api/staff', staffRouter);

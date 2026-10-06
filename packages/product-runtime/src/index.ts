@@ -48,5 +48,15 @@ export {
   TIPOS_ADJUNTO,
   type DatosAdjunto,
 } from './attachments.js';
-export { esZonaValida, hhmm, localDe, zonaHoraria, type Local } from './time.js';
+export {
+  esZonaValida,
+  hhmm,
+  localDe,
+  offsetMinutos,
+  inicioDelDiaEnZona,
+  diaEnZona,
+  minutosEnZona,
+  zonaHoraria,
+  type Local,
+} from './time.js';
 export { logger } from './logger.js';

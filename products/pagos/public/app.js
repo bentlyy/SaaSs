@@ -62,15 +62,16 @@ const METODOS = {
 /**
  * Centavos a texto legible, con el centavo SIEMPRE a la vista.
  *
- * No se usa `AMIGO_UI.dinero` a proposito: ese redondea al peso, y una cartera
- * por cobrar redondeada no es una cartera por cobrar. Un saldo de $45,01
- * mostrado como $45 hace desaparecer deuda. La division por 100 es la UNICA
- * operacion de dinero de esta pantalla, porque el numero que llega de la API ya
- * esta en la unidad en que se guarda.
+ * Se reutiliza `AMIGO_UI.dinero` pidiendole dos decimales: el helper ya sabe
+ * formatear y simbolo de la organización; solo hay que no redondear. Un saldo
+ * de $45,01 mostrado como $45 hace desaparecer deuda.
  */
-const fmtMonto = new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function monto(centavos) {
-  return `${estado.cfg?.currency ?? '$'} ${fmtMonto.format(Math.trunc(Number(centavos ?? 0)) / 100)}`;
+  return AMIGO_UI.dinero(centavos, {
+    simbolo: estado.cfg?.currency ?? '$',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 /** `AAAA-MM-DD` a `DD/MM`: como lo lee una persona, sin cambiar el dato. */

@@ -306,13 +306,15 @@ describe('choques de horario', () => {
     const espacio = await nuevoEspacio(TEST_ORG_A, { name: 'Cancha de Choques' });
     const cliente = await nuevoCliente(TEST_ORG_A, 'Cliente de Choques');
 
+    // Fechas futuras fijas: un dia que ya paso rechaza la reserva con 400
+    // ("fecha que ya paso") y el test deja de probar el choque.
     const primera = await comoMiembro(TEST_ORG_A)
       .post('/api/bookings')
       .send({
         spaceId: espacio,
         customerId: cliente,
-        startAt: '2026-10-05T14:00:00.000Z',
-        endAt: '2026-10-05T16:00:00.000Z',
+        startAt: '2026-11-20T14:00:00.000Z',
+        endAt: '2026-11-20T16:00:00.000Z',
       });
     expect(primera.status, JSON.stringify(primera.body)).toBe(201);
 
@@ -321,8 +323,8 @@ describe('choques de horario', () => {
       .send({
         spaceId: espacio,
         customerId: cliente,
-        startAt: '2026-10-05T15:00:00.000Z',
-        endAt: '2026-10-05T17:00:00.000Z',
+        startAt: '2026-11-20T15:00:00.000Z',
+        endAt: '2026-11-20T17:00:00.000Z',
       });
     expect(segunda.status).toBe(409);
   });
@@ -334,8 +336,8 @@ describe('choques de horario', () => {
 
     const base = {
       customerId: cliente,
-      startAt: '2026-10-06T14:00:00.000Z',
-      endAt: '2026-10-06T15:00:00.000Z',
+      startAt: '2026-11-20T14:00:00.000Z',
+      endAt: '2026-11-20T15:00:00.000Z',
     };
     const a = await comoMiembro(TEST_ORG_A).post('/api/bookings').send({ ...base, spaceId: cancha1 });
     const b = await comoMiembro(TEST_ORG_A).post('/api/bookings').send({ ...base, spaceId: cancha2 });

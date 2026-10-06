@@ -91,3 +91,46 @@ export function hhmm(minutos: number): string {
   const m = minutos % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
+
+/**
+ * Cuanto le falta a UTC para que en `zona` sean las `instante`.
+ *
+ * Positivo si la zona va adelante de UTC. Se calcula pasando el instante por
+ * `localDe` y restando: el horario de verano hace que esto NO sea constante, y
+ * por eso hay que recalcular sobre el resultado (ver `inicioDelDiaEnZona`).
+ */
+export function offsetMinutos(zona: string, instante: number | string): number {
+  const ms = typeof instante === 'number' ? instante : Date.parse(instante);
+  const l = localDe(new Date(ms).toISOString(), zona);
+  const comoUtc = Date.UTC(l.year, l.month - 1, l.day, 0, l.minutes);
+  return Math.round((comoUtc - ms) / 60000);
+}
+
+/**
+ * Las 00:00 de un día, en una zona, como instante UTC.
+ *
+ * Un día de la agenda son 24 horas que empiezan a una hora distinta según la
+ * zona: la medianoche de Mexico City es las 06:00 UTC. Comparar contra la
+ * medianoche UTC mete las citas de la madrugada del taller en el día anterior.
+ *
+ * El offset se calcula dos veces porque depende del propio instante que se está
+ * resolviendo: en el cambio de horario de verano la primera cuenta cae del lado
+ * equivocado y la segunda ya acierta.
+ */
+export function inicioDelDiaEnZona(zona: string, dias = 0, desde?: string): string {
+  const hoy = desde ? localDe(desde, zona) : localDe(new Date().toISOString(), zona);
+  const falso = Date.UTC(hoy.year, hoy.month - 1, hoy.day + dias);
+  const primera = new Date(falso - offsetMinutos(zona, falso) * 60000);
+  return new Date(falso - offsetMinutos(zona, primera.getTime()) * 60000).toISOString();
+}
+
+/** El día de la agenda, en una zona, desde un instante. "YYYY-MM-DD". */
+export function diaEnZona(zona: string, instante: string): string {
+  const l = localDe(instante, zona);
+  return `${l.year}-${String(l.month).padStart(2, '0')}-${String(l.day).padStart(2, '0')}`;
+}
+
+/** La hora de un instante en una zona, en minutos desde la medianoche. */
+export function minutosEnZona(zona: string, instante: string): number {
+  return localDe(instante, zona).minutes;
+}

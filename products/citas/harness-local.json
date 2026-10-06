@@ -1,0 +1,12 @@
+{
+  "url": "http://localhost:4321/qa",
+  "cookie": "app_session=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfdGVzdF8wMDAwMDAwMDAwMDAwMDAwIiwiYXVkIjoiY2l0YXMiLCJpc3MiOiJodHRwczovL2NvcmUudGVzdCIsIm9yZ19pZCI6Im9yZ19sb2NhbF9xYV8wMDAwMDAiLCJvcmdfc2x1ZyI6ImJldGEiLCJyb2xlIjoib3duZXIiLCJlbWFpbCI6ImRlbW9AdGFsbGVyZXMuY29tIiwibmFtZSI6IlRhbGxlcmVzIEVsIE1lY2FuaWNvIiwicHJvZHVjdCI6ImNpdGFzIiwic2lkIjoic2VzX3Rlc3RfMDAwMDAwMDAwMDAwMDAwMDAwIiwic2NvcGUiOiJwcm9kdWN0OmFjY2VzcyIsImlhdCI6MTc5MDk1MjM0MCwiZXhwIjoxNzkwOTUzMjQwfQ.AE_Oa9PD9u_KMUQriRV_0ZQD9N37AluKrmRHTABFOkI",
+  "resumen": {
+    "futuras": 3,
+    "hoy": 1,
+    "porConfirmar": 1
+  },
+  "citas": 4,
+  "dia5": "2026-10-05",
+  "hoy": "2026-10-02"
+}

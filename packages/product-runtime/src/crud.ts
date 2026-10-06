@@ -225,9 +225,21 @@ export function crudRouter(handle: Db, options: CrudOptions): Router {
         where.push(eq(spec.column, parsed.data));
       }
 
-      const limit = Math.min(Number(req.query.limit) || defaultLimit, maxLimit);
-      const offset = Number(req.query.offset) || 0;
-      const order = orderDirection === 'asc' ? asc(orderBy) : desc(orderBy);
+      // `limit`: default con tope duro. Un `?limit=-5` o `limit=999999` no
+      // rompe el listado ni vuela la memoria del servidor.
+      const rawLimit = Number(req.query.limit);
+      const limit =
+        Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(Math.floor(rawLimit), maxLimit) : defaultLimit;
+      // `offset`: negativos o basura se tratan como 0.
+      const rawOffset = Number(req.query.offset);
+      const offset = Number.isFinite(rawOffset) && rawOffset > 0 ? Math.floor(rawOffset) : 0;
+      // Orden: el cliente puede escribir `?order=asc|desc`. El campo a ordenar
+      // siempre viene del allowlist (`orderBy` de la definición): de la query
+      // solo se lee la dirección. Un valor desconocido cae al default del
+      // producto, que es `desc` en casi todos.
+      const rawOrder = typeof req.query.order === 'string' ? req.query.order.toLowerCase() : '';
+      const direccion: 'asc' | 'desc' = rawOrder === 'asc' || rawOrder === 'desc' ? rawOrder : orderDirection;
+      const order = direccion === 'asc' ? asc(orderBy) : desc(orderBy);
 
       const rows = handle.db
         .select()

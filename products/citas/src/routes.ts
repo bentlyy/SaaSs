@@ -6,6 +6,7 @@ import {
   asyncHandler,
   createId,
   crudRouter,
+  inicioDelDiaEnZona,
   nowIso,
   orgId,
   requireRole,
@@ -511,19 +512,34 @@ const ahora = nowIso();
     }),
   );
 
-  /** Resumen para la portada. */
+  /** La zona horaria de la organización, que es la que manda sobre su agenda. */
+  function zonaDe(org: string): string {
+    const fila = db.select({ tz: settings.timezone }).from(settings).where(eq(settings.organizationId, org)).get();
+    return fila?.tz || defaultSettings().timezone;
+  }
+
+  /**
+   * Resumen para la portada.
+   *
+   * Los cortes del día salen de la zona del taller y no de la midnight UTC: un
+   * taller de Mexico City trabaja de 00:00 a 06:00 UTC, y con el corte UTC esas
+   * citas caían en el resumen de ayer. Y se excluyen las canceladas y las que no
+   * se hicieron, que es el mismo criterio que usa el chequeo de solapamiento
+   * para decidir si dos citas se pisan: si no ocupan el taller, no son una cita.
+   */
   router.get(
     '/api/resumen',
     asyncHandler(async (req, res) => {
       const org = orgId(req);
-      const hoy = new Date();
-      hoy.setUTCHours(0, 0, 0, 0);
-      const manana = new Date(hoy.getTime() + 86_400_000);
+      const z = zonaDe(org);
+      const desdeHoy = inicioDelDiaEnZona(z);
+      const manana = inicioDelDiaEnZona(z, 1);
+      const vigente = sql`${appointments.status} NOT IN ('cancelled','no_show')`;
 
-      const [agendadas] = db
+      const [futuras] = db
         .select({ n: count() })
         .from(appointments)
-        .where(and(eq(appointments.organizationId, org), gte(appointments.startAt, hoy.toISOString())))
+        .where(and(eq(appointments.organizationId, org), vigente, gte(appointments.startAt, desdeHoy)))
         .all();
       const [hoyCount] = db
         .select({ n: count() })
@@ -531,18 +547,34 @@ const ahora = nowIso();
         .where(
           and(
             eq(appointments.organizationId, org),
-            gte(appointments.startAt, hoy.toISOString()),
-            lte(appointments.startAt, manana.toISOString()),
+            vigente,
+            gte(appointments.startAt, desdeHoy),
+            lte(appointments.startAt, manana),
           ),
         )
         .all();
-      const [pendientesAviso] = db
+
+      // "Por confirmar" son las citas EN PENDING. Antes contaba las 'confirmed':
+      // la tarjeta decia una cosa y mostraba otra, y el taller pedia ver las que
+      // faltan por confirmar y le mostraba las ya confirmadas.
+      const [porConfirmar] = db
         .select({ n: count() })
         .from(appointments)
-        .where(and(eq(appointments.organizationId, org), eq(appointments.status, 'confirmed')))
+        .where(
+          and(
+            eq(appointments.organizationId, org),
+            vigente,
+            eq(appointments.status, 'pending'),
+            gte(appointments.startAt, desdeHoy),
+          ),
+        )
         .all();
 
-      res.json({ futuras: agendadas?.n ?? 0, hoy: hoyCount?.n ?? 0, porConfirmar: pendientesAviso?.n ?? 0 });
+      res.json({
+        futuras: futuras?.n ?? 0,
+        hoy: hoyCount?.n ?? 0,
+        porConfirmar: porConfirmar?.n ?? 0,
+      });
     }),
   );
 

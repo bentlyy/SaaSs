@@ -36,6 +36,11 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
   if (isEntityTooLarge(err)) {
     return res.status(413).json({ error: 'La petición es demasiado grande' });
   }
+  // Un body que no es JSON tampoco: 400, no 500. Un 500 aqui decia "error del
+  // servidor" cuando el culpable era el cliente, y escondia el verdadero motivo.
+  if (isMalformedJson(err)) {
+    return res.status(400).json({ error: 'El cuerpo de la petición no es JSON válido' });
+  }
   console.error(err);
   return res.status(500).json({ error: 'Error interno del servidor' });
 }
@@ -46,4 +51,9 @@ function isZodError(e: unknown): e is ZodError {
 
 function isEntityTooLarge(e: unknown): boolean {
   return (e as { type?: string })?.type === 'entity.too.large';
+}
+
+function isMalformedJson(e: unknown): boolean {
+  const type = (e as { type?: string })?.type;
+  return type === 'entity.parse.failed' || (e instanceof SyntaxError && 'body' in (e as object));
 }

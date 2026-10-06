@@ -49,7 +49,7 @@ function readTools(value: unknown): ToolIdentity[] {
 
 export type VerifyResult =
   | { ok: true; identity: AmgIdentity }
-  | { ok: false; reason: 'expirado' | 'audiencia' | 'invalido' | 'otro-producto' | 'sin-rol' | 'sin-organizacion' };
+  | { ok: false; reason: 'expirada' | 'audiencia' | 'invalido' | 'otro-producto' | 'sin-rol' | 'sin-organizacion' };
 
 /**
  * Verifica un access token del Core contra el secreto DE ESTE producto.
@@ -70,7 +70,7 @@ export function verifyIdentity(token: string, config: Pick<AmgConfig, 'clientSec
     });
   } catch (e) {
     const name = (e as Error).name;
-    if (name === 'TokenExpiredError') return { ok: false, reason: 'expirado' };
+    if (name === 'TokenExpiredError') return { ok: false, reason: 'expirada' };
     if (name === 'JsonWebTokenError' && (e as Error).message.includes('audience')) {
       return { ok: false, reason: 'audiencia' };
     }

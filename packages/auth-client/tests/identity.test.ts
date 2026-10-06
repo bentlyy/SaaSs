@@ -76,7 +76,7 @@ describe('verifyIdentity', () => {
     const res = verifyIdentity(token, config('inventario', SECRETO_INVENTARIO));
     expect(res.ok).toBe(false);
     if (res.ok) return;
-    expect(res.reason).toBe('expirado');
+    expect(res.reason).toBe('expirada');
   });
 
   it('rechaza un token sin organización o sin rol válido', () => {
