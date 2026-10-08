@@ -1,0 +1,29 @@
+/* ==========================================================================
+   @amg/ui · la base que comparten los productos
+   --------------------------------------------------------------------------
+   Este archivo NO importa Tailwind: lo hace el index.css de cada producto,
+   que es donde vive su paleta de marca (`@theme`). Acá queda solo lo que es
+   igual en los nueve y no depende del color: la tipografía de arranque, el
+   fondo de la página y el escaneo de clases de este paquete.
+
+   El `@source "./"` es la mitad importante: le dice a Tailwind que mire los
+   .tsx de ESTE paquete al buscar clases usadas. Sin él, cada producto
+   compilaria un CSS sin los estilos de los componentes que importa de acá.
+   ========================================================================== */
+
+@source "./";
+
+html {
+  font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  scrollbar-width: thin;
+}

@@ -59,9 +59,21 @@ describe('la interfaz', () => {
     // organización. Por eso no hay ningún item_id hardcodeado en el HTML.
     expect(html.text).not.toMatch(TEST_ORG_A);
 
-    for (const estatico of ['/app.js', '/style.css']) {
-      expect((await tp.as({ orgId: TEST_ORG_A }).get(estatico)).status).toBe(200);
+    // Los assets del bundle de Vite salen del HTML servido, con la huella ?v=
+    // puesta por el runtime: si se pidieran con el nombre viejo (/app.js)
+    // ya no existirían.
+    const assets = [...html.text.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(?:js|css)[^"]*)"/g)].map(
+      (m) => m[1],
+    );
+    expect(assets.length).toBeGreaterThanOrEqual(2);
+    for (const asset of assets) {
+      expect((await tp.as({ orgId: TEST_ORG_A }).get(asset)).status).toBe(200);
     }
+
+    // Las rutas de cliente las resuelve la SPA: el server les devuelve el shell.
+    const ruta = await tp.as({ orgId: TEST_ORG_A }).get('/movimientos');
+    expect(ruta.status).toBe(200);
+    expect(ruta.text).toContain('Inventario');
   });
 
   it('la UI no ofrece login: la sesión es del Core', async () => {
@@ -71,9 +83,13 @@ describe('la interfaz', () => {
     expect(html.text).not.toMatch(/type=["']password["']/i);
 
     // Y la salida se resuelve contra el Core, no contra un logout local. La salida
-    // es un enlace del shell, no logica: por eso se busca en el HTML servido y no
-    // en el `app.js`, que ya no dibuja la cabecera.
-    expect(html.text).toContain('/auth/logout');
+    // la dibuja el shell de React (contra /auth/logout): se busca en el bundle
+    // servido, porque el HTML de Vite es solo el punto de montaje.
+    const js = /src="(\/assets\/[^"]+\.js[^"]*)"/.exec(html.text)?.[1];
+    expect(js).toBeTruthy();
+    const bundle = await tp.as({ orgId: TEST_ORG_A }).get(js!);
+    expect(bundle.status).toBe(200);
+    expect(bundle.text).toContain('/auth/logout');
   });
 });
 

@@ -44,8 +44,8 @@ describe('assetVersion', () => {
 describe('versionAssets', () => {
   const shell = `<!doctype html>
 <link rel="stylesheet" href="/style.css">
-<script src="/amigo-ui.js"></script>
-<script src="/amigo.js"></script>
+<script src="/panel.js"></script>
+<script src="/arranque.js"></script>
 <script src="/app.js"></script>
 <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
 <link href="https://fonts.googleapis.com/css2?family=X" rel="stylesheet"/>
@@ -53,7 +53,7 @@ describe('versionAssets', () => {
 
   it('pone la huella en todos los assets locales', () => {
     const salida = versionAssets(shell, 'abc123');
-    for (const archivo of ['style.css', 'amigo-ui.js', 'amigo.js', 'app.js']) {
+    for (const archivo of ['style.css', 'panel.js', 'arranque.js', 'app.js']) {
       expect(salida).toContain(`/${archivo}?v=abc123`);
     }
   });

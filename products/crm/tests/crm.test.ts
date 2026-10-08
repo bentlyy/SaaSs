@@ -39,6 +39,16 @@ async function nuevoSeguimiento(orgId: string, datos: Record<string, unknown> = 
 }
 
 describe('la interfaz', () => {
+  /** El JS servido: el HTML de Vite es solo el punto de montaje. */
+  async function bundle(): Promise<string> {
+    const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
+    const js = /src="(\/assets\/[^"]+\.js[^"]*)"/.exec(html.text)?.[1];
+    expect(js, 'el HTML no referencia el bundle').toBeTruthy();
+    const res = await tp.as({ orgId: TEST_ORG_A }).get(js!);
+    expect(res.status).toBe(200);
+    return res.text;
+  }
+
   it('con sesión sirve la app y sus estáticos', async () => {
     const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
     expect(html.status).toBe(200);
@@ -47,9 +57,20 @@ describe('la interfaz', () => {
     // organización. Por eso no hay ningún id de organización en el HTML.
     expect(html.text).not.toContain(TEST_ORG_A);
 
-    for (const estatico of ['/app.js', '/style.css']) {
-      expect((await tp.as({ orgId: TEST_ORG_A }).get(estatico)).status).toBe(200);
+    // Los assets del bundle de Vite salen del HTML servido, con huella ?v=
+    // puesta por el runtime: JS y CSS de la app.
+    const assets = [...html.text.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(?:js|css)[^"]*)"/g)].map(
+      (m) => m[1],
+    );
+    expect(assets.length).toBeGreaterThanOrEqual(2);
+    for (const asset of assets) {
+      expect((await tp.as({ orgId: TEST_ORG_A }).get(asset)).status).toBe(200);
     }
+
+    // Las rutas de cliente las resuelve la SPA: el server les devuelve el shell.
+    const ruta = await tp.as({ orgId: TEST_ORG_A }).get('/clientes');
+    expect(ruta.status).toBe(200);
+    expect(ruta.text).toContain('Clientes');
   });
 
   it('no sirve el HTML sin sesión: redirige al login central', async () => {
@@ -62,39 +83,41 @@ describe('la interfaz', () => {
     const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
     expect(html.text).not.toMatch(/type=["']password["']/i);
 
-    // Y la salida se resuelve contra el Core, no contra un logout local.
-    expect(html.text).toContain('/auth/logout');
+    // La salida se resuelve contra el Core, no contra un logout local: el shell
+    // de React la dibuja contra /auth/logout, y eso vive en el bundle.
+    expect(await bundle()).toContain('/auth/logout');
   });
 
   it('la UI no inventa datos ni se saltea al servidor', async () => {
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
-    expect(js.text).not.toContain(TEST_ORG_A);
-    expect(js.text).toContain('/api/followups');
-    expect(js.text).toContain('/api/interactions');
+    const js = await bundle();
+    expect(js).not.toContain(TEST_ORG_A);
+    // Todo lo que se ve sale de la API: los caminos de los endpoints que
+    // pintan el tablero, el seguimiento y el historial están en el bundle.
+    expect(js).toContain('/resumen');
+    expect(js).toContain('/tablero');
+    expect(js).toContain('/followups?limit=300');
+    expect(js).toContain('/interactions?limit=300');
+    expect(js).toContain('/customers?limit=500');
   });
 
-  it('el form de ajustes se llama config-form y se llena con form.elements', async () => {
-    // El contrato con el HTML: el JS recorre `form.elements` y usa el `name` de
-    // cada input. Si el id del form cambia, `renderConfig` deja de encontrarlo y
-    // el panel aparece vacío sin ningún error visible.
-    const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
-    expect(html.text).toContain('id="config-form"');
-    for (const campo of ['currency', 'timezone']) {
-      expect(html.text).toContain(`name="${campo}"`);
-    }
-
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
-    expect(js.text).toContain('function renderConfig()');
-    expect(js.text).toContain('form.elements');
+  it('el form de ajustes pide moneda y zona horaria', async () => {
+    const js = await bundle();
+    expect(js).toContain('Moneda');
+    expect(js).toContain('Zona horaria');
+    expect(js).toContain('Guardar ajustes');
   });
 
   it('la UI no deja editar ni borrar el historial de contacto', async () => {
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
+    const js = await bundle();
     // Una fila de contacto es la prueba de lo que pasó. Si se puede corregir en
-    // silencio deja de serlo, así que en la pantalla solo se registra y se lista.
-    const llamadas = js.text.match(/api\([^)]*\/api\/interactions[^)]*\)/g) ?? [];
-    expect(llamadas.length).toBeGreaterThan(0);
-    expect(llamadas.some((c) => /method:\s*'(PATCH|DELETE)'/.test(c))).toBe(false);
+    // silencio deja de serlo, así que en la pantalla solo se registra y se lista:
+    // las únicas llamadas a /interactions son GET (listar) y POST (registrar).
+    const llamadas = [...js.matchAll(/\.(get|post|put|patch|delete)\(\s*[`"'][^`"']*interactions[^`"']*[`"']/g)].map(
+      (m) => m[1],
+    );
+    expect(llamadas).toContain('post');
+    expect(llamadas).not.toContain('patch');
+    expect(llamadas).not.toContain('delete');
   });
 });
 

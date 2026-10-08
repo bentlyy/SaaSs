@@ -5,11 +5,24 @@
     "packages/*",
     "products/*"
   ],
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.0",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tailwindcss": "^4.1.0",
+    "vite": "^5.4.21"
+  },
   "scripts": {
     "dev": "npm run dev -w @amg/platform",
     "dev:core": "npm run dev -w @amg/platform",
     "dev:landing": "npm run dev -w landing",
-    "build": "npm run build -w @saas-mini/core && npm run build -w @amg/platform && npm run build -w @amg/auth-client && npm run build -w @amg/product-runtime && npm run build -w landing && npm run build -w @amg/espacios && npm run build -w @amg/citas && npm run build -w @amg/inventario && npm run build -w @amg/solicitudes && npm run build -w @amg/crm && npm run build -w @amg/cotizaciones && npm run build -w @amg/activos && npm run build -w @amg/checklists && npm run build -w @amg/pagos",
+    "build": "npm run build -w @saas-mini/core && npm run build -w @amg/platform && npm run build -w @amg/auth-client && npm run build -w @amg/product-runtime && npm run build -w landing && npm run build -w @amg/espacios && npm run build -w @amg/citas && npm run build -w @amg/inventario && npm run build -w @amg/solicitudes && npm run build -w @amg/crm && npm run build -w @amg/cotizaciones && npm run build -w @amg/activos && npm run build -w @amg/checklists && npm run build -w @amg/pagos && npm run build:webs",
     "seed": "npm run seed -w @amg/platform",
     "sso:secret": "npm run sso:secret -w @amg/platform --",
     "bootstrap": "npm run bootstrap -w @amg/platform --",
@@ -23,7 +36,36 @@
     "dev:checklists": "npm run dev -w @amg/checklists",
     "dev:pagos": "npm run dev -w @amg/pagos",
     "test": "npm run test -ws --if-present",
-    "typecheck": "npm run typecheck -ws --if-present"
+    "typecheck": "npm run typecheck -ws --if-present && npm run typecheck:webs",
+    "dev:web:activos": "vite --config products/activos/web/vite.config.ts",
+    "build:web:activos": "vite build --config products/activos/web/vite.config.ts",
+    "typecheck:web:activos": "tsc -p products/activos/web/tsconfig.json",
+    "dev:web:checklists": "vite --config products/checklists/web/vite.config.ts",
+    "build:web:checklists": "vite build --config products/checklists/web/vite.config.ts",
+    "typecheck:web:checklists": "tsc -p products/checklists/web/tsconfig.json",
+    "dev:web:citas": "vite --config products/citas/web/vite.config.ts",
+    "build:web:citas": "vite build --config products/citas/web/vite.config.ts",
+    "typecheck:web:citas": "tsc -p products/citas/web/tsconfig.json",
+    "dev:web:cotizaciones": "vite --config products/cotizaciones/web/vite.config.ts",
+    "build:web:cotizaciones": "vite build --config products/cotizaciones/web/vite.config.ts",
+    "typecheck:web:cotizaciones": "tsc -p products/cotizaciones/web/tsconfig.json",
+    "dev:web:crm": "vite --config products/crm/web/vite.config.ts",
+    "build:web:crm": "vite build --config products/crm/web/vite.config.ts",
+    "typecheck:web:crm": "tsc -p products/crm/web/tsconfig.json",
+    "dev:web:espacios": "vite --config products/espacios/web/vite.config.ts",
+    "build:web:espacios": "vite build --config products/espacios/web/vite.config.ts",
+    "typecheck:web:espacios": "tsc -p products/espacios/web/tsconfig.json",
+    "dev:web:inventario": "vite --config products/inventario/web/vite.config.ts",
+    "build:web:inventario": "vite build --config products/inventario/web/vite.config.ts",
+    "typecheck:web:inventario": "tsc -p products/inventario/web/tsconfig.json",
+    "dev:web:pagos": "vite --config products/pagos/web/vite.config.ts",
+    "build:web:pagos": "vite build --config products/pagos/web/vite.config.ts",
+    "typecheck:web:pagos": "tsc -p products/pagos/web/tsconfig.json",
+    "dev:web:solicitudes": "vite --config products/solicitudes/web/vite.config.ts",
+    "build:web:solicitudes": "vite build --config products/solicitudes/web/vite.config.ts",
+    "typecheck:web:solicitudes": "tsc -p products/solicitudes/web/tsconfig.json",
+    "build:webs": "npm run build:web:activos && npm run build:web:checklists && npm run build:web:citas && npm run build:web:cotizaciones && npm run build:web:crm && npm run build:web:espacios && npm run build:web:inventario && npm run build:web:pagos && npm run build:web:solicitudes",
+    "typecheck:webs": "npm run typecheck:web:activos && npm run typecheck:web:checklists && npm run typecheck:web:citas && npm run typecheck:web:cotizaciones && npm run typecheck:web:crm && npm run typecheck:web:espacios && npm run typecheck:web:inventario && npm run typecheck:web:pagos && npm run typecheck:web:solicitudes"
   },
   "engines": {
     "node": ">=20"

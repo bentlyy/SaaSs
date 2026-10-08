@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
@@ -25,6 +25,11 @@ import { describe, expect, it } from 'vitest';
  *   base = entero en unidades menores -> el backend convierte una vez -> el
  *   frontend solo pinta. En el JS del navegador no hay `* 100` ni `/ 100`
  *   sobre un monto.
+ *
+ * El escaneo mira las fuentes React de cada producto (`web/src`), que es donde
+ * vive el frontend desde la migracion al design system. El formateo de display
+ * (`dinero()` en @amg/ui) es la UNICA division sancionada, y vive en el paquete
+ * compartido, no en cada producto.
  */
 
 const RAIZ = join(import.meta.dirname, '..', '..', '..');
@@ -59,28 +64,41 @@ function esOperacionDeDinero(linea: string): boolean {
   );
 }
 
-function appJsDe(producto: string): string {
-  const ruta = join(RAIZ, 'products', producto, 'public', 'app.js');
-  expect(existsSync(ruta), `no se encontro products/${producto}/public/app.js`).toBe(true);
-  return readFileSync(ruta, 'utf8');
+/** Todos los `.ts`/`.tsx` con los que se arma el bundle del producto. */
+function fuentesDe(producto: string): string[] {
+  const raiz = join(RAIZ, 'products', producto, 'web', 'src');
+  expect(existsSync(raiz), `no se encontro products/${producto}/web/src`).toBe(true);
+  const archivos: string[] = [];
+  const caminar = (dir: string) => {
+    for (const entrada of readdirSync(dir, { withFileTypes: true })) {
+      const ruta = join(dir, entrada.name);
+      if (entrada.isDirectory()) caminar(ruta);
+      else if (/\.(ts|tsx)$/.test(entrada.name)) archivos.push(ruta);
+    }
+  };
+  caminar(raiz);
+  expect(archivos.length, `products/${producto}/web/src no tiene fuentes TS`).toBeGreaterThan(0);
+  return archivos;
 }
 
 describe('el frontend no convierte dinero', () => {
   for (const producto of PRODUCTOS) {
     it(`${producto}: ningun monto se multiplica ni se divide por 100`, () => {
       const culpables: string[] = [];
-      appJsDe(producto)
-        .split(/\r?\n/)
-        .forEach((linea, i) => {
-          if (!esOperacionDeDinero(linea)) return;
-          if (/\*\s*100\b/.test(linea) || /([*/])\s*100\b/.test(linea)) {
-            culpables.push(`  L${i + 1}: ${linea.trim()}`);
-          }
-        });
+      for (const archivo of fuentesDe(producto)) {
+        readFileSync(archivo, 'utf8')
+          .split(/\r?\n/)
+          .forEach((linea, i) => {
+            if (!esOperacionDeDinero(linea)) return;
+            if (/\*\s*100\b/.test(linea) || /([*/])\s*100\b/.test(linea)) {
+              culpables.push(`  ${basename(archivo)} L${i + 1}: ${linea.trim()}`);
+            }
+          });
+      }
 
       expect(
         culpables.join('\n'),
-        `products/${producto}/public/app.js vuelve a convertir dinero en el navegador.\n` +
+        `products/${producto}/web/src vuelve a convertir dinero en el navegador.\n` +
           `La API ya entrega numero humano: aca solo se pinta. Mismo con el backend: ` +
           `la conversion va por money.ts (fromMinor/toMinor), no a mano.\n${culpables.join('\n')}`,
       ).toBe('');

@@ -1,0 +1,20 @@
+@import "tailwindcss" source(none);
+@import "@amg/ui/styles.css";
+@source "./";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* La marca del crm: el 600 es el acento legacy #7a4bb8; el resto de la
+     escala sale de su HSL (265.87, 43.43%, 50.78%) con la fórmula del prompt. */
+  --color-brand-50: #f5f3f7;
+  --color-brand-100: #ede9f1;
+  --color-brand-200: #ddd4e7;
+  --color-brand-300: #c2b0d9;
+  --color-brand-400: #a385cc;
+  --color-brand-500: #9068c4;
+  --color-brand-600: #7a4bb8;
+  --color-brand-700: #673e9c;
+  --color-brand-800: #583587;
+  --color-brand-900: #4c3072;
+}

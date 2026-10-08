@@ -86,6 +86,22 @@ const diaDeEsteMes = (dia: string) => `${hoyEn().slice(0, 7)}-${dia}T12:00:00.00
 // ─────────────────────────────────────────────────────────────────────── interfaz
 
 describe('la interfaz', () => {
+  /**
+   * El JS del bundle de Vite, leído del HTML servido.
+   *
+   * El HTML de Vite es solo el punto de montaje: la UI vive en el bundle, que el
+   * runtime sirve con su huella `?v=`. Por eso lo que se afirma de la pantalla se
+   * busca acá y no en el HTML, que ya no tiene ni el formulario ni el logout.
+   */
+  async function bundle(): Promise<string> {
+    const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
+    const js = /src="(\/assets\/[^"]+\.js[^"]*)"/.exec(html.text)?.[1];
+    expect(js).toBeTruthy();
+    const res = await tp.as({ orgId: TEST_ORG_A }).get(js!);
+    expect(res.status).toBe(200);
+    return res.text;
+  }
+
   it('con sesión sirve la app y sus estáticos', async () => {
     const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
     expect(html.status).toBe(200);
@@ -94,9 +110,20 @@ describe('la interfaz', () => {
     // organización. Por eso no hay ningún id de organización en el HTML.
     expect(html.text).not.toContain(TEST_ORG_A);
 
-    for (const estatico of ['/app.js', '/style.css']) {
-      expect((await tp.as({ orgId: TEST_ORG_A }).get(estatico)).status).toBe(200);
+    // Los assets del bundle salen del HTML servido, con la huella ?v= puesta por
+    // el runtime: si se pidieran con el nombre viejo (/app.js) ya no existirían.
+    const assets = [...html.text.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(?:js|css)[^"]*)"/g)].map(
+      (m) => m[1],
+    );
+    expect(assets.length).toBeGreaterThanOrEqual(2);
+    for (const asset of assets) {
+      expect((await tp.as({ orgId: TEST_ORG_A }).get(asset)).status).toBe(200);
     }
+
+    // Las rutas de cliente las resuelve la SPA: el server les devuelve el shell.
+    const ruta = await tp.as({ orgId: TEST_ORG_A }).get('/cobros');
+    expect(ruta.status).toBe(200);
+    expect(ruta.text).toContain('Control de Pagos');
   });
 
   it('no sirve el HTML sin sesión: redirige al login central', async () => {
@@ -110,59 +137,50 @@ describe('la interfaz', () => {
     expect(html.text).not.toMatch(/type=["']password["']/i);
     expect(html.text).not.toMatch(/crear cuenta/i);
 
-    // Y la salida se resuelve contra el Core, no contra un logout local.
-    expect(html.text).toContain('/auth/logout');
+    // Y la salida se resuelve contra el Core, no contra un logout local: la
+    // dibuja el shell de React, así que se busca en el bundle servido.
+    expect(await bundle()).toContain('/auth/logout');
   });
 
   it('la UI no inventa datos ni se saltea al servidor', async () => {
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
-    expect(js.text).not.toContain(TEST_ORG_A);
-    for (const ruta of ['/api/dashboard', '/api/charges', '/api/charges/next-number', '/api/reporte', '/api/settings']) {
-      expect(js.text, `la pantalla no llama a ${ruta}`).toContain(ruta);
+    const js = await bundle();
+    expect(js).not.toContain(TEST_ORG_A);
+    // El BASE='/api' se concatena en runtime, así que en el bundle los caminos
+    // van sin prefijo: /charges, /dashboard, /reporte y /settings.
+    for (const ruta of ['/charges', '/dashboard', '/charges/next-number', '/reporte', '/settings']) {
+      expect(js, `la pantalla no llama a ${ruta}`).toContain(ruta);
     }
   });
 
-  it('el form de ajustes se llama config-form y se llena con form.elements', async () => {
-    // El contrato con el HTML: el JS recorre `form.elements` y usa el `name` de
-    // cada input. Si el id del form cambia, `renderConfig` deja de encontrarlo y
-    // el panel aparece vacío sin ningún error visible.
-    const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
-    expect(html.text).toContain('id="config-form"');
-    for (const campo of ['currency', 'timezone']) {
-      expect(html.text).toContain(`name="${campo}"`);
-    }
-
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
-    expect(js.text).toContain('function renderConfig()');
-    expect(js.text).toContain('form.elements');
+  it('el form de ajustes ofrece moneda y zona horaria', async () => {
+    // El contrato de la pantalla de Ajustes: sus dos campos y su botón. Si los
+    // rótulos cambian, la pantalla sigue existiendo pero ya no dice qué edita.
+    const js = await bundle();
+    expect(js).toContain('Moneda');
+    expect(js).toContain('Zona horaria');
+    expect(js).toContain('Guardar ajustes');
   });
 
   it('la pantalla no deja escribir el estado de un cargo', async () => {
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
     // El estado es un HECHO derivado del saldo. Si la pantalla lo mandara, o el
-    // servidor lo aceptara, quedarian cargos "pagados" sin un centimo cobrado.
-    expect(js.text).not.toMatch(/status:\s*['"](pending|partial|paid|canceled)['"]/);
-    // Y el form de alta del cargo no ofrece un select de estado.
-    const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
-    const form = html.text.slice(html.text.indexOf('id="cargo-form"'), html.text.indexOf('id="cargo-id"'));
-    expect(form).not.toMatch(/name=["']status["']/);
+    // servidor lo aceptara, quedarían cargos "pagados" sin un céntimo cobrado.
+    const js = await bundle();
+    expect(js).not.toMatch(/status:\s*['"](pending|partial|paid|canceled)['"]/);
   });
 
   it('la pantalla pide el folio al servidor en vez de calcularlo', async () => {
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
     // Calcularlo en el navegador es la forma corta de que dos personas de la
-    // misma empresa propongan el mismo numero y la segunda se lleve un 409.
-    expect(js.text).toContain('/api/charges/next-number');
+    // misma empresa propongan el mismo número y la segunda se lleve un 409.
+    expect(await bundle()).toContain('/charges/next-number');
   });
 
   it('la pantalla convierte el dinero solo para mostrarlo', async () => {
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
     // El `* 100` es el bug que se repite: convertir dos veces rompe los precios.
-    // Los centavos viajan como centavos y el formato vive en `AMIGO_UI.dinero`,
-    // que es quien divide entre 100. Esta pantalla no debe tener su propia
-    // conversion.
-    expect(js.text).not.toMatch(/\*\s*100/);
-    expect(js.text).toContain('AMIGO_UI.dinero');
+    // Los centavos viajan como centavos y el formato divide en el helper (locale
+    // es-CL) al mostrarlos. Esta pantalla no debe tener su propia conversión.
+    const js = await bundle();
+    expect(js).not.toMatch(/\*\s*100/);
+    expect(js).toContain('es-CL');
   });
 });
 

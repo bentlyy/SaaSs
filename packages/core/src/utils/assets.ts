@@ -9,8 +9,8 @@ import { logger } from '../logger.js';
  * El problema que resuelve: los assets se sirven con `max-age=14400` (el Browser
  * Cache TTL por defecto de Cloudflare) y sin version en la URL, asi que un
  * despliegue NO llega a quien ya tiene la pagina abierta. Peor: como cada archivo
- * se cachea por separado, el navegador puede juntar un `amigo.js` viejo con un
- * `app.js` nuevo, y esa mezcla no es un error visible sino una pantalla en blanco
+ * se cachea por separado, el navegador puede juntar un bundle viejo con un HTML
+ * nuevo, y esa mezcla no es un error visible sino una pantalla en blanco
  * con un `TypeError` en consola. Pasa siempre en la primera carga despues de un
  * deploy, que es justo cuando el usuario mira.
  *

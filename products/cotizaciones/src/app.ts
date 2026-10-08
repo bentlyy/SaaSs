@@ -29,6 +29,6 @@ export const definicion: ProductDefinition = {
   },
   ddl: DDL,
   routes: buildRoutes,
-  // El HTML tambien pide sesion: sin identidad no se sirve ni el shell.
-  staticDir: join(aqui, '..', 'public'),
+  // El HTML tambi�n pide sesi�n: sin identidad no se sirve ni el shell.
+  staticDir: join(aqui, '..', 'web', 'dist'),
 };

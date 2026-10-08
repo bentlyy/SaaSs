@@ -30,6 +30,7 @@ export const definicion: ProductDefinition = {
   },
   ddl: DDL,
   routes: buildRoutes,
-  // El HTML tambien pide sesion: sin identidad no se sirve ni el shell.
-  staticDir: join(aqui, '..', 'public'),
+  // El HTML tambien pide sesion: sin identidad no se sirve ni el shell. El
+  // frontend es una SPA de Vite compilada a web/dist.
+  staticDir: join(aqui, '..', 'web', 'dist'),
 };

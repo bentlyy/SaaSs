@@ -65,6 +65,16 @@ beforeAll(async () => {
 });
 
 describe('la interfaz', () => {
+  /** El JS servido: el HTML de Vite es solo el punto de montaje. */
+  async function bundle(): Promise<string> {
+    const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
+    const js = /src="(\/assets\/[^"]+\.js[^"]*)"/.exec(html.text)?.[1];
+    expect(js, 'el HTML no referencia el bundle').toBeTruthy();
+    const res = await tp.as({ orgId: TEST_ORG_A }).get(js!);
+    expect(res.status).toBe(200);
+    return res.text;
+  }
+
   it('con sesión sirve la app y sus estáticos', async () => {
     const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
     expect(html.status).toBe(200);
@@ -73,9 +83,20 @@ describe('la interfaz', () => {
     // organización. Por eso no hay ningún id de organización en el HTML.
     expect(html.text).not.toContain(TEST_ORG_A);
 
-    for (const estatico of ['/app.js', '/style.css']) {
-      expect((await tp.as({ orgId: TEST_ORG_A }).get(estatico)).status).toBe(200);
+    // Los assets del bundle de Vite salen del HTML servido, con huella ?v=
+    // puesta por el runtime: JS y CSS de la app.
+    const assets = [...html.text.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(?:js|css)[^"]*)"/g)].map(
+      (m) => m[1],
+    );
+    expect(assets.length).toBeGreaterThanOrEqual(2);
+    for (const asset of assets) {
+      expect((await tp.as({ orgId: TEST_ORG_A }).get(asset)).status).toBe(200);
     }
+
+    // Las rutas de cliente las resuelve la SPA: el server les devuelve el shell.
+    const ruta = await tp.as({ orgId: TEST_ORG_A }).get('/horarios');
+    expect(ruta.status).toBe(200);
+    expect(ruta.text).toContain('Espacios');
   });
 
   it('no sirve el HTML sin sesión: redirige al login central', async () => {
@@ -90,16 +111,18 @@ describe('la interfaz', () => {
     // sistema de identidad.
     expect(html.text).not.toMatch(/type=["']password["']/i);
 
-    // Y la salida se resuelve contra el Core, no contra un logout local. Es un
-    // enlace normal en el HTML, no una función de JavaScript.
-    expect(html.text).toContain('/auth/logout');
+    // Y la salida se resuelve contra el Core, no contra un logout local: el shell
+    // de React la dibuja contra /auth/logout, y eso vive en el bundle.
+    expect(await bundle()).toContain('/auth/logout');
   });
 
   it('la UI no inventa datos ni resuelve los choques en el navegador', async () => {
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
-    expect(js.text).not.toContain(TEST_ORG_A);
-    // Si dos reservas se pisan, lo dice el servidor: la UI muestra el 409.
-    expect(js.text).toContain('/api/bookings');
+    const js = await bundle();
+    expect(js).not.toContain(TEST_ORG_A);
+    // Si dos reservas se pisan, lo dice el servidor: la UI muestra el 409. El
+    // cliente api concatena la BASE en runtime, así que en el bundle no aparece
+    // '/api/bookings' como texto continuo: se busca '/bookings' sin el prefijo.
+    expect(js).toContain('/bookings');
   });
 });
 
@@ -352,15 +375,17 @@ describe('choques de horario', () => {
     const espacio = await nuevoEspacio(TEST_ORG_A, { name: 'Cancha Follow the Sun' });
     const cliente = await nuevoCliente(TEST_ORG_A, 'Cliente Follow the Sun');
 
+    // Fecha fija y futura: si el día ya pasó el server responde 400 y el test
+    // deja de probar el intervalo medio abierto.
     const primera = await comoMiembro(TEST_ORG_A)
       .post('/api/bookings')
       .send({
         spaceId: espacio,
         customerId: cliente,
-        startAt: '2026-10-07T14:00:00.000Z',
-        endAt: '2026-10-07T15:00:00.000Z',
+        startAt: '2026-11-12T14:00:00.000Z',
+        endAt: '2026-11-12T15:00:00.000Z',
       });
-    expect(primera.status).toBe(201);
+    expect(primera.status, JSON.stringify(primera.body)).toBe(201);
 
     // El intervalo es medio abierto [14, 15): a las 15 el espacio ya está libre.
     const segunda = await comoMiembro(TEST_ORG_A)
@@ -368,8 +393,8 @@ describe('choques de horario', () => {
       .send({
         spaceId: espacio,
         customerId: cliente,
-        startAt: '2026-10-07T15:00:00.000Z',
-        endAt: '2026-10-07T16:00:00.000Z',
+        startAt: '2026-11-12T15:00:00.000Z',
+        endAt: '2026-11-12T16:00:00.000Z',
       });
     expect(segunda.status, JSON.stringify(segunda.body)).toBe(201);
   });

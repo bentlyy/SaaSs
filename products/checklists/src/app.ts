@@ -1,4 +1,4 @@
-import { join } from 'node:path';
+﻿import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ProductDefinition } from '@amg/product-runtime';
 import { DDL } from './ddl.js';
@@ -11,23 +11,23 @@ const aqui = fileURLToPath(new URL('.', import.meta.url));
 /**
  * Checklists e inspecciones sobre el runtime.
  *
- * Lo unico que declara este producto son sus tablas. La identidad, las
- * organizaciones y las suscripciones no se declaran aca: vienen del Core.
+ * Lo único que declara este producto son sus tablas. La identidad, las
+ * organizaciones y las suscripciones no se declaran aquí: vienen del Core.
  *
- * No hay `legacy_tenant_map` en el esquema, y no es un olvido: este producto no
- * tiene fuente legacy. Ninguno de los productos viejos traia un modulo de
- * inspecciones, asi que no hay nada que migrar y una tabla de mapeo seria una que
- * nunca se llena.
+ * No hay legacy_tenant_map en el esquema, y no es un olvido: este producto no
+ * tiene fuente legacy. Ninguno de los productos viejos traía un módulo de
+ * inspecciones, así que no hay nada que migrar y una tabla de mapeo sería una
+ * que nunca se llena.
  *
- * Las migraciones son las que le dan la forma actual a una base que ya tenia
- * datos de la epoca sin secciones ni adjuntos: la base nueva la construye el DDL
- * tal cual. `DB_SCHEMA_VERSION` del entorno es la que dice hasta que version
+ * Las migraciones son las que le dan la forma actual a una base que ya tenía
+ * datos de la época sin secciones ni adjuntos: la base nueva la construye el DDL
+ * tal cual. DB_SCHEMA_VERSION del entorno es la que dice hasta qué versión
  * correr; sube con el despliegue.
  *
- * No hay `seed` en el arranque a proposito: los datos de ejemplo pertenecen a una
- * organizacion, y esa organizacion solo existe cuando hay una sesion real.
- * Sembrar al levantar el server obligaria a inventar un `organization_id`, que es
- * justo lo que esta arquitectura prohibe.
+ * No hay seed en el arranque a propósito: los datos de ejemplo pertenecen a
+ * una organización, y esa organización solo existe cuando hay una sesión real.
+ * Sembrar al levantar el server obligaría a inventar un organization_id, que
+ * es justo lo que esta arquitectura prohibe.
  */
 export const definicion: ProductDefinition = {
   slug: 'checklists',
@@ -44,6 +44,7 @@ export const definicion: ProductDefinition = {
   ddl: DDL,
   migrations: MIGRACIONES,
   routes: buildRoutes,
-  // El HTML tambien pide sesion: sin identidad no se sirve ni el shell.
-  staticDir: join(aqui, '..', 'public'),
+  // El HTML también pide sesión: sin identidad no se sirve ni el shell.
+  // El frontend es una SPA de Vite compilada a web/dist.
+  staticDir: join(aqui, '..', 'web', 'dist'),
 };

@@ -33,6 +33,28 @@ beforeAll(() => {
 
 afterAll(() => tp.close());
 
+/**
+ * La fecha local (YYYY-MM-DD) de "hoy" en `zone`, no la de UTC.
+ *
+ * El resumen corta el dia por la medianoche del taller, asi que "hoy" para el
+ * backend no es siempre la fecha que da `new Date().toISOString()`: en la
+ * madrugada UTC un taller de America ya esta en el dia siguiente local
+ * (America/Santiago) o en el anterior (America/Mexico_City). Anclar los turnos
+ * a esta fecha es lo que hace que los tests no dependan de la hora de corrida.
+ * `saltoDias` desplaza "hoy" N dias hacia adelante en esa misma zona.
+ */
+function hoyEn(zone: string, saltoDias = 0): string {
+  const f = new Intl.DateTimeFormat('en-US', {
+    timeZone: zone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const pronto = new Date(Date.now() + saltoDias * 86_400_000);
+  const p = Object.fromEntries(f.formatToParts(pronto).map((x) => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
 /** Crea una cita para `org` en el instante dado. */
 async function cita(
   orgId: string,
@@ -67,17 +89,21 @@ async function zona(orgId: string, timezone: string): Promise<void> {
 
 describe('el resumen de la portada', () => {
   const ORG = 'org_resumen_00000000000';
-  const HOY_UTC = new Date().toISOString().slice(0, 10);
+  // La zona por defecto de una organizacion nueva es America/Santiago; los
+  // turnos se anclan a su fecha local, no a la de UTC, para que el test no
+  // dependa de que hora es cuando corre.
+  const HOY = hoyEn('America/Santiago');
+  const turno = (hora: string) => `${HOY}T${hora}:00.000Z`;
 
   it('"Por confirmar" cuenta las pending, no las confirmadas', async () => {
     const org = `${ORG}_pending`;
     const pro = await profesional(org);
     // Tres confirmadas y dos pendientes: la tarjeta tiene que decir 2.
-    await cita(org, pro, `${HOY_UTC}T12:00:00.000Z`, `${HOY_UTC}T13:00:00.000Z`, 'confirmed');
-    await cita(org, pro, `${HOY_UTC}T14:00:00.000Z`, `${HOY_UTC}T15:00:00.000Z`, 'confirmed');
-    await cita(org, pro, `${HOY_UTC}T16:00:00.000Z`, `${HOY_UTC}T17:00:00.000Z`, 'confirmed');
-    await cita(org, pro, `${HOY_UTC}T18:00:00.000Z`, `${HOY_UTC}T19:00:00.000Z`, 'pending');
-    await cita(org, pro, `${HOY_UTC}T20:00:00.000Z`, `${HOY_UTC}T21:00:00.000Z`, 'pending');
+    await cita(org, pro, turno('12:00'), turno('13:00'), 'confirmed');
+    await cita(org, pro, turno('14:00'), turno('15:00'), 'confirmed');
+    await cita(org, pro, turno('16:00'), turno('17:00'), 'confirmed');
+    await cita(org, pro, turno('18:00'), turno('19:00'), 'pending');
+    await cita(org, pro, turno('20:00'), turno('21:00'), 'pending');
 
     const res = await comoAdmin(org).get('/api/resumen');
     expect(res.status).toBe(200);
@@ -87,9 +113,9 @@ describe('el resumen de la portada', () => {
   it('"Hoy" y "Futuras" no cuentan lo cancelado ni lo que no se hizo', async () => {
     const org = `${ORG}_vigentes`;
     const pro = await profesional(org);
-    await cita(org, pro, `${HOY_UTC}T12:00:00.000Z`, `${HOY_UTC}T13:00:00.000Z`, 'confirmed');
-    await cita(org, pro, `${HOY_UTC}T14:00:00.000Z`, `${HOY_UTC}T15:00:00.000Z`, 'cancelled');
-    await cita(org, pro, `${HOY_UTC}T16:00:00.000Z`, `${HOY_UTC}T17:00:00.000Z`, 'no_show');
+    await cita(org, pro, turno('12:00'), turno('13:00'), 'confirmed');
+    await cita(org, pro, turno('14:00'), turno('15:00'), 'cancelled');
+    await cita(org, pro, turno('16:00'), turno('17:00'), 'no_show');
 
     const res = await comoAdmin(org).get('/api/resumen');
     expect(res.body.hoy).toBe(1);
@@ -103,15 +129,16 @@ describe('el resumen de la portada', () => {
     const pro = await profesional(org);
     await zona(org, 'America/Mexico_City');
 
-    // 02:00 UTC del 10 es del 9 a la tarde en Mexico City, y del 10 a la
-    // madrugada en UTC. Con el corte UTC esta cita seria "manana"; con el corte
-    // del taller es "hoy".
-    const mananaUtc = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
-    const inicioMananaUtc = `${mananaUtc}T02:00:00.000Z`;
-    await cita(org, pro, inicioMananaUtc, `${mananaUtc}T03:00:00.000Z`, 'confirmed');
+    // 02:00 UTC del dia siguiente a hoy-en-Mexico son las 20:00 de este mismo
+    // dia en Mexico City (UTC-6): un turno del atardecer del taller cae en
+    // "hoy" con el corte del taller siempre, y cuando Mexico y UTC comparten
+    // fecha, el corte UTC lo leería como "manana". Eso es lo que fija el test:
+    // la hora local manda, no la de Greenwich.
+    const mananaMexico = hoyEn('America/Mexico_City', 1);
+    const inicioMananaUtc = `${mananaMexico}T02:00:00.000Z`;
+    await cita(org, pro, inicioMananaUtc, `${mananaMexico}T03:00:00.000Z`, 'confirmed');
 
     const res = await comoAdmin(org).get('/api/resumen');
-    // Si el corte fuera UTC, "hoy" seria 0. Con el corte de Mexico City es 1.
     expect(res.body.hoy).toBe(1);
   });
 
@@ -119,7 +146,7 @@ describe('el resumen de la portada', () => {
     const orgA = `${ORG}_aisla_a`;
     const orgB = `${ORG}_aisla_b`;
     const proA = await profesional(orgA);
-    await cita(orgA, proA, `${HOY_UTC}T12:00:00.000Z`, `${HOY_UTC}T13:00:00.000Z`, 'confirmed');
+    await cita(orgA, proA, turno('12:00'), turno('13:00'), 'confirmed');
 
     const a = await comoAdmin(orgA).get('/api/resumen');
     const b = await comoAdmin(orgB).get('/api/resumen');

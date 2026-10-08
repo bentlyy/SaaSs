@@ -36,6 +36,16 @@ async function nuevoActivo(orgId: string, datos: Record<string, unknown> = {}) {
 }
 
 describe('la interfaz', () => {
+  /** El JS servido: el HTML de Vite es solo el punto de montaje. */
+  async function bundle(): Promise<string> {
+    const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
+    const js = /src="(\/assets\/[^"]+\.js[^"]*)"/.exec(html.text)?.[1];
+    expect(js, 'el HTML no referencia el bundle').toBeTruthy();
+    const res = await tp.as({ orgId: TEST_ORG_A }).get(js!);
+    expect(res.status).toBe(200);
+    return res.text;
+  }
+
   it('con sesión sirve la app y sus estáticos', async () => {
     const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
     expect(html.status).toBe(200);
@@ -44,9 +54,21 @@ describe('la interfaz', () => {
     // organización. Por eso no hay ningún id de organización en el HTML.
     expect(html.text).not.toContain(TEST_ORG_A);
 
-    for (const estatico of ['/app.js', '/style.css']) {
-      expect((await tp.as({ orgId: TEST_ORG_A }).get(estatico)).status).toBe(200);
+    // Los assets del bundle de Vite salen del HTML servido, con la huella ?v=
+    // puesta por el runtime: si se pidieran con el nombre viejo (/app.js)
+    // ya no existirían.
+    const assets = [...html.text.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(?:js|css)[^"]*)"/g)].map(
+      (m) => m[1],
+    );
+    expect(assets.length).toBeGreaterThanOrEqual(2);
+    for (const asset of assets) {
+      expect((await tp.as({ orgId: TEST_ORG_A }).get(asset)).status).toBe(200);
     }
+
+    // Las rutas de cliente las resuelve la SPA: el server les devuelve el shell.
+    const ruta = await tp.as({ orgId: TEST_ORG_A }).get('/activos');
+    expect(ruta.status).toBe(200);
+    expect(ruta.text).toContain('Activos');
   });
 
   it('no sirve el HTML sin sesión: redirige al login central', async () => {
@@ -60,40 +82,37 @@ describe('la interfaz', () => {
     expect(html.text).not.toMatch(/type=["']password["']/i);
     expect(html.text).not.toMatch(/crear cuenta/i);
 
-    // Y la salida se resuelve contra el Core, no contra un logout local.
-    expect(html.text).toContain('/auth/logout');
+    // Y la salida se resuelve contra el Core, no contra un logout local. La
+    // salida la dibuja el shell de React (contra /auth/logout): se busca en el
+    // bundle, porque el HTML de Vite es solo el punto de montaje.
+    expect(await bundle()).toContain('/auth/logout');
   });
 
   it('la UI no inventa datos ni se saltea al servidor', async () => {
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
-    expect(js.text).not.toContain(TEST_ORG_A);
-    expect(js.text).toContain('/api/dashboard');
-    expect(js.text).toContain('/api/assets');
-    expect(js.text).toContain('/api/assets/next-code');
+    const js = await bundle();
+    expect(js).not.toContain(TEST_ORG_A);
+    // El tablero, la lista y el código propuesto salen de la API.
+    expect(js).toContain('/dashboard');
+    expect(js).toContain('/assets?limit=500');
+    expect(js).toContain('next-code');
   });
 
-  it('el form de ajustes se llama config-form y se llena con form.elements', async () => {
-    // El contrato con el HTML: el JS recorre `form.elements` y usa el `name` de
-    // cada input. Si el id del form cambia, `renderConfig` deja de encontrarlo y
-    // el panel aparece vacío sin ningún error visible.
-    const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
-    expect(html.text).toContain('id="config-form"');
-    for (const campo of ['currency', 'timezone']) {
-      expect(html.text).toContain(`name="${campo}"`);
-    }
-
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
-    expect(js.text).toContain('function renderConfig()');
-    expect(js.text).toContain('form.elements');
+  it('el form de ajustes pide moneda y zona horaria', async () => {
+    const js = await bundle();
+    expect(js).toContain('Moneda');
+    expect(js).toContain('Zona horaria');
   });
 
   it('la UI no borra el historial desde la pantalla', async () => {
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
-    const llamadas = js.text.match(/api\([^)]*\/movimientos[^)]*\)/g) ?? [];
+    const js = await bundle();
+    // El nombre del import va con el resto de los identificadores en el bundle,
+    // así que se busca la llamada por su forma (`algo.post('.../movimientos`)`,
+    // no por el identificador `api`.
+    const llamadas = js.match(/\.[a-z]+\([^)]*\/movimientos[^)]*\)/g) ?? [];
     expect(llamadas.length).toBeGreaterThan(0);
     // Un movimiento es la prueba de lo que pasó: se registra y se lista, no se
-    // corrige en silencio.
-    expect(llamadas.some((c) => /method:\s*'(PATCH|DELETE)'/.test(c))).toBe(false);
+    // corrige ni se borra.
+    expect(llamadas.some((c) => /\.(patch|delete)\(/.test(c))).toBe(false);
   });
 });
 
@@ -605,15 +624,20 @@ describe('el código siguiente en una empresa que todavía no numera', () => {
 });
 
 describe('el contrato del frontend', () => {
-  it('el panel de ajustes es un <form id="config-form"> que el JS llena por form.elements', async () => {
+  it('las rutas de cliente las resuelve la SPA', async () => {
+    for (const ruta of ['/', '/activos', '/ajustes']) {
+      const res = await tp.as({ orgId: TEST_ORG_A }).get(ruta);
+      expect(res.status, ruta).toBe(200);
+      expect(res.text, ruta).toContain('Activos');
+    }
+  });
+
+  it('los assets del legacy ya no existen: solo queda el bundle de Vite', async () => {
     const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
-    expect(html.text).toMatch(/<form[^>]*\bid="config-form"/);
-    // Y no puede buscar un `#config` a secas: el panel se llama
-    // `data-tab="ajustes"`, así que ese selector no matchearía nada.
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
-    const fn = js.text.match(/function renderConfig\(\)\s*\{[\s\S]*?\n\s{2}\}/);
-    expect(fn, 'no se encontro renderConfig()').toBeTruthy();
-    expect(fn![0]).toMatch(/form\.elements/);
-    expect(fn![0]).not.toMatch(/['"]#config(?!-)/);
+    expect(html.text).not.toContain('/app.js');
+    expect(html.text).not.toContain('/style.css');
+    for (const viejo of ['/app.js', '/style.css']) {
+      expect((await tp.as({ orgId: TEST_ORG_A }).get(viejo)).status, viejo).toBe(404);
+    }
   });
 });

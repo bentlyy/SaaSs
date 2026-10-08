@@ -144,6 +144,16 @@ describe('editar una cita', () => {
 });
 
 describe('la interfaz', () => {
+  /** El JS servido: el HTML de Vite es solo el punto de montaje. */
+  async function bundle(): Promise<string> {
+    const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
+    const js = /src="(\/assets\/[^"]+\.js[^"]*)"/.exec(html.text)?.[1];
+    expect(js, 'el HTML no referencia el bundle').toBeTruthy();
+    const res = await tp.as({ orgId: TEST_ORG_A }).get(js!);
+    expect(res.status).toBe(200);
+    return res.text;
+  }
+
   it('con sesión sirve la app y sus estáticos', async () => {
     const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
     expect(html.status).toBe(200);
@@ -152,9 +162,20 @@ describe('la interfaz', () => {
     // organización. Por eso no hay ningún id de organización en el HTML.
     expect(html.text).not.toContain(TEST_ORG_A);
 
-    for (const estatico of ['/app.js', '/style.css']) {
-      expect((await tp.as({ orgId: TEST_ORG_A }).get(estatico)).status).toBe(200);
+    // Los assets del bundle de Vite salen del HTML servido, con huella ?v=
+    // puesta por el runtime: el JS y el CSS de la app.
+    const assets = [...html.text.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(?:js|css)[^"]*)"/g)].map(
+      (m) => m[1],
+    );
+    expect(assets.length).toBeGreaterThanOrEqual(2);
+    for (const asset of assets) {
+      expect((await tp.as({ orgId: TEST_ORG_A }).get(asset)).status).toBe(200);
     }
+
+    // Las rutas de cliente las resuelve la SPA: el server les devuelve el shell.
+    const ruta = await tp.as({ orgId: TEST_ORG_A }).get('/clientes');
+    expect(ruta.status).toBe(200);
+    expect(ruta.text).toContain('Citas');
   });
 
   it('no sirve el HTML sin sesión: redirige al login central', async () => {
@@ -169,19 +190,27 @@ describe('la interfaz', () => {
     const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
     expect(html.text).not.toMatch(/type=["']password["']/i);
 
-    // Y la salida se resuelve contra el Core, no contra un logout local. La salida
-    // es un enlace del shell, no logica: por eso se busca en el HTML servido y no
-    // en el `app.js`, que ya no dibuja la cabecera.
-    expect(html.text).toContain('/auth/logout');
+    // Y la salida se resuelve contra el Core, no contra un logout local: el
+    // shell de React la dibuja contra /auth/logout, y eso vive en el bundle.
+    expect(await bundle()).toContain('/auth/logout');
   });
 
   it('la UI no inventa datos ni se saltea el servidor para los choques', async () => {
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
+    const js = await bundle();
     // No hay contenido hardcodeado que simule una empresa.
-    expect(js.text).not.toContain(TEST_ORG_A);
-    // Y la decisión de si dos citas se pisan no está en el navegador: la pide al
+    expect(js).not.toContain(TEST_ORG_A);
+    // Todo lo que se ve sale de la API, que es la que filtra por organización:
+    // los caminos de los endpoints que pintan la agenda y los catálogos están
+    // en el bundle, sin el prefijo /api que se concatena en runtime. Y la
+    // decisión de si dos citas se pisan no está en el navegador: la pide al
     // servidor y muestra el 409 que llega.
-    expect(js.text).toContain('/api/appointments');
+    expect(js).toContain('/resumen');
+    expect(js).toContain('/agenda');
+    expect(js).toContain('/appointments');
+    expect(js).toContain('/customers');
+    expect(js).toContain('/services');
+    expect(js).toContain('/staff');
+    expect(js).toContain('/settings');
   });
 });
 

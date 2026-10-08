@@ -1,0 +1,23 @@
+{
+  "name": "@amg/ui",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Design system compartido de los productos AMG: componentes React + Tailwind. El color de marca lo pone cada producto en su @theme, la forma la pone este paquete.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.1"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}

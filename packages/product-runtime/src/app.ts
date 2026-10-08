@@ -3,7 +3,6 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
   assetVersion,
   htmlPages,
@@ -49,19 +48,6 @@ export interface BuiltProduct {
   config: ProductConfig;
   db: ProductDb;
 }
-
-/**
- * Donde vive la hoja de estilo compartida de los nueve productos.
- *
- * Va en el runtime y no en el `public` de cada producto por una razon concreta:
- * si cada uno trae su propia copia, nueve archivos se van a diferenciar en nueve
- * commits y un token nuevo llega a seis de nueve. Al montarlo desde aqui, el
- * producto lo pide por URL (`/amigo.css`) y todos toman el mismo archivo.
- *
- * Se resuelve desde este archivo con `import.meta.url`, asi que funciona igual
- * desde `src` con tsx que desde `dist`: no hay dos rutas que mantener.
- */
-const sharedAssetsDir = fileURLToPath(new URL('../public', import.meta.url));
 
 /**
  * Levanta una aplicacion AMG completa.
@@ -160,8 +146,6 @@ export function createProductApp(def: ProductDefinition, env: NodeJS.ProcessEnv 
   }
 
   // 4. La UI, que tambien pide sesion: sin ella no hay ni el HTML.
-  // La hoja compartida va antes que el `public` del producto: mismo nombre en
-  // los dos, gana la de la plataforma para que el estilo no se pueda bifurcar.
   // 5. Los assets. El `immutable` va con la huella en la URL: una URL con `?v=` es
   // una URL distinta, asi que cachearla un ano no puede servir un archivo viejo. Y
   // el HTML va `no-cache` para que en la primera carga de cada despliegue aparezca
@@ -173,20 +157,25 @@ export function createProductApp(def: ProductDefinition, env: NodeJS.ProcessEnv 
   // `maxAge` no sabe escribir un `Cache-Control` completo. Ver `assetHeaders`.
   const maxAge = config.isProd ? ASSET_MAX_AGE_MS : 0;
   const setHeaders = config.isProd ? assetHeaders : undefined;
-  app.use(
-    express.static(sharedAssetsDir, { index: false, fallthrough: true, maxAge, setHeaders }),
-  );
   if (dirProducto) {
     app.use(express.static(dirProducto, { index: false, maxAge, setHeaders }));
-    // La huella junta las dos carpetas: `amigo.js` es de la plataforma y `app.js`
-    // del producto, y un despliegue cambia los dos a la vez. Con una sola version
-    // para los dos, `/amigo.js?v=abc` y `/app.js?v=abc` viajan siempre juntos, que es
-    // justo la mezcla que rompia la pantalla.
-    const version = assetVersion(sharedAssetsDir) + assetVersion(dirProducto);
+    // La huella cubre todos los assets del bundle (`index-*.js`, `index-*.css`):
+    // un despliegue nuevo cambia los nombres y el `?v=` viaja siempre junto.
+    const version = assetVersion(dirProducto);
     const leer = htmlPages(dirProducto, version);
-    app.get('/', (_req, res) => {
+    const servirIndex: express.RequestHandler = (_req, res) => {
       res.setHeader('cache-control', HTML_CACHE_CONTROL);
       res.type('html').send(leer('index.html'));
+    };
+    app.get('/', servirIndex);
+    // SPA fallback: las rutas de cliente (`/movimientos`, `/configuracion`, …)
+    // las resuelve React, no el server. Cualquier GET sin extensión que no sea
+    // de la API se lleva el index.html; lo que sí tiene extensión (assets,
+    // favicon) sigue cayendo al 404 normal si no existe.
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api') || req.path.startsWith('/auth')) return next();
+      if (path.extname(req.path)) return next();
+      servirIndex(req, res, next);
     });
   }
 

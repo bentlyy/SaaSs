@@ -63,6 +63,16 @@ beforeAll(async () => {
 });
 
 describe('la interfaz', () => {
+  /** El bundle de Vite que el HTML servido referencia, con la huella ?v=. */
+  async function bundle(): Promise<string> {
+    const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
+    const js = /src="(\/assets\/[^"]+\.js[^"]*)"/.exec(html.text)?.[1];
+    expect(js, 'el HTML no referencia el bundle').toBeTruthy();
+    const res = await tp.as({ orgId: TEST_ORG_A }).get(js!);
+    expect(res.status).toBe(200);
+    return res.text;
+  }
+
   it('con sesion sirve la app y sus estaticos', async () => {
     const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
     expect(html.status).toBe(200);
@@ -71,9 +81,20 @@ describe('la interfaz', () => {
     // organizacion. Por eso no hay ningun id de organizacion en el HTML.
     expect(html.text).not.toContain(TEST_ORG_A);
 
-    for (const estatico of ['/app.js', '/style.css']) {
-      expect((await tp.as({ orgId: TEST_ORG_A }).get(estatico)).status).toBe(200);
+    // Los assets salen del HTML servido, con la huella ?v= que pone el
+    // runtime. El producto viejo servia /app.js y /style.css, que ya no existen.
+    const assets = [...html.text.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(?:js|css)[^"]*)"/g)].map(
+      (m) => m[1],
+    );
+    expect(assets.length).toBeGreaterThanOrEqual(2);
+    for (const asset of assets) {
+      expect((await tp.as({ orgId: TEST_ORG_A }).get(asset)).status).toBe(200);
     }
+
+    // Las rutas de cliente las resuelve la SPA: el server devuelve el shell.
+    const ruta = await tp.as({ orgId: TEST_ORG_A }).get('/ajustes');
+    expect(ruta.status).toBe(200);
+    expect(ruta.text).toContain('Cotizaciones');
   });
 
   it('no sirve el HTML sin sesion: redirige al login central', async () => {
@@ -89,64 +110,70 @@ describe('la interfaz', () => {
     expect(html.text).not.toMatch(/type=["']password["']/i);
     expect(html.text).not.toMatch(/registro|crear cuenta/i);
 
-    // Y la salida se resuelve contra el Core, no contra un logout local. Es un
-    // enlace normal en el HTML, no una funcion de JavaScript.
-    expect(html.text).toContain('/auth/logout');
+    // El HTML de Vite es solo el punto de montaje: la salida la dibuja el
+    // shell de React contra /auth/logout, y eso vive en el bundle.
+    const js = await bundle();
+    expect(js).toContain('/auth/logout');
+    expect(js).not.toMatch(/type:\s*["']password["']/i);
+    expect(js).not.toMatch(/registro|crear cuenta/i);
   });
 
   it('la UI no gestiona clientes: son del producto `crm`', async () => {
-    const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
-    // Este producto NO es dueno del cliente. Si la UI tuviera una pantalla de
-    // clientes, habria vuelto el producto viejo, que si los tenia.
-    expect(html.text).not.toMatch(/id="clientes-lista"/);
-    expect(html.text).not.toMatch(/type=["']tel["']/i);
+    // Este producto NO es dueno del cliente. Si el bundle tuviera una pantalla
+    // de clientes, habria vuelto el producto viejo, que si los tenia.
+    const js = await bundle();
+    expect(js).not.toMatch(/clientes-lista/);
+    expect(js).not.toMatch(/type:\s*["']tel["']/i);
     // Y si dice de donde viene el nombre.
-    expect(html.text).toMatch(/Nombre del cliente/);
+    expect(js).toContain('Nombre del cliente');
   });
 
   it('la UI no inventa datos ni resuelve el folio en el navegador', async () => {
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
-    expect(js.text).not.toContain(TEST_ORG_A);
-    expect(js.text).toContain('/api/quotes');
-    // El folio se PIDE al servidor, no se calcula con un contador de la pagina.
-    expect(js.text).toContain('/api/settings');
+    const js = await bundle();
+    expect(js).not.toContain(TEST_ORG_A);
+    expect(js).toContain('/quotes?limit=500');
+    // El folio se PIDE al servidor (settings.nextNumber), no se calcula con un
+    // contador de la pagina.
+    expect(js).toContain('/settings');
+    expect(js).toContain('nextNumber');
   });
 
   it('el folio de una cotizacion nueva sale de los ajustes ya cargados', async () => {
-    // Regresion: `cargar()` guarda el objeto de ajustes tal cual en `estado.cfg`,
-    // asi que leer `estado.cfg.settings` es leer `undefined` y el boton "Nueva
-    // cotizacion" revienta con un TypeError. Los tests de UI son estaticos, asi
-    // que sin este chequeo el bug volveria sin que nadie lo note.
-    const js = (await tp.as({ orgId: TEST_ORG_A }).get('/app.js')).text;
-
-    // Lo que se guarda es el objeto de ajustes, sin envolver.
-    expect(js).toMatch(/estado\.cfg\s*=\s*cfg\.settings/);
-    // Y por lo tanto nadie busca un `settings` adentro de el.
-    expect(js, 'la UI lee un `settings` anidado que no existe').not.toMatch(/estado\.cfg\.settings/);
-    expect(js).toMatch(/estado\.cfg\.nextNumber/);
+    // Regresion del producto viejo: guardar el objeto de ajustes envuelto y
+    // leer `cfg.settings` (undefined) hacia estallar "Nueva cotizacion". La UI
+    // nueva desenvuelve el envoltorio en el provider y lee del objeto plano.
+    const js = await bundle();
+    expect(js).toContain('nextNumber');
+    expect(js, 'la UI lee un `settings` anidado que no existe').not.toMatch(/settings\.settings/);
+    // El form de alta usa los defaults planos de los ajustes.
+    expect(js).toContain('defaultTaxRateBp');
   });
 
-  it('el form de ajustes se llena por form.elements, no por ids sueltos', async () => {
-    // Mismo contrato que el resto de los productos: agregar un ajuste es agregar
-    // un <input name="..."> en el HTML, no tocar el JS.
-    const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
-    expect(html.text).toMatch(/<form[^>]*\bid="config-form"/);
-
-    const js = (await tp.as({ orgId: TEST_ORG_A }).get('/app.js')).text;
-    const fn = js.match(/function renderConfig\(\)\s*\{[\s\S]*?\n\}/);
-    expect(fn, 'no se encontro renderConfig()').toBeTruthy();
-    expect(fn![0]).toMatch(/form\.elements/);
+  it('el form de ajustes se llena por campos del form, no por ids sueltos', async () => {
+    // Mismo contrato que el resto de los productos: agregar un ajuste es
+    // agregar un campo al form, no tocar un selector por id.
+    const js = await bundle();
+    expect(js).not.toMatch(/config-form/);
+    expect(js).toContain('Moneda');
+    expect(js).toContain('Impuesto por defecto (bp)');
+    expect(js).toContain('Días de vigencia por defecto');
   });
 
   it('la UI no manda el estado en el formulario de cotizacion', async () => {
-    // El estado tiene su propia ruta, que ademas sella la fecha de envio y de
-    // aceptacion. Si el formulario lo mandara en el cuerpo, el PATCH seria una
-    // segunda puerta para aceptar una cotizacion sin sello.
-    const js = (await tp.as({ orgId: TEST_ORG_A }).get('/app.js')).text;
-    expect(js).toMatch(/\/estado`/);
-    const cuerpo = js.match(/const cuerpo = \{[\s\S]*?\n  \};/);
-    expect(cuerpo, 'no se encontro el cuerpo del formulario').toBeTruthy();
-    expect(cuerpo![0]).not.toMatch(/status/);
+    // El estado tiene su propia ruta (/estado), que ademas sella la fecha de
+    // envio y de aceptacion: el form de alta/edicion no lo incluye.
+    const js = await bundle();
+    expect(js).toContain('/estado');
+
+    // ...y el servidor lo garantiza aunque el cuerpo lo traiga: el PATCH saca
+    // `status` a mano, asi que mandarlo no cambia nada.
+    const cot = await nuevaCotizacion(TEST_ORG_A);
+    const patch = await comoMiembro(TEST_ORG_A).patch(`/api/quotes/${cot.id}`, {
+      title: 'Sin estado',
+      status: 'accepted',
+    });
+    expect(patch.status).toBe(200);
+    expect(patch.body.quote.status).toBe('draft');
   });
 });
 

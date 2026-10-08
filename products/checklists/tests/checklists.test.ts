@@ -92,6 +92,16 @@ async function responder(runId: string, position: number, result: string, note?:
 
 // ───────────────────────────────────────────────────────────────── la interfaz
 
+/** El JS servido: el HTML de Vite es solo el punto de montaje. */
+async function bundle(): Promise<string> {
+  const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
+  const js = /src="(\/assets\/[^"]+\.js[^"]*)"/.exec(html.text)?.[1];
+  expect(js, 'el HTML no referencia el bundle').toBeTruthy();
+  const res = await tp.as({ orgId: TEST_ORG_A }).get(js!);
+  expect(res.status).toBe(200);
+  return res.text;
+}
+
 describe('la interfaz', () => {
   it('con sesion sirve la app y sus estaticos', async () => {
     const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
@@ -101,9 +111,20 @@ describe('la interfaz', () => {
     // organizacion. Por eso no hay ningun id de organizacion en el HTML.
     expect(html.text).not.toContain(TEST_ORG_A);
 
-    for (const estatico of ['/app.js', '/style.css']) {
-      expect((await tp.as({ orgId: TEST_ORG_A }).get(estatico)).status).toBe(200);
+    // Los assets del bundle de Vite salen del HTML servido, con huella ?v=
+    // puesta por el runtime: JS y CSS de la app.
+    const assets = [...html.text.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(?:js|css)[^"]*)"/g)].map(
+      (m) => m[1],
+    );
+    expect(assets.length).toBeGreaterThanOrEqual(2);
+    for (const asset of assets) {
+      expect((await tp.as({ orgId: TEST_ORG_A }).get(asset)).status).toBe(200);
     }
+
+    // Las rutas de cliente las resuelve la SPA: el server les devuelve el shell.
+    const ruta = await tp.as({ orgId: TEST_ORG_A }).get('/plantillas');
+    expect(ruta.status).toBe(200);
+    expect(ruta.text).toContain('Checklists');
   });
 
   it('no sirve el HTML sin sesion: redirige al login central', async () => {
@@ -117,40 +138,41 @@ describe('la interfaz', () => {
     expect(html.text).not.toMatch(/type=["']password["']/i);
     expect(html.text).not.toMatch(/crear cuenta/i);
 
-    // Y la salida se resuelve contra el Core, no contra un logout local.
-    expect(html.text).toContain('/auth/logout');
+    // Y la salida se resuelve contra el Core, no contra un logout local: el
+    // shell de React la dibuja contra /auth/logout, y eso vive en el bundle.
+    expect(await bundle()).toContain('/auth/logout');
   });
 
   it('la UI no inventa datos ni se saltea al servidor', async () => {
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
-    expect(js.text).not.toContain(TEST_ORG_A);
-    for (const ruta of ['/api/dashboard', '/api/templates', '/api/runs', '/api/settings', '/completar']) {
-      expect(js.text).toContain(ruta);
+    const js = await bundle();
+    expect(js).not.toContain(TEST_ORG_A);
+    // Todo lo que se ve sale de la API: los caminos de los endpoints que
+    // pintan el tablero, las plantillas, las corridas y los ajustes estan en
+    // el bundle (el prefijo /api lo agrega el cliente en runtime).
+    for (const ruta of ['/dashboard', '/templates', '/runs', '/settings', '/completar']) {
+      expect(js).toContain(ruta);
     }
   });
 
-  it('el form de ajustes se llama config-form y se llena con form.elements', async () => {
-    // El contrato con el HTML: el JS recorre `form.elements` y usa el `name` de
-    // cada input. Si el id del form cambia, `renderConfig` deja de encontrarlo y el
-    // panel aparece vacio sin ningun error visible.
-    const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
-    expect(html.text).toContain('id="config-form"');
-    for (const campo of ['currency', 'timezone']) {
-      expect(html.text).toContain(`name="${campo}"`);
-    }
-
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
-    expect(js.text).toContain('function renderConfig()');
-    expect(js.text).toContain('form.elements');
+  it('el form de ajustes conserva config-form y sus campos con name', async () => {
+    // El contrato con la pantalla: antes el form vivia en el HTML estatico y el
+    // JS lo llenaba por form.elements; ahora React lo renderiza desde el bundle,
+    // pero el id y los names siguen siendo los mismos para quien automatice la
+    // pantalla por fuera.
+    const js = await bundle();
+    expect(js).toContain('config-form');
+    expect(js).toContain('name:"currency"');
+    expect(js).toContain('name:"timezone"');
   });
 
   it('la UI no borra puntos ni resultados: no edita lo ya ejecutado', async () => {
-    const js = (await tp.as({ orgId: TEST_ORG_A }).get('/app.js')).text;
+    const js = await bundle();
     // Un punto respondido es la foto de un hecho. Quitarlo desde la pantalla
     // dejaria la corrida con un hueco, y ese hueco no se explica solo. Quitar un
     // punto de una PLANTILLA si se puede, y es otra cosa: ese no se ha ejecutado
-    // nunca. Por eso el filtro mira `/api/runs/.../items`, no `/items`.
-    expect(js).not.toMatch(/\/api\/runs\/\$\{[^}]+\}\/items\/\$\{[^}]+\}[^)]*method:\s*'DELETE'/);
+    // nunca. Por eso el filtro mira los borrados sobre /runs/.../items.
+    const borrados = [...js.matchAll(/\.delete\(\s*[`"'][^`"']*\/runs\/[^`"']*\/items\/[^`"']*[`"']/g)];
+    expect(borrados).toEqual([]);
     // Y quitar un punto de la plantilla solo puede ser sobre una plantilla que no
     // se ha usado: si tiene corridas, el aviso lo dice.
     expect(js).toContain('Las corridas quedan con su copia');
@@ -1488,31 +1510,38 @@ describe('los ajustes', () => {
 // ─────────────────────────────────────────────────── el contrato del frontend
 
 describe('el contrato del frontend', () => {
-  it('el panel de ajustes es un <form id="config-form"> que el JS llena por form.elements', async () => {
+  it('el form de ajustes vive en el bundle y los estaticos viejos ya no', async () => {
+    const js = await bundle();
+    expect(js).toContain('config-form');
+    expect(js).toContain('name:"currency"');
+    expect(js).toContain('name:"timezone"');
+
+    // Y nadie pide los estaticos del legacy: si un cache viejo o un link
+    // externo los reclaman, tienen que caer a 404, no a un JS con bugs.
     const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
-    expect(html.text).toMatch(/<form[^>]*\bid="config-form"/);
-    // Y no puede buscar un `#config` a secas: el panel se llama
-    // `data-tab="ajustes"`, asi que ese selector no matchearia nada.
-    const js = await tp.as({ orgId: TEST_ORG_A }).get('/app.js');
-    const fn = js.text.match(/function renderConfig\(\)\s*\{[\s\S]*?\n\s{2}\}/);
-    expect(fn, 'no se encontro renderConfig()').toBeTruthy();
-    expect(fn![0]).toMatch(/form\.elements/);
-    expect(fn![0]).not.toMatch(/['"]#config(?!-)/);
+    expect(html.text).not.toContain('/app.js');
+    expect(html.text).not.toContain('/style.css');
+    expect((await tp.as({ orgId: TEST_ORG_A }).get('/app.js')).status).toBe(404);
+    expect((await tp.as({ orgId: TEST_ORG_A }).get('/style.css')).status).toBe(404);
   });
 
   it('la UI no consulta ids que ni el HTML ni el JS definen', async () => {
-    // El bug que este test evita: un listener de nivel superior sobre un id que no
-    // existe revienta ANTES del bootstrap y deja la app entera en blanco, sin que
-    // se vea en ningun error de red.
+    // El bug que este test evita: un listener de nivel superior sobre un id que
+    // no existe revienta ANTES del bootstrap y deja la app entera en blanco, sin
+    // que se vea en ningun error de red. El bundle nuevo no usa selectores de
+    // jQuery: consulta ids con getElementById, y el unico que usa es root, que
+    // el HTML si define.
     const html = (await tp.as({ orgId: TEST_ORG_A }).get('/')).text;
-    const js = (await tp.as({ orgId: TEST_ORG_A }).get('/app.js')).text;
+    const js = await bundle();
     const definidos = new Set([
       ...[...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]),
-      ...[...js.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]),
+      ...[...js.matchAll(/\bid:\s*"([^"]+)"/g)].map((m) => m[1]),
     ]);
-    const huerfanos = [...js.matchAll(/\$\(\s*['"]#([A-Za-z][\w-]*)['"]\s*\)/g)]
-      .map((m) => m[1])
-      .filter((id) => !definidos.has(id));
-    expect(huerfanos, `app.js consulta #${huerfanos.join(', #')} pero nadie lo define`).toEqual([]);
+    const consultados = [
+      ...[...js.matchAll(/getElementById\(\s*"([^"]+)"\s*\)/g)].map((m) => m[1]),
+      ...[...js.matchAll(/\$\(\s*['"]#([A-Za-z][\w-]*)['"]\s*\)/g)].map((m) => m[1]),
+    ];
+    const huerfanos = consultados.filter((id) => !definidos.has(id));
+    expect(huerfanos, `la UI consulta #${huerfanos.join(', #')} pero nadie lo define`).toEqual([]);
   });
 });

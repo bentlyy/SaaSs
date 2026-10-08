@@ -52,6 +52,16 @@ async function nuevaSolicitud(
 }
 
 describe('la interfaz', () => {
+  /** El JS servido: el HTML de Vite es solo el punto de montaje. */
+  async function bundle(): Promise<string> {
+    const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
+    const js = /src="(\/assets\/[^"]+\.js[^"]*)"/.exec(html.text)?.[1];
+    expect(js, 'el HTML no referencia el bundle').toBeTruthy();
+    const res = await tp.as({ orgId: TEST_ORG_A }).get(js!);
+    expect(res.status).toBe(200);
+    return res.text;
+  }
+
   it('con sesión sirve la app y sus estáticos', async () => {
     const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
     expect(html.status).toBe(200);
@@ -60,9 +70,21 @@ describe('la interfaz', () => {
     // organización. Por eso no hay ningún id de organización en el HTML.
     expect(html.text).not.toContain(TEST_ORG_A);
 
-    for (const estatico of ['/app.js', '/style.css']) {
-      expect((await tp.as({ orgId: TEST_ORG_A }).get(estatico)).status).toBe(200);
+    // Los assets del bundle de Vite salen del HTML servido, con la huella ?v=
+    // puesta por el runtime: si se pidieran con el nombre viejo (/app.js)
+    // ya no existirían.
+    const assets = [...html.text.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(?:js|css)[^"]*)"/g)].map(
+      (m) => m[1],
+    );
+    expect(assets.length).toBeGreaterThanOrEqual(2);
+    for (const asset of assets) {
+      expect((await tp.as({ orgId: TEST_ORG_A }).get(asset)).status).toBe(200);
     }
+
+    // Las rutas de cliente las resuelve la SPA: el server les devuelve el shell.
+    const ruta = await tp.as({ orgId: TEST_ORG_A }).get('/ajustes');
+    expect(ruta.status).toBe(200);
+    expect(ruta.text).toContain('Solicitudes');
   });
 
   it('no sirve el HTML sin sesión: redirige al login central', async () => {
@@ -76,31 +98,27 @@ describe('la interfaz', () => {
     // Ningún campo de contraseña: un login en el producto sería un segundo
     // sistema de identidad.
     expect(html.text).not.toMatch(/type=["']password["']/i);
-    expect(html.text).toContain('/auth/logout');
+
+    // La salida la dibuja el shell de React contra /auth/logout: se busca en el
+    // bundle, porque el HTML de Vite es solo el punto de montaje.
+    expect(await bundle()).toContain('/auth/logout');
   });
 
-  it('la UI no reabrió ordenes de taller: no hay técnicos ni clientes', async () => {
-    const html = await tp.as({ orgId: TEST_ORG_A }).get('/');
-    // Esto es una mesa de ayuda: no se registran técnicos, clientes ni
-    // repuestos, y la pantalla no tiene una columna de "Sobre qué se trabaja".
-    expect(html.text).not.toMatch(/técnico/i);
-    expect(html.text).not.toMatch(/repuesto/i);
-    expect(html.text).toMatch(/id="sol-titulo"/);
+  it('la UI no calcula el folio: muestra el que propone el servidor', async () => {
+    const js = await bundle();
+    // El folio único lo asigna MAX+1 en el servidor (por organización); la
+    // pantalla solo pinta la propuesta que trae /api/settings.
+    expect(js).toContain('nextNumber');
+    expect(js).toContain('Nueva solicitud');
+    // Nada del taller viejo: esto es una mesa de ayuda.
+    expect(js).not.toMatch(/repuesto/i);
+    expect(js).not.toMatch(/t[eé]cnico/i);
   });
 
-  it('la UI no inventa datos ni decide el folio en el navegador', async () => {
-    const js = (await tp.as({ orgId: TEST_ORG_A }).get('/app.js')).text;
-    expect(js).not.toContain(TEST_ORG_A);
-    expect(js).toContain('/api/requests');
-    // El folio se lee de los ajustes que trae el servidor.
-    expect(js).toMatch(/estado\.cfg\.nextNumber/);
-  });
-
-  it('el form de ajustes se llena por form.elements, no por ids sueltos', async () => {
-    const js = (await tp.as({ orgId: TEST_ORG_A }).get('/app.js')).text;
-    const fn = js.match(/function renderConfig\(\)\s*\{[\s\S]*?\n\}/);
-    expect(fn, 'no se encontro renderConfig()').toBeTruthy();
-    expect(fn![0]).toMatch(/form\.elements/);
+  it('el form de ajustes pide moneda y zona horaria', async () => {
+    const js = await bundle();
+    expect(js).toContain('Moneda');
+    expect(js).toContain('Zona horaria');
   });
 
   it('el esquema es el del helpdesk y no el del taller viejo', async () => {
@@ -108,6 +126,33 @@ describe('la interfaz', () => {
     expect(tablas).toEqual(expect.arrayContaining(['requests', 'comments', 'attachments', 'status_history', 'settings']));
     expect(tablas).not.toContain('orders');
     expect(tablas).not.toContain('legacy_tenant_map');
+  });
+});
+
+describe('ajustes', () => {
+  it('lee moneda y zona horaria con sus defaults y manda el folio propuesto', async () => {
+    const res = await comoMiembro(TEST_ORG_B).get('/api/settings');
+    expect(res.status).toBe(200);
+    // El sobre es `{ settings }`, que es como lo desenvuelve el AppProvider.
+    expect(res.body.settings).toMatchObject({ currency: '$', timezone: 'America/Santiago' });
+    expect(res.body.settings.nextNumber).toBeGreaterThan(0);
+  });
+
+  it('guarda los ajustes de la organización y los devuelve', async () => {
+    const res = await comoAdmin(TEST_ORG_A)
+      .put('/api/settings')
+      .send({ currency: 'US$', timezone: 'America/Santiago' });
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+
+    const despues = await comoMiembro(TEST_ORG_A).get('/api/settings');
+    expect(despues.body.settings).toMatchObject({ currency: 'US$' });
+  });
+
+  it('rechaza una zona horaria que no existe', async () => {
+    const res = await comoAdmin(TEST_ORG_A)
+      .put('/api/settings')
+      .send({ currency: '$', timezone: 'Marte/Olympus' });
+    expect(res.status).toBe(400);
   });
 });
 
