@@ -37,28 +37,25 @@ jobs:
     environment: production
 
     steps:
-      # Sin los secretos el job no falla en rojo: avisa. Asi el repo puede
-      # tener el workflow antes de que existan las llaves de despliegue.
-      - name: Aviso si faltan los secretos
-        if: ${{ secrets.DEPLOY_SSH_KEY == '' }}
-        run: |
-          echo "::warning::Faltan los secretos DEPLOY_*; no se despliega."
-          echo "Settings > Secrets and variables > Actions: DEPLOY_SSH_KEY, DEPLOY_HOST, DEPLOY_USER."
-
-      - name: Preparar la llave SSH
-        if: ${{ secrets.DEPLOY_SSH_KEY != '' }}
-        run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-
       - name: Backup + deploy del SHA validado por CI
-        if: ${{ secrets.DEPLOY_SSH_KEY != '' }}
         env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
           SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
+          # El repo puede tener el workflow antes de que existan las llaves. Si
+          # faltan, se avisa y no se intenta conectar (nada de rojo en cada push).
+          if [ -z "$DEPLOY_SSH_KEY" ] || [ -z "$HOST" ] || [ -z "$USER" ]; then
+            echo "::warning::Faltan los secretos DEPLOY_*; no se despliega."
+            echo "Settings > Secrets and variables > Actions: DEPLOY_SSH_KEY, DEPLOY_HOST, DEPLOY_USER."
+            exit 0
+          fi
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
           ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=accept-new \
             -o ServerAliveInterval=30 \
