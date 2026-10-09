@@ -1,6 +1,15 @@
-import { describe, expect, it, beforeAll, afterAll } from 'vitest';
+import { describe, expect, it, beforeAll, afterAll, vi } from 'vitest';
 import { startTestProduct, TEST_ORG_A, TEST_ORG_B, type TestProduct } from '@amg/product-runtime/testing';
 import { definicion } from '../src/app.js';
+
+// El server rechaza reservar una hora que YA paso. Los tests usan fechas fijas
+// (2026-10-*, 2026-11-*), asi que congelar el reloj a una fecha ANTERIOR a todas
+// ellas los vuelve deterministas: dejan de romperse solos el dia que el
+// calendario alcanza cada fecha. `toFake: ['Date']` NO toca setTimeout ni
+// timers del server, solo el reloj que se consulta.
+vi.useFakeTimers({ toFake: ['Date'] });
+vi.setSystemTime(new Date('2026-01-05T00:00:00.000Z'));
+afterAll(() => vi.useRealTimers());
 
 /**
  * Reservas de espacios sobre el runtime.
