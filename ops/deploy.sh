@@ -134,11 +134,24 @@ chmod 600 .env
 
 # ── 2. Codigo ───────────────────────────────────────────────────────────────
 paso "2. Codigo"
+
+# Que ref se despliega. Por defecto la punta de main (deploy manual de siempre).
+# El CI/CD pasa `AMG_REF=<sha>`: asi se despliega EXACTAMENTE el commit que ya
+# paso typecheck, build y tests, y no "lo que main sea en el instante del
+# deploy", que puede ser un commit que todavia no gano su CI.
+AMG_REF="${AMG_REF:-main}"
+
 if [ -n "$(git status --porcelain)" ]; then
   aviso "hay cambios sin commitear; se despliegan igual, pero no se pueden reproducir"
 fi
 git fetch origin
-git pull --ff-only origin main
+if [ "$AMG_REF" = "main" ]; then
+  git pull --ff-only origin main
+else
+  # `-f` descarta cambios locales a proposito: desplegar un ref concreto y
+  # dejar el arbol sucio pegado seria mezclar dos versiones en el mismo deploy.
+  git checkout -f "$AMG_REF"
+fi
 info "en $(git rev-parse --short HEAD) ($(git log -1 --format=%s))"
 
 # Si el pull reemplazo este mismo script (ver AMG_SCRIPT_INICIAL arriba), seguir

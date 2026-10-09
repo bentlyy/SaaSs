@@ -1,0 +1,58 @@
+# Despliegue continuo a produccion (servidor OCI).
+#
+# Se dispara cuando el workflow CI termina en verde sobre main. Despliega por
+# SSH el SHA EXACTO que CI valido (no la punta de main del momento) y reutiliza
+# `ops/deploy.sh`, que ya es idempotente: respalda, hace `git checkout -f` de esa
+# ref, reconstruye la imagen, levanta el Core primero, copia los secretos SSO y
+# pregunta `/health` a los nueve productos.
+#
+# Secretos requeridos (Settings > Secrets and variables > Actions):
+#   DEPLOY_SSH_KEY  llave privada de despliegue (dedicada, NO la personal)
+#   DEPLOY_HOST     146.181.55.59
+#   DEPLOY_USER     opc
+#
+# El Environment `production` permite pedir aprobacion manual antes de tocar
+# produccion; sin ese gate el deploy corre solo. El `.env` y los diez secretos
+# viven SOLO en el servidor: CI/CD nunca los ve ni los transporta.
+
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+# Un solo deploy a la vez. No se cancela el que esta en curso: cortar un deploy
+# a medias es peor que esperar a que termine.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Desplegar a produccion
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Preparar la llave SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+      - name: Backup + deploy del SHA validado por CI
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=accept-new \
+            -o ServerAliveInterval=30 \
+            "$USER@$HOST" \
+            "cd \$HOME/projects/saas-mini && \
+             bash ops/backup.sh && \
+             AMG_REF=$SHA bash ops/deploy.sh"

@@ -1,0 +1,68 @@
+# Integracion continua de la suite SaaS Mini.
+#
+# Corre en cada push a main y en cada PR. El orden NO es libre: el contrato de
+# frontend (`packages/core/tests/frontendContract.test.ts`) exige que los nueve
+# bundles de `web/dist` existan ANTES de `npm test`, y lo dice en su propio
+# mensaje ("corre `npm run build:webs` antes que `npm test`"). Por eso el build
+# de los frontends va entre el typecheck y los tests.
+#
+# Este workflow corre en ubuntu a proposito: es el mismo Linux que la imagen
+# Docker, asi que valida que el lockfile sirva en Linux. Un lockfile generado en
+# Windows que no traiga los binarios linux de rollup revienta el build (npm#4828)
+# y este job lo caza aqui, no en el servidor.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: typecheck · build:webs · test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Guarda del lockfile (binarios linux de rollup/oxide)
+        # npm#4828: un package-lock.json generado en Windows omite los paquetes
+        # opcionales de otras plataformas, y `vite build` muere con
+        # "Cannot find module @rollup/rollup-linux-x64-gnu". Se comprueban las
+        # dos familias que el frontend usa (rollup y @tailwindcss/oxide).
+        run: |
+          fallo=0
+          for p in \
+            "node_modules/@rollup/rollup-linux-x64-gnu" \
+            "node_modules/@tailwindcss/oxide-linux-x64-gnu"; do
+            if grep -q "\"$p\"" package-lock.json; then
+              echo "OK      : $p"
+            else
+              echo "FALTA   : $p (npm#4828; regenera el lockfile)"
+              fallo=1
+            fi
+          done
+          exit "$fallo"
+
+      - name: Typecheck (backend + webs)
+        run: npm run typecheck
+
+      - name: Construir los nueve frontends (web/dist)
+        run: npm run build:webs
+
+      - name: Tests
+        run: npm test
