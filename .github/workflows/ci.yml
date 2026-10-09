@@ -58,6 +58,20 @@ jobs:
           done
           exit "$fallo"
 
+      - name: Construir las librerias internas (dependencias de typecheck/tests)
+        # Los productos importan @amg/product-runtime, @amg/auth-client,
+        # @saas-mini/core y @amg/platform, que exportan desde dist/ (gitignored).
+        # En un clone limpio no existe ese dist: tsc muere con "Cannot find
+        # module '@amg/product-runtime'" y los tests no resuelven
+        # @amg/product-runtime/testing. Por eso las librerias se compilan ANTES
+        # del typecheck. El orden respeta las dependencias (core <- auth-client
+        # <- product-runtime; platform solo necesita core).
+        run: |
+          npm run build -w @saas-mini/core
+          npm run build -w @amg/auth-client
+          npm run build -w @amg/product-runtime
+          npm run build -w @amg/platform
+
       - name: Typecheck (backend + webs)
         run: npm run typecheck
 
