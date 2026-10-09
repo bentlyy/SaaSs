@@ -37,13 +37,23 @@ jobs:
     environment: production
 
     steps:
+      # Sin los secretos el job no falla en rojo: avisa. Asi el repo puede
+      # tener el workflow antes de que existan las llaves de despliegue.
+      - name: Aviso si faltan los secretos
+        if: ${{ secrets.DEPLOY_SSH_KEY == '' }}
+        run: |
+          echo "::warning::Faltan los secretos DEPLOY_*; no se despliega."
+          echo "Settings > Secrets and variables > Actions: DEPLOY_SSH_KEY, DEPLOY_HOST, DEPLOY_USER."
+
       - name: Preparar la llave SSH
+        if: ${{ secrets.DEPLOY_SSH_KEY != '' }}
         run: |
           mkdir -p ~/.ssh
           printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
       - name: Backup + deploy del SHA validado por CI
+        if: ${{ secrets.DEPLOY_SSH_KEY != '' }}
         env:
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
