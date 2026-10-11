@@ -25,6 +25,7 @@ import { getCoreDb } from './db/init.js';
 import { countOrganizations } from './domain/organizations.js';
 import { countUsers } from './domain/users.js';
 import { ensurePlatformSeed } from './seed.js';
+import { expireDueSubscriptions } from './domain/subscriptions.js';
 import { confirmCheckout } from './billing/checkout.js';
 import { obtenerProveedor } from './billing/index.js';
 import { MercadoPagoProvider } from './billing/mercadopago.js';
@@ -43,6 +44,19 @@ export function createPlatformApp(options: PlatformAppOptions = {}): Express {
   const app = express();
   getCoreDb();
   ensurePlatformSeed();
+
+  /**
+   * VENCIMIENTO AL ARRANQUE. `expireDueSubscriptions` marca `expired` las
+   * suscripciones cuyo periodo ya pasó (el acceso igual se corta por fecha, pero
+   * la fila queda mintiendo como `active`). Es idempotente, así que correrla en
+   * cada arranque es seguro y evita tener que agendar un cron para lo mínimo.
+   */
+  try {
+    const vencidas = expireDueSubscriptions();
+    if (vencidas > 0) logger.info(`Suscripciones vencidas marcadas al arranque: ${vencidas}`);
+  } catch (e) {
+    logger.error('No se pudieron marcar las suscripciones vencidas', (e as Error).message);
+  }
 
   app.disable('x-powered-by');
   if (platformConfig.isProd) app.set('trust proxy', 1);

@@ -14,6 +14,7 @@ import {
 import { quoteDiscount } from '../domain/discounts.js';
 import { billingProviders } from '../db/schema.js';
 import { startCheckout } from '../billing/checkout.js';
+import { periodPrice, PERIOD_CHOICES } from '../billing/period.js';
 import { platformConfig } from '../config.js';
 import { safeReturnUrl } from '../sso/service.js';
 import { listProducts, publicProduct, requireProductBySlug } from '../domain/products.js';
@@ -140,6 +141,8 @@ accountRouter.get(
 const contractSchema = z.object({
   productSlug: z.string().min(1),
   provider: z.enum(billingProviders).default('transfer'),
+  /** Periodo elegido: el mes o el año (con dos meses gratis). Default mensual. */
+  period: z.enum(PERIOD_CHOICES).optional(),
   /** Cupón opcional. Se valida en `startCheckout`; acá solo se transporta. */
   discountCode: z.string().min(1).max(64).optional(),
 });
@@ -147,6 +150,7 @@ const contractSchema = z.object({
 const validateDiscountSchema = z.object({
   productSlug: z.string().min(1),
   code: z.string().min(1).max(64),
+  period: z.enum(PERIOD_CHOICES).optional(),
 });
 
 /**
@@ -163,18 +167,22 @@ accountRouter.post(
   discountLimiter,
   asyncHandler(async (req, res) => {
     const session = req.amg!;
-    const { productSlug, code } = validateDiscountSchema.parse(req.body);
+    const { productSlug, code, period } = validateDiscountSchema.parse(req.body);
     const product = requireProductBySlug(productSlug);
+    // La cotización se hace sobre el precio del PERIODO elegido: si no, un cupón
+    // del 10% mostraría un monto de mes para una compra anual.
+    const base = period === 'yearly' ? periodPrice(product.price, 'yearly') : product.price;
     const quote = quoteDiscount({
       code,
       product,
       organizationId: session.organizationId,
-      amount: product.price,
+      amount: base,
     });
     return res.json({
       valid: true,
       code: quote.code,
       productSlug: product.slug,
+      period: period ?? 'monthly',
       kind: quote.kind,
       original_amount: quote.amountBefore,
       discount_amount: quote.discountAmount,
@@ -197,7 +205,7 @@ accountRouter.post(
   asyncHandler(async (req, res) => {
     const session = req.amg!;
     assertCanManageBilling(session.role);
-    const { productSlug, provider, discountCode } = contractSchema.parse(req.body);
+    const { productSlug, provider, period, discountCode } = contractSchema.parse(req.body);
     const product = requireProductBySlug(productSlug);
 
     // La vuelta pasa por el MISMO validador de lista blanca que el SSO, no por
@@ -214,6 +222,7 @@ accountRouter.post(
       organizationId: session.organizationId,
       productId: product.id,
       provider,
+      period,
       returnUrl,
       customerEmail: findUserById(session.userId)?.email,
       discountCode,

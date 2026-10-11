@@ -467,7 +467,13 @@
       product.tagline ? el('p', { class: 'small soft', text: product.tagline }) : null,
       el('p', { class: 'small mute mt', text: product.description }),
       el('div', { class: 'product__foot' },
-        el('span', { class: 'product__price', text: money(product.price, product.currency) }),
+        el('span', { class: 'product__price' },
+          money(product.price, product.currency),
+          el('span', { class: 'mute', text: ' ' + periodLabel(product.billing_period) }),
+          product.annual_price
+            ? el('span', { class: 'small mute', style: 'display:block', text: 'o ' + money(product.annual_price, product.currency) + ' al año' })
+            : null,
+        ),
         el('span', { class: 'row' },
           el('a', { class: 'btn btn--sm btn--ghost', href: detail, text: 'Detalle' }),
           el('a', { class: 'btn btn--sm', href: activate, text: 'Activar' }),
@@ -500,6 +506,9 @@
         el('div', { class: 'card card--pad-lg stack' },
           el('span', { class: 'tag', text: periodLabel(product.billing_period) }),
           el('div', { class: 'product__price', style: 'font-size: 1.6rem', text: money(product.price, product.currency) }),
+          product.annual_price
+            ? el('p', { class: 'small mute', text: 'o ' + money(product.annual_price, product.currency) + ' al año (2 meses gratis)' })
+            : null,
           el('a', { class: 'btn btn--block', href: activate, text: 'Activar ahora' }),
           el('p', { class: 'small mute center' }, 'La activación la confirma AMG. Puedes administrarla desde ', el('a', { href: '/mis-aplicaciones', text: 'Mis aplicaciones' }), '.'),
         ),
@@ -1056,6 +1065,22 @@
    *   - instrucciones (transferencia): se muestra la referencia para transferir. */
   function pantallaContratar(product, pago) {
     var quote = null;
+    // Solo un producto mensual ofrece elegir el año. En uno ya anual o de pago
+    // único no hay nada que elegir y el selector no se dibuja.
+    var puedeElegirPeriodo = product.billing_period === 'monthly' && product.annual_price != null;
+
+    var periodSelect = el('select', { id: 'f-periodo', name: 'periodo' },
+      el('option', { value: 'monthly' }, money(product.price, product.currency) + ' al mes'),
+      puedeElegirPeriodo
+        ? el('option', { value: 'yearly' }, money(product.annual_price, product.currency) + ' al año (2 meses gratis)')
+        : null,
+    );
+
+    function periodo() { return periodSelect.value === 'yearly' ? 'yearly' : 'monthly'; }
+    function precioLista() {
+      return periodo() === 'yearly' && product.annual_price != null ? product.annual_price : product.price;
+    }
+    function etiquetaPeriodo() { return periodo() === 'yearly' ? 'al año' : periodLabel(product.billing_period); }
 
     var priceEl = el('div', { class: 'product__price', style: 'font-size: 1.7rem' });
     var noteEl = el('p', { class: 'small mute' });
@@ -1068,9 +1093,11 @@
         );
         mount(noteEl, el('span', { class: 'tag tag--ok' }, el('span', { class: 'dot' }), quote.message));
       } else {
-        mount(priceEl, el('span', {}, money(product.price, product.currency),
-          el('span', { class: 'mute', text: ' ' + periodLabel(product.billing_period) })));
-        mount(noteEl, 'El acceso se activa cuando AMG confirma el cobro.');
+        mount(priceEl, el('span', {}, money(precioLista(), product.currency),
+          el('span', { class: 'mute', text: ' ' + etiquetaPeriodo() })));
+        mount(noteEl, product.annual_savings && periodo() === 'yearly'
+          ? 'Ahorras ' + money(product.annual_savings, product.currency) + ' al año. El acceso se activa cuando AMG confirma el cobro.'
+          : 'El acceso se activa cuando AMG confirma el cobro.');
       }
     }
     pintarPrecio();
@@ -1085,13 +1112,21 @@
       couponError.textContent = '';
       if (!code) { quote = null; pintarPrecio(); return; }
       setBusy(applyBtn, true);
-      api('/account/discounts/validate', { method: 'POST', body: { productSlug: product.slug, code: code } })
+      api('/account/discounts/validate', { method: 'POST', body: { productSlug: product.slug, code: code, period: periodo() } })
         .then(function (res) { quote = res; pintarPrecio(); })
         .catch(function (err) { quote = null; pintarPrecio(); couponError.textContent = err.message; })
         .then(function () { setBusy(applyBtn, false); });
     });
     couponInput.addEventListener('keydown', function (event) {
       if (event.key === 'Enter') { event.preventDefault(); applyBtn.click(); }
+    });
+
+    // El cupón se cotiza por periodo: al cambiarlo hay que volver a validar, o el
+    // monto mostraría un precio de mes sobre una compra anual (o al revés).
+    periodSelect.addEventListener('change', function () {
+      quote = null;
+      pintarPrecio();
+      if (couponInput.value.trim()) applyBtn.click();
     });
 
     var providerSelect = el('select', { id: 'f-provider', name: 'provider' },
@@ -1103,7 +1138,7 @@
     var resultBox = el('div', { class: 'stack' });
 
     submit.addEventListener('click', function () {
-      var monto = quote && quote.valid ? money(quote.amount, product.currency) : money(product.price, product.currency);
+      var monto = quote && quote.valid ? money(quote.amount, product.currency) : money(precioLista(), product.currency);
       var pregunta = quote && quote.trial_days > 0
         ? 'El cupón activa una prueba gratis de ' + quote.trial_days + ' día(s). ¿Continuar?'
         : '¿Contratar ' + product.name + ' por ' + monto + '?';
@@ -1111,7 +1146,7 @@
 
       setBusy(submit, true);
       mount(resultBox);
-      var body = { productSlug: product.slug, provider: providerSelect.value };
+      var body = { productSlug: product.slug, provider: providerSelect.value, period: periodo() };
       if (quote && quote.code) body.discountCode = quote.code;
 
       api('/account/subscriptions', { method: 'POST', body: body })
@@ -1152,6 +1187,10 @@
         priceEl,
         noteEl,
       ),
+      puedeElegirPeriodo ? el('div', { class: 'field' },
+        el('label', { for: 'f-periodo', text: 'Periodo de pago' }),
+        periodSelect,
+      ) : null,
       el('div', { class: 'field' },
         el('label', { for: 'f-cupon', text: 'Cupón de descuento (opcional)' }),
         el('div', { class: 'row' }, el('div', { class: 'field grow', style: 'margin: 0' }, couponInput), applyBtn),

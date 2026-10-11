@@ -89,7 +89,9 @@ export class MercadoPagoProvider implements BillingProvider {
         {
           id: request.product.slug,
           title: `AMG · ${request.product.name}`,
-          description: request.product.tagline ?? request.product.description,
+          description: [request.product.tagline ?? request.product.description, request.periodLabel]
+            .filter(Boolean)
+            .join(' · '),
           quantity: 1,
           currency_id: request.currency,
           unit_price: request.amount,

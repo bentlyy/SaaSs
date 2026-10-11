@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   status TEXT NOT NULL DEFAULT 'pending',
   provider TEXT NOT NULL DEFAULT 'manual',
+  billing_period TEXT NOT NULL DEFAULT 'monthly',
   provider_subscription_id TEXT,
   started_at TEXT,
   current_period_start TEXT,
@@ -248,6 +249,9 @@ const MIGRATIONS: Array<[string, string, string]> = [
   ['products', 'app_url', 'TEXT'],
   ['products', 'sort_order', 'INTEGER NOT NULL DEFAULT 0'],
   ['sso_clients', 'logout_redirect_uris', "TEXT NOT NULL DEFAULT '[]'"],
+  // Periodo contratado en suscripciones: sobre una base vieja la tabla ya existe,
+  // asi que `CREATE TABLE IF NOT EXISTS` no agrega la columna.
+  ['subscriptions', 'billing_period', "TEXT NOT NULL DEFAULT 'monthly'"],
   // Columnas de descuento en pagos: sobre una base vieja la tabla `payments` ya
   // existe, así que `CREATE TABLE IF NOT EXISTS` no las agrega.
   ['payments', 'original_amount', 'INTEGER'],

@@ -38,6 +38,7 @@ export class TransferProvider implements BillingProvider {
       providerReference,
       instructions: [
         `Transfiere ${request.amount.toLocaleString('es-CL')} ${request.currency} para contratar ${request.product.name}.`,
+        request.periodLabel ? `Periodo: ${request.periodLabel}.` : null,
         this.datosBancarios,
         '',
         `Referencia (obligatoria, es como lo rastreamos): ${providerReference}`,

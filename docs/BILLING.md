@@ -97,11 +97,19 @@ Motivos de rechazo, que la API y el SSO usan para explicar:
 Cada uno tiene su mensaje en castellano. La UI los muestra como etiqueta de
 estado; no son texto para developers.
 
-`expireDueSubscriptions()` marca las vencidas. Es idempotente, así que se puede
-llamar seguido sin daño, pero **nadie la llama automáticamente todavía**: está
-pendiente un cron o un paso en el arranque. Sin eso, el estado `expired` no se
-usa nunca y el acceso real depende solo de la comparación de fechas (que sí
-funciona, pero la fila queda mintiendo).
+`expireDueSubscriptions()` marca las vencidas. Es idempotente. **Corre en cada arranque** del Core (`createPlatformApp`), así que el estado `expired` sí se usa y la fila no queda mintiendo. Un cron sigue siendo la mejora natural para no depender de un reinicio.
+
+### Mensual o anual
+
+El cliente elige el periodo en `/contratar`, no el producto: un producto
+`billing_period='monthly'` se puede pagar **al mes o al año**. El anual regala dos
+meses: **se cobran 10 y se entregan 12** (365 días), con el precio anual calculado
+en `packages/platform/src/billing/period.ts` — la misma función que usa el Core
+para cobrar y la landing para mostrar. El periodo elegido se **congela en la
+suscripción** (`subscriptions.billing_period`) al crear el checkout, para que la
+confirmación del pago no tenga que (ni pueda) re-deducirlo: se paga el año, se
+abre el año. Los cupones rebajan sobre el precio del periodo elegido, no sobre el
+mensual.
 
 ## El flujo de cobro
 
@@ -380,9 +388,10 @@ Es un bloque de trabajo propio, no una extensión de este.
       negocio; ver arriba lo que implica).
 - [ ] Implementar `stripe` (checkout + webhook con firma sobre el cuerpo crudo).
 - [ ] Renovación automática y cobros recurrentes.
-- [ ] `expireDueSubscriptions()` llamada por cron o en el arranque.
+- [x] `expireDueSubscriptions()` llamada en el arranque del Core (cron, opcional).
+- [x] Plan mensual o anual por suscripción (anual = 10 meses cobrados, 12 entregados).
 - [ ] Reembolsos: hoy la cancelación inmediata no genera ninguno.
-- [ ] Planes y combos.
+- [ ] Combos de productos (hoy cada herramienta es una suscripción aparte).
 - [ ] Facturación electrónica (Boletas/Facturas).
 - [ ] Conciliación: `provider_reference` ↔ respaldos del proveedor.
 - [ ] Quitar `manual` y `webpay` del enum, o dos de implementar.

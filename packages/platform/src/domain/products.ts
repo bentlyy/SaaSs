@@ -2,6 +2,7 @@ import { asc, eq } from 'drizzle-orm';
 import { AppError } from '@saas-mini/core';
 import { getCoreDb } from '../db/index.js';
 import { schema } from '../db/schema.js';
+import { periodPrice, yearlySavings } from '../billing/period.js';
 
 export type Product = typeof schema.products.$inferSelect;
 
@@ -18,11 +19,16 @@ export interface PublicProduct {
   price: number;
   currency: string;
   billing_period: string;
+  /** Precio del plan anual (10 meses) cuando el producto es mensual; si no, null. */
+  annual_price: number | null;
+  /** Ahorro del anual frente a doce meses sueltos. null si no aplica. */
+  annual_savings: number | null;
   status: string;
   app_url: string | null;
 }
 
 export function publicProduct(product: Product): PublicProduct {
+  const mensual = product.billing_period === 'monthly';
   return {
     id: product.id,
     slug: product.slug,
@@ -32,6 +38,8 @@ export function publicProduct(product: Product): PublicProduct {
     price: product.price,
     currency: product.currency,
     billing_period: product.billing_period,
+    annual_price: mensual ? periodPrice(product.price, 'yearly') : null,
+    annual_savings: mensual ? yearlySavings(product.price) : null,
     status: product.status,
     app_url: product.app_url,
   };

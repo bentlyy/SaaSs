@@ -240,6 +240,8 @@ export interface CreateSubscriptionInput {
   productId: string;
   status?: (typeof schema.subscriptionStatus)[number];
   provider?: (typeof schema.billingProviders)[number];
+  /** Periodo contratado. Default del producto cuando no se indica. */
+  billingPeriod?: (typeof schema.billingPeriods)[number];
   providerSubscriptionId?: string;
   periodStart?: string;
   periodEnd?: string;
@@ -263,6 +265,7 @@ export function createSubscription(input: CreateSubscriptionInput): Subscription
       product_id: product.id,
       status: input.status ?? 'pending',
       provider: input.provider ?? 'manual',
+      billing_period: input.billingPeriod ?? product.billing_period,
       provider_subscription_id: input.providerSubscriptionId ?? null,
       started_at: input.activate ? now : null,
       current_period_start: input.periodStart ?? (input.activate ? now : null),
@@ -310,11 +313,13 @@ export function grantSubscription(input: {
   organizationId: string;
   productId: string;
   days?: number;
+  /** Periodo contratado. Si no se dan `days`, decide la duración (30 o 365). */
+  billingPeriod?: (typeof schema.billingPeriods)[number];
   provider?: (typeof schema.billingProviders)[number];
   providerSubscriptionId?: string;
   amount?: number;
 }): { subscription: Subscription; payment?: Payment } {
-  const days = input.days ?? 30;
+  const days = input.days ?? (input.billingPeriod === 'yearly' ? 365 : 30);
   const now = Date.now();
   const periodEnd = new Date(now + days * 86_400_000).toISOString();
 
@@ -323,6 +328,7 @@ export function grantSubscription(input: {
     organizationId: input.organizationId,
     productId: product.id,
     provider: input.provider,
+    billingPeriod: input.billingPeriod,
     providerSubscriptionId: input.providerSubscriptionId,
   });
   const subscription = activateSubscription(pending.id, periodEnd);

@@ -98,6 +98,12 @@ export const subscriptions = sqliteTable('subscriptions', {
   product_id: productCol(),
   status: text('status', { enum: subscriptionStatus }).notNull().default('pending'),
   provider: text('provider', { enum: billingProviders }).notNull().default('manual'),
+  /**
+   * Periodo CONTRATADO (mensual o anual), no el del producto: es lo que decide
+   * cuantos dias dura el acceso al confirmar el pago. Se congela al crear el
+   * checkout para que la confirmacion no tenga que (ni pueda) re-deducirlo.
+   */
+  billing_period: text('billing_period', { enum: billingPeriods }).notNull().default('monthly'),
   provider_subscription_id: text('provider_subscription_id'),
   started_at: text('started_at'),
   current_period_start: text('current_period_start'),

@@ -16,6 +16,7 @@ import {
   type Subscription,
 } from '../domain/subscriptions.js';
 import { requireProductById, type Product } from '../domain/products.js';
+import { periodLabel, periodPrice, type PeriodChoice } from './period.js';
 import {
   markRedemptionUsedByPayment,
   quoteDiscount,
@@ -56,6 +57,11 @@ export interface StartCheckoutInput {
   customerEmail?: string;
   /** Código de cupón que ingresó el cliente. Opcional: sin él, precio de lista. */
   discountCode?: string;
+  /**
+   * Periodo elegido (mes o año). Solo aplica a productos mensuales: en un
+   * producto ya anual o de pago único se ignora y manda el del producto.
+   */
+  period?: PeriodChoice;
 }
 
 export interface CheckoutSession {
@@ -86,6 +92,15 @@ export async function startCheckout(input: StartCheckoutInput): Promise<Checkout
   if (product.status !== 'active') {
     throw new AppError(409, `${product.name} no está disponible para contratación`);
   }
+
+  // El periodo contratado. Solo un producto mensual deja elegir el año; uno ya
+  // anual o de pago único mantiene el suyo. De aquí salen TANTO el precio como
+  // los días de acceso, así que el monto que se cobra y el periodo que se abre
+  // no pueden desincronizarse.
+  const periodo: Product['billing_period'] =
+    product.billing_period === 'monthly' && input.period === 'yearly' ? 'yearly' : product.billing_period;
+  const precioBase = periodo === 'yearly' ? periodPrice(product.price, 'yearly') : product.price;
+  const etiquetaPeriodo = periodo === 'monthly' || periodo === 'yearly' ? periodLabel(periodo) : undefined;
 
   // Solo se bloquea la contratacion si la suscripcion esta VIGENTE, no solo
   // activa. Una suscripcion `active` con el periodo vencido no esta pagada: si
@@ -119,7 +134,7 @@ export async function startCheckout(input: StartCheckoutInput): Promise<Checkout
         code: input.discountCode,
         product,
         organizationId: input.organizationId,
-        amount: product.price,
+        amount: precioBase,
       })
     : undefined;
 
@@ -142,15 +157,16 @@ export async function startCheckout(input: StartCheckoutInput): Promise<Checkout
 
   // ── camino promo: no hay nada que cobrar, no hay pasarela ──────────────────
   if (quote?.free) {
-    return activatePromo({ input, product, quote, redemption });
+    return activatePromo({ input, product, quote, redemption, periodo });
   }
 
-  const monto = quote ? quote.amountAfter : product.price;
+  const monto = quote ? quote.amountAfter : precioBase;
 
   const subscription = createSubscription({
     organizationId: input.organizationId,
     productId: product.id,
     provider: input.provider,
+    billingPeriod: periodo,
   });
 
   let checkout: CheckoutResult;
@@ -160,6 +176,7 @@ export async function startCheckout(input: StartCheckoutInput): Promise<Checkout
       product,
       amount: monto,
       currency: product.currency,
+      periodLabel: etiquetaPeriodo,
       returnUrl: input.returnUrl,
       customerEmail: input.customerEmail,
     });
@@ -213,16 +230,18 @@ function activatePromo(input: {
   product: Product;
   quote: DiscountQuote;
   redemption?: DiscountRedemption;
+  periodo: Product['billing_period'];
 }): CheckoutSession {
-  const { product, quote, redemption } = input;
+  const { product, quote, redemption, periodo } = input;
   const ahora = new Date();
   const subscription = createSubscription({
     organizationId: input.input.organizationId,
     productId: product.id,
     provider: 'manual',
+    billingPeriod: periodo,
   });
   const periodEnd = finDelPeriodo(
-    product.billing_period,
+    periodo,
     ahora,
     quote.trialDays > 0 ? quote.trialDays : undefined,
   );
@@ -315,12 +334,11 @@ export async function confirmCheckout(input: ConfirmCheckoutInput): Promise<Conf
     const subscription = findSubscriptionById(payment.subscription_id);
     if (!subscription) throw new AppError(409, 'El pago no tiene suscripción asociada');
     if (!isSubscriptionLive(subscription)) {
-      const product = payment.product_id ? requireProductById(payment.product_id) : undefined;
       const reparado = confirmPaymentAndActivate({
         paymentId: payment.id,
         subscriptionId: subscription.id,
         paidAt: payment.paid_at ?? new Date().toISOString(),
-        periodEnd: finDelPeriodo(product?.billing_period ?? 'monthly'),
+        periodEnd: finDelPeriodo(subscription.billing_period),
       });
       // El cupón ya se consumió: si quedó reservado, pasa a usado.
       markRedemptionUsedByPayment(payment.id);
@@ -376,12 +394,18 @@ export async function confirmCheckout(input: ConfirmCheckoutInput): Promise<Conf
   // marcar el pago como pagado.
   const product = requireProductById(payment.product_id);
 
+  // El periodo que se abre es el que se CONGELÓ al crear la suscripción, no el
+  // del catálogo: si el cliente pagó el año y aquí se leyera `product.price`,
+  // se le abriría un mes por lo que pagó doce.
+  const subscriptionRow = findSubscriptionById(payment.subscription_id);
+  if (!subscriptionRow) throw new AppError(409, 'El pago no tiene suscripción asociada: no se activa nada');
+
   // Pago pagado y producto abierto, juntos o ninguno: ver confirmPaymentAndActivate.
   const { payment: pagado, subscription } = confirmPaymentAndActivate({
     paymentId: payment.id,
     subscriptionId: payment.subscription_id,
     paidAt: confirmacion.paidAt,
-    periodEnd: finDelPeriodo(product.billing_period),
+    periodEnd: finDelPeriodo(subscriptionRow.billing_period),
   });
 
   // El pago se confirmó: el cupón reservado pasa a usado.

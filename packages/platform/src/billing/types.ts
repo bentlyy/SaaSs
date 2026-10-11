@@ -38,6 +38,8 @@ export interface CheckoutRequest {
   /** Monto exacto a cobrar, en la unidad menor de `product.currency`. */
   amount: number;
   currency: string;
+  /** Etiqueta del periodo contratado, ej. "anual (12 meses, pagas 10)". */
+  periodLabel?: string;
   /** Destino tras pagar. La API lo valida contra una lista blanca. */
   returnUrl: string;
   /** Correo del pagador, para el recibo. Puede faltar si el alta fue sin cuenta. */

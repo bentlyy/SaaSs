@@ -15,9 +15,11 @@ import { eq } from 'drizzle-orm';
 import {
   activateSubscription,
   currentSubscription,
+  expireDueSubscriptions,
   listPayments,
   productAccess,
 } from '../src/domain/subscriptions.js';
+import { createDiscount } from '../src/domain/discounts.js';
 import { seedCatalog } from '../src/seed.js';
 
 const PASSWORD = 'UnaClaveLarga1';
@@ -363,5 +365,99 @@ describe('qué proveedores puede cobrar de verdad', () => {
     expect(registrados).not.toContain('manual');
     expect(registrados).not.toContain('webpay');
     expect(() => obtenerProveedor('manual')).toThrow(/no hay pasarela/i);
+  });
+});
+
+describe('planes: mensual y anual', () => {
+  class TransferHonesta implements BillingProvider {
+    readonly name = 'transfer' as const;
+    async createCheckout(_r: CheckoutRequest): Promise<CheckoutResult> {
+      return { provider: this.name, providerReference: 'ref-plan-1' };
+    }
+    async confirmPayment(reference: string): Promise<PaymentConfirmation> {
+      return { provider: this.name, providerReference: reference, paidAt: new Date().toISOString() };
+    }
+  }
+
+  it('el plan anual cobra diez meses y abre un año entero', async () => {
+    usar(new TransferHonesta());
+    const { organization, product } = await orgYProducto();
+
+    const sesion = await startCheckout({
+      organizationId: organization.id,
+      productId: product.id,
+      provider: 'transfer',
+      returnUrl: RETURN_URL,
+      period: 'yearly',
+    });
+
+    expect(sesion.payment.amount).toBe(product.price * 10);
+    expect(sesion.subscription.billing_period).toBe('yearly');
+
+    const resultado = await confirmCheckout({
+      provider: 'transfer',
+      providerReference: sesion.payment.provider_reference!,
+    });
+    const dias = (new Date(resultado.subscription.current_period_end!).getTime() - Date.now()) / 86_400_000;
+    expect(dias).toBeGreaterThan(360);
+    expect(dias).toBeLessThan(366);
+    expect(productAccess(organization.id, SLUG).allowed).toBe(true);
+  });
+
+  it('el cupón rebaja sobre el precio del periodo elegido, no sobre el mensual', async () => {
+    usar(new TransferHonesta());
+    const { organization, product } = await orgYProducto();
+    createDiscount({ code: 'ANUAL10', kind: 'percent', value: 10 });
+
+    const sesion = await startCheckout({
+      organizationId: organization.id,
+      productId: product.id,
+      provider: 'transfer',
+      returnUrl: RETURN_URL,
+      period: 'yearly',
+      discountCode: 'ANUAL10',
+    });
+
+    expect(sesion.payment.amount).toBe(Math.floor(product.price * 10 * 0.9));
+    expect(sesion.payment.original_amount).toBe(product.price * 10);
+  });
+});
+
+describe('vencimiento por impago', () => {
+  it('expireDueSubscriptions marca la vencida y cierra el acceso', async () => {
+    class TransferHonesta implements BillingProvider {
+      readonly name = 'transfer' as const;
+      async createCheckout(_r: CheckoutRequest): Promise<CheckoutResult> {
+        return { provider: this.name, providerReference: 'ref-venc-1' };
+      }
+      async confirmPayment(reference: string): Promise<PaymentConfirmation> {
+        return { provider: this.name, providerReference: reference, paidAt: new Date().toISOString() };
+      }
+    }
+    usar(new TransferHonesta());
+    const { organization, product } = await orgYProducto();
+
+    const sesion = await startCheckout({
+      organizationId: organization.id,
+      productId: product.id,
+      provider: 'transfer',
+      returnUrl: RETURN_URL,
+    });
+    const resultado = await confirmCheckout({
+      provider: 'transfer',
+      providerReference: sesion.payment.provider_reference!,
+    });
+    expect(productAccess(organization.id, SLUG).allowed).toBe(true);
+
+    // El periodo ya pasó: simula el impago / la renovación perdida.
+    getCoreDb()
+      .db.update(schema.subscriptions)
+      .set({ current_period_end: new Date(Date.now() - 1000).toISOString() })
+      .where(eq(schema.subscriptions.id, resultado.subscription.id))
+      .run();
+
+    expect(expireDueSubscriptions()).toBeGreaterThanOrEqual(1);
+    expect(currentSubscription(organization.id, product.id)!.status).toBe('expired');
+    expect(productAccess(organization.id, SLUG).allowed).toBe(false);
   });
 });

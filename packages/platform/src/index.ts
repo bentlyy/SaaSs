@@ -171,3 +171,15 @@ export {
   type CheckoutResult,
   type PaymentConfirmation,
 } from './billing/index.js';
+export {
+  PERIOD_CHOICES,
+  PERIOD_DAYS,
+  YEARLY_MONTHS_INCLUDED,
+  YEARLY_MONTHS_CHARGED,
+  isPeriodChoice,
+  periodDays,
+  periodPrice,
+  yearlySavings,
+  periodLabel,
+  type PeriodChoice,
+} from './billing/period.js';
