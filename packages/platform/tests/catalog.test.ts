@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { CATALOG, EXPECTED_SLUGS, PLATFORM_URL, RETIRED_SLUGS, seedCatalog } from '../src/seed.js';
+import { CATALOG, EXPECTED_SLUGS, EXTERNAL_SLUGS, PLATFORM_URL, RETIRED_SLUGS, seedCatalog } from '../src/seed.js';
 import { listProducts, findProductBySlug } from '../src/domain/products.js';
 
 /**
@@ -21,6 +21,7 @@ const ESPERADO: Record<string, string> = {
   activos: 'activos',
   checklists: 'checklists',
   pagos: 'pagos',
+  taller: 'taller',
 };
 
 /**
@@ -29,14 +30,14 @@ const ESPERADO: Record<string, string> = {
  * nombres se desvían, el que se desvía es el despliegue, y acá se ve antes.
  */
 describe('catálogo de productos', () => {
-  it('son exactamente nueve', () => {
-    expect(CATALOG).toHaveLength(9);
+  it('son los del catalogo declarado, ni uno mas', () => {
+    expect(CATALOG).toHaveLength(EXPECTED_SLUGS.length);
   });
 
-  it('son los nueve acordados, sin repetidos', () => {
+  it('son los acordados, sin repetidos', () => {
     const slugs = CATALOG.map((p) => p.slug);
     expect([...slugs].sort()).toEqual([...EXPECTED_SLUGS].sort());
-    expect(new Set(slugs).size).toBe(9);
+    expect(new Set(slugs).size).toBe(EXPECTED_SLUGS.length);
   });
 
   it('cada producto tiene su subdominio y todos cuelgan de amgdeveloper.cl', () => {
@@ -97,10 +98,10 @@ describe('catálogo de productos', () => {
 });
 
 describe('siembra del catálogo', () => {
-  it('deja nueve productos activos en la base', () => {
+  it('deja activos todos los productos del catalogo en la base', () => {
     seedCatalog();
     const activos = listProducts();
-    expect(activos).toHaveLength(9);
+    expect(activos).toHaveLength(EXPECTED_SLUGS.length);
     expect(activos.map((p) => p.slug).sort()).toEqual([...EXPECTED_SLUGS].sort());
   });
 
@@ -121,7 +122,7 @@ describe('siembra del catálogo', () => {
     expect(espacios?.app_url).toBe('https://espacios.amgdeveloper.cl');
   });
 
-  it('el catalogo y el compose dan el mismo host para los nueve', () => {
+  it('el catalogo y el compose dan el mismo host para los productos internos', () => {
     // Este es el guard que hacia falta. El `app_url` del Core y el `APP_URL`
     // del compose son dos valores escritos a mano que tienen que coincidir, y
     // cuando no coinciden el sintoma es un login que manda a un host que no
@@ -142,6 +143,9 @@ describe('siembra del catálogo', () => {
     }
 
     for (const p of CATALOG) {
+      // Los externos (hoy: taller) no viven en este compose: su subdominio y su
+      // base los enruta su propio despliegue. El guard aplica a los internos.
+      if (EXTERNAL_SLUGS.includes(p.slug)) continue;
       expect(
         appUrlDeCompose.get(p.slug),
         `el compose no declara APP_URL para ${p.slug}`,
@@ -156,7 +160,7 @@ describe('siembra del catálogo', () => {
   it('es idempotente: sembrar dos veces no duplica', () => {
     seedCatalog();
     seedCatalog();
-    expect(listProducts()).toHaveLength(9);
+    expect(listProducts()).toHaveLength(EXPECTED_SLUGS.length);
   });
 
   it('guarda los precios en centavos, sin decimales', () => {

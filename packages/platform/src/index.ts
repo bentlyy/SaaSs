@@ -142,6 +142,7 @@ export {
 export {
   CATALOG,
   EXPECTED_SLUGS,
+  EXTERNAL_SLUGS,
   PLATFORM_URL,
   RETIRED_SLUGS,
   seedCatalog,

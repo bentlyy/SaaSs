@@ -36,6 +36,14 @@ export interface CatalogProduct {
   billingPeriod: 'monthly' | 'yearly' | 'one_time';
   appUrl: string;
   sortOrder: number;
+  /**
+   * Producto que se vende desde el Core pero NO vive en `docker-compose.yml`:
+   * corre en su propio stack (otro repo, su propia base). El compose solo
+   * declara los mini-SaaS internos; el subdominio de un externo lo enruta su
+   * propio despliegue. `EXTERNAL_SLUGS` es lo que el test usara para no exigirle
+   * una entrada en el compose.
+   */
+  external?: boolean;
 }
 
 export const CATALOG: CatalogProduct[] = [
@@ -148,8 +156,18 @@ export const CATALOG: CatalogProduct[] = [
     billingPeriod: 'monthly',
     appUrl: 'https://taller.amgdeveloper.cl',
     sortOrder: 100,
+    external: true,
   },
 ];
+
+/**
+ * Productos del catalogo que NO corren en el `docker-compose.yml` del Core:
+ * tienen su propio repositorio y su propio stack (hoy: taller). Se venden,
+ * tienen subdominio y cliente SSO como cualquier otro, pero su enrutamiento y
+ * su base viven fuera de este compose, asi que el guard que compara contra el
+ * compose no aplica para ellos.
+ */
+export const EXTERNAL_SLUGS: string[] = CATALOG.filter((p) => p.external).map((p) => p.slug);
 
 /**
  * Productos que se dejaron de vender y que hay que retirar del catálogo.
