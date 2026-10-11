@@ -10,7 +10,7 @@ import { ensureSsoClient } from './sso/registry.js';
 import { platformConfig } from './config.js';
 
 /**
- * Catálogo de productos de la plataforma: NUEVE, ni uno más.
+ * Catálogo de productos de la plataforma.
  *
  * Este archivo es la lista comercial y a la vez el contrato de despliegue. Si un
  * producto no está acá, no se vende, no tiene subdominio y no tiene base de
@@ -138,6 +138,17 @@ export const CATALOG: CatalogProduct[] = [
     appUrl: 'https://pagos.amgdeveloper.cl',
     sortOrder: 90,
   },
+  {
+    slug: 'taller',
+    name: 'Taller Mecánico',
+    tagline: 'Vehiculos, reparaciones, facturas y ubicaciones',
+    description:
+      'Gestión completa de talleres mecánicos multi-sucursal: clientes, vehículos, reparaciones con estado, piezas, servicios, facturas, pagos y ubicaciones en el taller.',
+    price: 24900,
+    billingPeriod: 'monthly',
+    appUrl: 'https://taller.amgdeveloper.cl',
+    sortOrder: 100,
+  },
 ];
 
 /**
@@ -158,7 +169,7 @@ export const RETIRED_SLUGS: Array<{ slug: string; becomes: string | null; note: 
   { slug: 'inventario-v2', becomes: 'inventario', note: 'Nombre de carpeta interno, no de producto.' },
 ];
 
-/** Los nueve, ni uno más. Si esto cambia, el compose también. */
+/** Los slugs activos. Si esto cambia, el compose también. */
 export const EXPECTED_SLUGS = [
   'espacios',
   'citas',
@@ -169,6 +180,7 @@ export const EXPECTED_SLUGS = [
   'activos',
   'checklists',
   'pagos',
+  'taller',
 ] as const;
 
 /**
