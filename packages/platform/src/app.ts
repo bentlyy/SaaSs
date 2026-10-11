@@ -13,8 +13,10 @@ import {
   HTML_CACHE_CONTROL,
 } from '@saas-mini/core';
 import { platformConfig } from './config.js';
-import { cookieParser } from './http/middleware.js';
+import { clearSessionCookie, cookieParser, sessionFromRequest } from './http/middleware.js';
 import { authRouter } from './http/auth-routes.js';
+import { logout } from './auth/service.js';
+import { safeReturnUrl } from './sso/service.js';
 import { accountRouter } from './http/account-routes.js';
 import { productsRouter } from './http/products-routes.js';
 import { ssoRouter } from './http/sso-routes.js';
@@ -100,6 +102,24 @@ export function createPlatformApp(options: PlatformAppOptions = {}): Express {
   app.use('/api/account', accountRouter);
   app.use('/api/products', productsRouter);
   app.use('/api/sso', ssoRouter);
+
+  /**
+   * Alias `/api/logout`: los productos (auth-client) redirigen acá desde su
+   * `auth/logout` para cerrar la sesión CENTRAL. Sin esta ruta el "Salir"
+   * aterrizaba en `404 No existe GET /api/logout` y la sesión seguía viva.
+   *
+   * GET y POST: el navegador puede llegar por link o por formulario. No exige
+   * sesión: cerrar una sesión que ya no existe debe responder igual de bien.
+   * El destino se filtra con `safeReturnUrl` (solo hosts de la plataforma): un
+   * `redirect` arbitrario convertiría el logout en un open-redirect.
+   */
+  app.use('/api/logout', (req, res) => {
+    const session = sessionFromRequest(req);
+    if (session) logout(session.sessionId);
+    clearSessionCookie(res);
+    const destino = typeof req.query.redirect === 'string' ? req.query.redirect : undefined;
+    return res.redirect(302, safeReturnUrl(destino) ?? `${platformConfig.coreUrl}/`);
+  });
 
   if (options.staticDir) {
     const dir = path.resolve(options.staticDir);

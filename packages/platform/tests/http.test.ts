@@ -2,6 +2,7 @@ import { describe, expect, it, beforeAll } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
 import { createPlatformApp } from '../src/app.js';
+import { platformConfig } from '../src/config.js';
 import { seedCatalog } from '../src/seed.js';
 import { findSsoClient } from '../src/sso/registry.js';
 import { grantSubscription } from '../src/domain/subscriptions.js';
@@ -170,6 +171,57 @@ describe('protección de rutas', () => {
     await request(app).get('/api/auth/me').set('Cookie', `${COOKIE}=ses_falso.firmaInventada`).expect(401);
   });
 });
+
+/**
+ * El alias `/api/logout` es lo que espera @amg/auth-client: el "Salir" de cada
+ * producto redirige acá por GET para cerrar la sesión CENTRAL y volver. Sin
+ * esta ruta el usuario veía un 404 y seguía adentro (REG-SES-07/REG-UI-07).
+ */
+describe('logout central por /api/logout (contrato del auth-client)', () => {
+  it('GET cierra la sesión, limpia la cookie y vuelve al producto indicado', async () => {
+    await crearDueño('alias-logout@ejemplo.cl', 'alias-logout', ['inventario']);
+    const login = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'alias-logout@ejemplo.cl', password: PASSWORD })
+      .expect(200);
+    const cookie = cookieDe(login);
+    await request(app).get('/api/auth/me').set('Cookie', cookie).expect(200);
+
+    const res = await request(app)
+      .get('/api/logout')
+      .set('Cookie', cookie)
+      .query({ redirect: APP_URL() })
+      .expect(302);
+
+    expect(res.headers.location).toBe(new URL(APP_URL()).toString());
+    const setCookie = (res.headers['set-cookie'] as unknown as string[]) ?? [];
+    expect(setCookie.some((c) => c.startsWith(`${COOKIE}=;`))).toBe(true);
+    // La cookie sigue viajando, pero el Core ya no la reconoce.
+    await request(app).get('/api/auth/me').set('Cookie', cookie).expect(401);
+  });
+
+  it('POST también cierra (link o formulario dan igual)', async () => {
+    await crearDueño('alias-logout-post@ejemplo.cl', 'alias-logout-post');
+    const login = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'alias-logout-post@ejemplo.cl', password: PASSWORD })
+      .expect(200);
+    await request(app).post('/api/logout').set('Cookie', cookieDe(login)).expect(302);
+  });
+
+  it('sin sesión igual responde 302 (idempotente, no 404)', async () => {
+    await request(app).get('/api/logout').expect(302);
+  });
+
+  it('NO es un open-redirect: un destino externo cae al Core', async () => {
+    const res = await request(app)
+      .get('/api/logout')
+      .query({ redirect: 'https://malo.com/steal' })
+      .expect(302);
+    expect(res.headers.location).toBe(`${platformConfig.coreUrl}/`);
+  });
+});
+
 
 describe('SSO por HTTP', () => {
   it('authorize sin sesión redirige al login del Core', async () => {
