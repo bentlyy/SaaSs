@@ -365,7 +365,7 @@
             el('div', { class: 'bg-surface-container-lowest rounded-3xl p-10 border border-outline-variant/60 bento-shadow text-center' },
               el('p', { class: 'text-body-md font-body-md text-on-surface-variant', text: 'Todavía no tienes herramientas activas.' }),
               el('div', { class: 'mt-5' },
-                el('a', { class: 'inline-flex items-center justify-center px-6 py-3 rounded-lg bg-primary text-on-primary font-body-sm font-semibold hover:bg-neutral-800 transition-all duration-200 active:scale-95 shadow-sm', href: '/#herramientas', text: 'Ver el mapa de herramientas' })),
+                el('button', { type: 'button', class: 'inline-flex items-center justify-center px-6 py-3 rounded-lg bg-primary text-on-primary font-body-sm font-semibold hover:bg-neutral-800 transition-all duration-200 active:scale-95 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary', onclick: function () { var c = document.getElementById('apps-contratar'); if (c) c.scrollIntoView({ block: 'start' }); } }, 'Ver las herramientas para contratar')),
             ));
         }
         return;
@@ -866,7 +866,7 @@
   var BTN_TOGGLE_ON = 'px-4 py-1.5 rounded-full bg-primary text-on-primary text-body-sm font-body-sm font-semibold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary';
   var BTN_TOGGLE_OFF = 'px-4 py-1.5 rounded-full text-on-surface-variant hover:text-primary text-body-sm font-body-sm font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary';
 
-  function contratarCard(product, estado) {
+  function contratarCard(product, estado, activo) {
     var anual = estado.periodo === 'yearly' && product.annual_price != null;
     var precio = anual ? product.annual_price : product.price;
     // Mismo encadenado que el SPA: sin sesión, primero crear cuenta; con
@@ -893,20 +893,27 @@
       ),
       el('div', { class: 'pt-5 border-t border-outline-variant/30 flex items-center justify-between gap-3 mt-6' },
         el('a', { class: 'text-body-sm font-body-sm font-medium text-on-surface-variant hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded', href: '/productos/' + encodeURIComponent(product.slug), text: 'Ver detalle' }),
-        el('a', { class: 'inline-flex items-center justify-center bg-primary-container text-on-primary hover:bg-neutral-800 transition-all duration-200 active:scale-95 text-body-sm font-body-sm font-semibold px-4 py-2 rounded-lg shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary', href: destino, text: 'Contratar' }),
+        activo
+          ? el('span', { class: PILL_OK, text: 'Ya la tienes' })
+          : el('a', { class: 'inline-flex items-center justify-center bg-primary-container text-on-primary hover:bg-neutral-800 transition-all duration-200 active:scale-95 text-body-sm font-body-sm font-semibold px-4 py-2 rounded-lg shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary', href: destino, text: 'Contratar' }),
       ),
     );
   }
 
   function renderContratar(session) {
-    var section = document.getElementById('contratar');
-    if (!section) return;
-    var grid = document.getElementById('contratar-grid');
-    var toggleBox = document.getElementById('contratar-toggle');
+    var box = document.getElementById('apps-contratar');
+    if (!box) return;
+    if (!session) { box.classList.add('hidden'); return; }
+    box.classList.remove('hidden');
+    var grid = document.getElementById('apps-contratar-grid');
+    var toggleBox = document.getElementById('apps-contratar-toggle');
     if (!grid) return;
     mount(grid, el('div', { class: 'opacity-60 text-body-sm font-body-sm text-on-surface-variant', text: 'Cargando herramientas…' }));
-    return api('/products').then(function (data) {
-      var products = (data && data.products) || [];
+    var pApps = api('/account/applications').catch(function () { return { active: [] }; });
+    return Promise.all([api('/products'), pApps]).then(function (r) {
+      var products = (r[0] && r[0].products) || [];
+      var activos = {};
+      ((r[1] && r[1].active) || []).forEach(function (a) { activos[a.slug] = true; });
       if (!products.length) {
         mount(grid, el('div', { class: 'text-body-sm font-body-sm text-on-surface-variant', text: 'No hay herramientas disponibles por ahora.' }));
         return;
@@ -915,7 +922,7 @@
       var btnMes = el('button', { type: 'button', class: BTN_TOGGLE_OFF, onclick: function () { estado.periodo = 'monthly'; pintar(); } }, 'Mensual');
       var btnAnio = el('button', { type: 'button', class: BTN_TOGGLE_OFF, onclick: function () { estado.periodo = 'yearly'; pintar(); } }, 'Anual · 2 meses gratis');
       function pintar() {
-        mount(grid, products.map(function (product) { return contratarCard(product, estado); }));
+        mount(grid, products.map(function (product) { return contratarCard(product, estado, activos[product.slug]); }));
         btnMes.className = estado.periodo === 'monthly' ? BTN_TOGGLE_ON : BTN_TOGGLE_OFF;
         btnAnio.className = estado.periodo === 'yearly' ? BTN_TOGGLE_ON : BTN_TOGGLE_OFF;
       }
@@ -974,12 +981,13 @@
 
   function aplicarHashInicial() {
     var hash = (location.hash || '').replace(/^#/, '');
-    if (sesionActual && (hash === 'mi-cuenta' || hash === 'tus-aplicaciones')) {
-      mostrarVista(hash === 'mi-cuenta' ? 'cuenta' : 'apps');
-    } else {
-      mostrarVista('landing');
+    if (sesionActual) {
+      // Con sesión, el panel (Mis aplicaciones + contratación) es la vista inicial.
+      if (hash === 'mi-cuenta') { mostrarVista('cuenta'); return; }
+      if (hash === 'tus-aplicaciones' || !hash) { mostrarVista('apps'); return; }
     }
-    if (hash && hash !== 'mi-cuenta' && hash !== 'tus-aplicaciones') saltarAAncla();
+    mostrarVista('landing');
+    if (hash) saltarAAncla();
   }
 
   function vincularSesionEnPagina() {
@@ -1002,7 +1010,7 @@
   /* ── arranque ────────────────────────────────────────────────────────── */
 
   function boot() {
-    if (!document.getElementById('auth-nav') && !document.getElementById('tus-aplicaciones') && !document.getElementById('mi-cuenta') && !document.getElementById('contratar')) return;
+    if (!document.getElementById('auth-nav') && !document.getElementById('tus-aplicaciones') && !document.getElementById('mi-cuenta') && !document.getElementById('apps-contratar')) return;
     function run() {
       loadSession().then(function (session) {
         sesionActual = session;
