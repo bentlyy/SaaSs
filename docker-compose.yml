@@ -319,6 +319,14 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       MAIL_FROM: ${MAIL_FROM:-no-reply@amgdeveloper.cl}
       CONTACT_EMAIL: ${CONTACT_EMAIL:-hola@amgdeveloper.cl}
+      # Pasarela MercadoPago (Checkout Pro). Sin ACCESS_TOKEN el Core igual
+      # arranca: la ruta de contratacion con mercadopago responde 503 y queda
+      # `transfer` disponible. Cuando el token esta, el webhook valida la firma
+      # con WEBHOOK_SECRET (sin el, 503 al procesar webhooks). MODE=sandbox usa
+      # el punto de pago de pruebas.
+      MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-}
+      MERCADOPAGO_WEBHOOK_SECRET: ${MERCADOPAGO_WEBHOOK_SECRET:-}
+      MERCADOPAGO_MODE: ${MERCADOPAGO_MODE:-production}
 
 volumes:
   # ── Los nueve, uno por producto ──────────────────────────────────────────
