@@ -90,7 +90,7 @@ export const products = sqliteTable('products', {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const subscriptionStatus = ['pending', 'active', 'cancelled', 'expired', 'past_due'] as const;
-export const billingProviders = ['manual', 'transfer', 'stripe', 'webpay'] as const;
+export const billingProviders = ['manual', 'transfer', 'stripe', 'webpay', 'mercadopago'] as const;
 
 export const subscriptions = sqliteTable('subscriptions', {
   id: id(),
@@ -118,13 +118,81 @@ export const payments = sqliteTable('payments', {
   organization_id: orgCol(),
   subscription_id: text('subscription_id').references(() => subscriptions.id, { onDelete: 'set null' }),
   product_id: text('product_id').references(() => products.id, { onDelete: 'set null' }),
+  /** Lo que se cobró de verdad, ya con descuento aplicado. Es el monto oficial. */
   amount: integer('amount').notNull().default(0),
+  /** Precio de catálogo ANTES del descuento. `null` = no hubo descuento. */
+  original_amount: integer('original_amount'),
+  /** Rebaja en la unidad mínima de `currency`. 0 cuando no hubo descuento. */
+  discount_amount: integer('discount_amount').notNull().default(0),
+  /** Código de cupón aplicado. Se guarda desnormalizado para poder auditar. */
+  discount_code: text('discount_code'),
   currency: text('currency').notNull().default('CLP'),
   status: text('status', { enum: paymentStatus }).notNull().default('pending'),
   provider: text('provider', { enum: billingProviders }).notNull().default('manual'),
   provider_reference: text('provider_reference'),
   paid_at: text('paid_at'),
   created_at: ts('created_at'),
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Descuentos: cupones que el cliente ingresa al contratar. Tres clases —
+// porcentaje, monto fijo y prueba gratis (días)— porque son las que se usan de
+// verdad en promociones; un descuento sin tope ni vigencia es una fuga de
+// dinero, así que ambos son parte del modelo y no un añadido posterior.
+//
+// El cupón NO decide el acceso: rebaja el monto que se congela en `payments`.
+// El producto se abre con el pago confirmado como cualquier otro. La única
+// excepción es la prueba gratis / 100% off, que no pasa por la pasarela y se
+// activa por un camino `promo` explícito y auditable.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const discountKinds = ['percent', 'fixed', 'trial'] as const;
+export const discountStatus = ['active', 'disabled'] as const;
+export const discountRedemptionStatus = ['reserved', 'used', 'released'] as const;
+
+export const discounts = sqliteTable('discounts', {
+  id: id(),
+  /** Código que escribe el cliente. Normalizado en MAYÚSCULAS y sin espacios. */
+  code: text('code').notNull().unique(),
+  kind: text('kind', { enum: discountKinds }).notNull(),
+  /**
+   * Interpretación según `kind`:
+   *   percent → 1..100 (porcentaje a rebajar)
+   *   fixed   → monto en la unidad mínima de `currency`
+   *   trial   → días de acceso gratis (el monto cobrado pasa a 0)
+   */
+  value: integer('value').notNull(),
+  currency: text('currency').notNull().default('CLP'),
+  /** Restringe el cupón a un producto (slug). `null` = sirve para cualquiera. */
+  product_slug: text('product_slug'),
+  /** Tope TOTAL de canjes. `null` = sin tope. */
+  max_redemptions: integer('max_redemptions'),
+  /** Tope de canjes por organización. `null` = sin tope. */
+  per_org_limit: integer('per_org_limit'),
+  starts_at: text('starts_at'),
+  ends_at: text('ends_at'),
+  status: text('status', { enum: discountStatus }).notNull().default('active'),
+  /** Nota interna de ops: para qué campaña salió este cupón. */
+  note: text('note'),
+  created_by: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+  created_at: ts('created_at'),
+  updated_at: ts('updated_at'),
+});
+
+export const discountRedemptions = sqliteTable('discount_redemptions', {
+  id: id(),
+  discount_id: text('discount_id').notNull().references(() => discounts.id, { onDelete: 'cascade' }),
+  organization_id: orgCol(),
+  /** El pago al que quedó atado el canje. `null` mientras no exista pago. */
+  payment_id: text('payment_id').references(() => payments.id, { onDelete: 'set null' }),
+  code: text('code').notNull(),
+  kind: text('kind', { enum: discountKinds }).notNull(),
+  amount_before: integer('amount_before').notNull(),
+  amount_after: integer('amount_after').notNull(),
+  /** `reserved` retiene el cupo; `used` ya se cobró; `released` lo devolvió. */
+  status: text('status', { enum: discountRedemptionStatus }).notNull().default('reserved'),
+  created_at: ts('created_at'),
+  used_at: text('used_at'),
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -256,6 +324,8 @@ export const schema = {
   products,
   subscriptions,
   payments,
+  discounts,
+  discountRedemptions,
   sessions,
   passwordResetTokens,
   emailVerificationTokens,
@@ -271,6 +341,9 @@ export const schema = {
   subscriptionStatus,
   billingProviders,
   paymentStatus,
+  discountKinds,
+  discountStatus,
+  discountRedemptionStatus,
   sessionStatus,
   oneTimeStatus,
   ssoClientStatus,

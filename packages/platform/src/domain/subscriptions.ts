@@ -384,6 +384,9 @@ export function createPayment(input: {
   subscriptionId?: string | null;
   productId?: string | null;
   amount: number;
+  originalAmount?: number | null;
+  discountAmount?: number;
+  discountCode?: string | null;
   currency?: string;
   status?: (typeof schema.paymentStatus)[number];
   provider?: (typeof schema.billingProviders)[number];
@@ -397,6 +400,9 @@ export function createPayment(input: {
       subscription_id: input.subscriptionId ?? null,
       product_id: input.productId ?? null,
       amount: input.amount,
+      original_amount: input.originalAmount ?? null,
+      discount_amount: input.discountAmount ?? 0,
+      discount_code: input.discountCode ?? null,
       currency: input.currency ?? 'CLP',
       status: input.status ?? 'pending',
       provider: input.provider ?? 'manual',

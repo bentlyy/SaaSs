@@ -9,6 +9,7 @@ import {
   assetVersion,
   htmlPages,
   assetHeaders,
+  AppError,
   ASSET_MAX_AGE_MS,
   HTML_CACHE_CONTROL,
 } from '@saas-mini/core';
@@ -24,6 +25,12 @@ import { getCoreDb } from './db/init.js';
 import { countOrganizations } from './domain/organizations.js';
 import { countUsers } from './domain/users.js';
 import { ensurePlatformSeed } from './seed.js';
+import { confirmCheckout } from './billing/checkout.js';
+import { obtenerProveedor } from './billing/index.js';
+import { MercadoPagoProvider } from './billing/mercadopago.js';
+
+/** Request con el cuerpo crudo que deja `express.json({ verify })`. */
+type RequestWithRawBody = express.Request & { rawBody?: string };
 
 export interface PlatformAppOptions {
   /** Carpeta con la UI (landing, login, mi cuenta). Opcional: solo API. */
@@ -49,7 +56,12 @@ export function createPlatformApp(options: PlatformAppOptions = {}): Express {
       crossOriginResourcePolicy: { policy: 'cross-origin' },
     }),
   );
-  app.use(express.json({ limit: '1mb' }));
+  // `verify` deja el cuerpo crudo para el webhook de MercadoPago: la firma se
+  // calcula sobre los bytes exactos que llegaron, no sobre una re-serialización.
+  app.use(express.json({
+    limit: '1mb',
+    verify: (req, _res, buf) => { if (buf.length > 0) (req as RequestWithRawBody).rawBody = buf.toString('utf8'); },
+  }));
   app.use(express.urlencoded({ extended: false, limit: '1mb' }));
   app.use(cookieParser);
   app.use(
@@ -102,6 +114,45 @@ export function createPlatformApp(options: PlatformAppOptions = {}): Express {
   app.use('/api/account', accountRouter);
   app.use('/api/products', productsRouter);
   app.use('/api/sso', ssoRouter);
+
+  /**
+   * WEBHOOK DE MERCADO PAGO
+   *
+   * La notificación solo dice "hubo un pago". La URL pública es un bocinazo:
+   * cualquiera puede llamarla. Por eso este handler, antes de tocar base de
+   * datos, (1) verifica la firma HMAC y (2) re-consulta el pago a MP con nuestro
+   * token y comprueba que `external_reference` sea la nuestra.
+   *
+   * Respuestas: 2xx para MP = "procesado, no vuelvas a insistir". Un 5xx hace
+   * que MP reintente (útil si la API de MP falló de forma transitoria); un 4xx
+   * (firma inválida, pago no aprobado) también para el reenvío, porque repetir
+   * no va a arreglar nada.
+   */
+  app.post('/api/billing/webhook/mercadopago', (req, res, next) => {
+    (async () => {
+      const provider = obtenerProveedor('mercadopago');
+      if (!(provider instanceof MercadoPagoProvider)) {
+        throw new AppError(503, 'La pasarela MercadoPago no está registrada');
+      }
+      const rawBody = (req as RequestWithRawBody).rawBody ?? '';
+      const signature = req.get('x-signature') ?? undefined;
+      const requestId = req.get('x-request-id') ?? undefined;
+
+      try {
+        const reference = await provider.referenceFromNotification(rawBody, signature, requestId);
+        await confirmCheckout({ provider: 'mercadopago', providerReference: reference, rawBody, signature });
+      } catch (error) {
+        const status = error instanceof AppError ? error.status : 500;
+        if (status >= 500) {
+          // Error de infraestructura: MP reintentará en unos minutos.
+          throw error;
+        }
+        logger.warn(`Webhook MP descartado: ${error instanceof Error ? error.message : 'desconocido'}`);
+      }
+
+      return res.json({ ok: true });
+    })().catch(next);
+  });
 
   /**
    * Alias `/api/logout`: los productos (auth-client) redirigen acá desde su
@@ -170,7 +221,7 @@ export function createPlatformApp(options: PlatformAppOptions = {}): Express {
     // Cuenta (el JS de la página valida la sesión y redirige al login)
     app.get('/mi-cuenta', page('cuenta.html'));
     app.get('/mis-aplicaciones', page('aplicaciones.html'));
-    app.get('/contratar', page('aplicaciones.html'));
+    app.get('/contratar', page('contratar.html'));
 
     for (const protectedPage of options.protectedPages ?? []) {
       app.get(protectedPage, page('aplicaciones.html'));

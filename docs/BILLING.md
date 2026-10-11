@@ -224,8 +224,9 @@ activa y cuándo vence) de lo que sí (crear el checkout, traducir un webhook).
 | Provider | Estado | Qué hace |
 |---|---|---|
 | `transfer` | **operativo** | Genera referencia e instrucciones; la confirma ops |
+| `mercadopago` | **operativo** (Checkout Pro) | Crea una *preference*; el webhook firmado confirma |
 | `stripe` | costura | Falla con 503 sin llaves; 501 al implementar |
-| `manual` | **no es pasarela** | Etiqueta histórica de `grantSubscription` |
+| `manual` | **no es pasarela** | Etiqueta histórica de `grantSubscription` y del camino promo |
 | `webpay` | **no es pasarela** | Permitido por el enum, sin adapter: da 501 |
 
 Que `manual` y `webpay` estén en el enum sin adapter es una deuda concertada:
@@ -241,6 +242,70 @@ registrarProveedor('webpay', () => new WebpayProvider(config));
 ```
 
 Las rutas no deben saber cómo cobrar.
+
+`mercadopago` se registra en `billing/index.ts` con tres variables de entorno:
+
+- `MERCADOPAGO_ACCESS_TOKEN` — sin él la pasarela da 503 (no finge cobrar).
+- `MERCADOPAGO_WEBHOOK_SECRET` — valida la firma `x-signature` del webhook.
+- `MERCADOPAGO_MODE` — `sandbox` usa `sandbox_init_point`; cualquier otra cosa es
+  producción.
+
+El webhook vive en `POST /api/billing/webhook/mercadopago`. **No confía en el
+cuerpo de la notificación**: verifica la firma HMAC y luego **re-consulta el pago**
+a la API de MP con nuestro token, comprobando que `external_reference` sea la
+nuestra. Una notificación es una campanada; la prueba es la respuesta autenticada
+de la API. Se acusa con 2xx (para que MP no reintente) salvo error de
+infraestructura, que es 5xx para que reintente.
+
+## Descuentos y cupones
+
+Un cupón **no abre el producto**: solo rebaja el monto que se congela en el pago.
+Vive en `src/domain/discounts.ts` y en las tablas `discounts` /
+`discount_redemptions`. Tres tipos de cupón (`discountKinds`):
+
+| Tipo | `value` | Efecto |
+|---|---|---|
+| `percent` | 1..100 | Rebaja ese % (redondeo hacia abajo). 100% → gratis |
+| `fixed` | monto en la moneda | Rebaja un monto fijo |
+| `trial` | días | El producto se abre gratis por N días |
+
+Todo cupón puede acotarse con: `product_slug` (solo ese producto; vacío = todo el
+catálogo), `currency`, `max_redemptions` (tope total), `per_org_limit` (tope por
+organización), `starts_at` / `ends_at` (vigencia) y `status` (`active`/`disabled`).
+
+**Cómo fluye un cupón.** El cliente lo ingresa en `/contratar?p=<slug>`, que lo
+cotiza con `POST /api/account/discounts/validate` (solo lectura: mirar el precio
+NO quema el cupo) y lo envía en `POST /api/account/subscriptions` con
+`discountCode`. Ya dentro de `startCheckout`:
+
+1. Se **cotiza** (`quoteDiscount`): valida estado, vigencia, producto, moneda y
+   topes. Un código malo da 409/404 sin escribir nada.
+2. Se **reserva** el cupo (`reserveRedemption`) dentro de una transacción que
+   **revalida los topes**, para que dos compras simultáneas no se lleven el mismo
+   último cupo. El cupo reservado ya cuenta para los topes.
+3. Si el monto queda **$0** (prueba gratis o 100% off), se activa por el **camino
+   promo**: sin pasarela, `provider='manual'`, pago `paid` de 0 y redención `used`.
+   Es el único lugar donde algo se abre sin un pago confirmado, y es auditable.
+   Si no, el pago pendiente guarda el monto **ya rebajado** (más `original_amount`,
+   `discount_amount`, `discount_code`).
+4. Al confirmar el pago, la redención pasa a `used`. Si la pasarela falla antes de
+   crear el pago, el cupo reservado se **libera** (`released`) y no queda colgado.
+
+**Administración (ops).** Solo por CLI, nunca por HTTP:
+
+```bash
+# % de descuento, con tope de usos y vigencia
+npm run discounts -w @amg/platform -- create --code PREPAGO50 --kind percent --value 50 \
+  --max-redemptions 200 --per-org-limit 2 --ends-at 2026-12-31T23:59:59-03:00
+# prueba gratis de 7 días
+npm run discounts -w @amg/platform -- create --code PRUEBA7 --kind trial --value 7
+# listar y deshabilitar
+npm run discounts -w @amg/platform -- list
+npm run discounts -w @amg/platform -- status --code PREPAGO50 disabled
+```
+
+Un cupón `disabled` corta el código de inmediato sin tocar las redenciones ya
+hechas.
 
 ## Activar a mano (solo para lo ya pagado)
 
@@ -306,6 +371,8 @@ Es un bloque de trabajo propio, no una extensión de este.
 - [x] Referencia de pago y pago pendiente para poder conciliar.
 - [x] Confirmación idempotente que no extiende el periodo.
 - [x] Confirmación **fuera** del alcance de la sesión del cliente.
+- [x] Pasarela `mercadopago` (Checkout Pro + webhook firmado con re-consulta).
+- [x] Cupones: porcentaje, monto fijo y prueba gratis; con topes y vigencia.
 - [ ] **Cancelación al término del periodo** en vez de inmediata (decisión de
       negocio; ver arriba lo que implica).
 - [ ] Implementar `stripe` (checkout + webhook con firma sobre el cuerpo crudo).

@@ -7,6 +7,7 @@ import { seedCatalog } from '../src/seed.js';
 import { findSsoClient } from '../src/sso/registry.js';
 import { grantSubscription } from '../src/domain/subscriptions.js';
 import { findProductBySlug } from '../src/domain/products.js';
+import { createDiscount } from '../src/domain/discounts.js';
 import { getCoreDb } from '../src/db/init.js';
 
 let app: Express;
@@ -425,5 +426,91 @@ describe('contratar por HTTP: la intención no abre el producto', () => {
       .set('Cookie', cookie)
       .expect(200);
     expect(apps.body.active).toEqual([]);
+  });
+});
+
+describe('descuentos por HTTP', () => {
+  async function sesion(email: string, slug: string): Promise<string> {
+    await crearDueño(email, slug);
+    return cookieDe(
+      await request(app).post('/api/auth/login').send({ email, password: PASSWORD }).expect(200),
+    );
+  }
+
+  it('cotiza un cupón sin escribir nada', async () => {
+    const cookie = await sesion('cupon1@ejemplo.cl', 'cupon-1');
+    createDiscount({ code: 'HTTP50', kind: 'percent', value: 50, productSlug: PRODUCTO });
+
+    const res = await request(app)
+      .post('/api/account/discounts/validate')
+      .set('Cookie', cookie)
+      .send({ productSlug: PRODUCTO, code: 'http50' })
+      .expect(200);
+
+    expect(res.body.valid).toBe(true);
+    expect(res.body.code).toBe('HTTP50');
+    expect(res.body.original_amount).toBe(9000);
+    expect(res.body.amount).toBe(4500);
+    expect(res.body.free).toBe(false);
+  });
+
+  it('un cupón inválido responde 404 con mensaje claro', async () => {
+    const cookie = await sesion('cupon2@ejemplo.cl', 'cupon-2');
+
+    const res = await request(app)
+      .post('/api/account/discounts/validate')
+      .set('Cookie', cookie)
+      .send({ productSlug: PRODUCTO, code: 'NOEXISTE' })
+      .expect(404);
+
+    expect(res.body.error).toMatch(/no existe/i);
+  });
+
+  it('contratar con cupón congela el monto rebajado en el pago pendiente', async () => {
+    const cookie = await sesion('cupon3@ejemplo.cl', 'cupon-3');
+    createDiscount({ code: 'HTTP30', kind: 'percent', value: 30, productSlug: PRODUCTO });
+
+    const res = await request(app)
+      .post('/api/account/subscriptions')
+      .set('Cookie', cookie)
+      .send({ productSlug: PRODUCTO, provider: 'transfer', discountCode: 'HTTP30' })
+      .expect(201);
+
+    expect(res.body.payment.status).toBe('pending');
+    expect(res.body.payment.amount).toBe(6300);
+    expect(res.body.payment.original_amount).toBe(9000);
+    expect(res.body.payment.discount_amount).toBe(2700);
+    expect(res.body.payment.discount_code).toBe('HTTP30');
+    expect(res.body.activado).toBe(false);
+  });
+});
+
+describe('registro encadenado al pago', () => {
+  it('devuelve return_url solo si el host está permitido', async () => {
+    const ok = await request(app)
+      .post('/api/auth/register')
+      .send({
+        name: 'Rita',
+        email: 'rita-return@ejemplo.cl',
+        password: PASSWORD,
+        organizationName: 'Rita',
+        organizationSlug: 'rita-return',
+        returnUrl: 'http://localhost:3008/contratar?p=inventario',
+      })
+      .expect(201);
+    expect(ok.body.return_url).toBe('http://localhost:3008/contratar?p=inventario');
+
+    const malo = await request(app)
+      .post('/api/auth/register')
+      .send({
+        name: 'Otro',
+        email: 'otro-return@ejemplo.cl',
+        password: PASSWORD,
+        organizationName: 'Otro',
+        organizationSlug: 'otro-return',
+        returnUrl: 'https://evil.example.com/robar',
+      })
+      .expect(201);
+    expect(malo.body.return_url).toBeUndefined();
   });
 });

@@ -2,6 +2,7 @@ import { AppError } from '@saas-mini/core';
 import { obtenerProveedor } from './index.js';
 import type { BillingProviderName, CheckoutResult } from './types.js';
 import {
+  activateSubscription,
   cancelSubscription,
   confirmPaymentAndActivate,
   createPayment,
@@ -15,6 +16,15 @@ import {
   type Subscription,
 } from '../domain/subscriptions.js';
 import { requireProductById, type Product } from '../domain/products.js';
+import {
+  markRedemptionUsedByPayment,
+  quoteDiscount,
+  releaseRedemption,
+  reserveRedemption,
+  setRedemptionPayment,
+  type DiscountQuote,
+  type DiscountRedemption,
+} from '../domain/discounts.js';
 
 const DIA_MS = 86_400_000;
 
@@ -33,8 +43,8 @@ const DIA_MS = 86_400_000;
  * Por eso `one_time` devuelve una fecha concreta y no `null`: `null` significa
  * "sin caducidad" y para un pago único eso es exactamente lo que no queremos.
  */
-function finDelPeriodo(periodo: Product['billing_period'], desde = new Date()): string {
-  const dias = periodo === 'yearly' ? 365 : periodo === 'monthly' ? 30 : 3650;
+function finDelPeriodo(periodo: Product['billing_period'], desde = new Date(), diasOverride?: number): string {
+  const dias = diasOverride ?? (periodo === 'yearly' ? 365 : periodo === 'monthly' ? 30 : 3650);
   return new Date(desde.getTime() + dias * DIA_MS).toISOString();
 }
 
@@ -44,6 +54,8 @@ export interface StartCheckoutInput {
   provider: BillingProviderName;
   returnUrl: string;
   customerEmail?: string;
+  /** Código de cupón que ingresó el cliente. Opcional: sin él, precio de lista. */
+  discountCode?: string;
 }
 
 export interface CheckoutSession {
@@ -51,6 +63,10 @@ export interface CheckoutSession {
   product: Product;
   payment: Payment;
   checkout: CheckoutResult;
+  /** Cotización del cupón aplicado, para que la UI muestre el antes/después. */
+  discount?: DiscountQuote;
+  /** true cuando el producto ya quedó abierto sin pasar por la pasarela. */
+  activado?: boolean;
 }
 
 /**
@@ -70,13 +86,6 @@ export async function startCheckout(input: StartCheckoutInput): Promise<Checkout
   if (product.status !== 'active') {
     throw new AppError(409, `${product.name} no está disponible para contratación`);
   }
-
-  // La pasarela se resuelve PRIMERO, antes de escribir nada. Al revés queda una
-  // suscripcion `pending` por cada intento de contratar con una pasarela que no
-  // existe (`webpay` sin implementar da 501), y cada reintento deja otra. Un
-  // error de configuracion no puede dejar rastro de si mismo como si hubiera
-  // cobrados.
-  const proveedor = obtenerProveedor(input.provider);
 
   // Solo se bloquea la contratacion si la suscripcion esta VIGENTE, no solo
   // activa. Una suscripcion `active` con el periodo vencido no esta pagada: si
@@ -102,6 +111,42 @@ export async function startCheckout(input: StartCheckoutInput): Promise<Checkout
     );
   }
 
+  // El cupón se cotiza ANTES de escribir nada: si el código no existe, no está
+  // vigente o se agotó, el cliente recibe el 409 sin que quede una suscripción
+  // pendiente ni una llamada a la pasarela de por medio.
+  const quote = input.discountCode
+    ? quoteDiscount({
+        code: input.discountCode,
+        product,
+        organizationId: input.organizationId,
+        amount: product.price,
+      })
+    : undefined;
+
+  // La pasarela se resuelve ANTES de crear la suscripción y de reservar el cupo.
+  // Si el proveedor no existe (p. ej. webpay sin adapter da 501), no queremos
+  // haber consumido el último uso de un cupón ni dejado una fila `pending`.
+  const proveedor = quote?.free ? undefined : obtenerProveedor(input.provider);
+
+  // El cupo del cupón se retiene ahora. `free` (prueba gratis / 100% off) también
+  // lo retiene: aunque no pase por una pasarela, el canje ocurrió y tiene que
+  // contar para el tope.
+  const redemption: DiscountRedemption | undefined = quote
+    ? reserveRedemption({
+        discount: quote.discount,
+        organizationId: input.organizationId,
+        amountBefore: quote.amountBefore,
+        amountAfter: quote.amountAfter,
+      })
+    : undefined;
+
+  // ── camino promo: no hay nada que cobrar, no hay pasarela ──────────────────
+  if (quote?.free) {
+    return activatePromo({ input, product, quote, redemption });
+  }
+
+  const monto = quote ? quote.amountAfter : product.price;
+
   const subscription = createSubscription({
     organizationId: input.organizationId,
     productId: product.id,
@@ -110,10 +155,10 @@ export async function startCheckout(input: StartCheckoutInput): Promise<Checkout
 
   let checkout: CheckoutResult;
   try {
-    checkout = await proveedor.createCheckout({
+    checkout = await proveedor!.createCheckout({
       subscription,
       product,
-      amount: product.price,
+      amount: monto,
       currency: product.currency,
       returnUrl: input.returnUrl,
       customerEmail: input.customerEmail,
@@ -123,6 +168,7 @@ export async function startCheckout(input: StartCheckoutInput): Promise<Checkout
     // ningun cobro posible. Se cancela para que el siguiente intento arranque
     // limpio en vez de toparse con un pendiente que no se puede pagar.
     cancelSubscription(subscription.id);
+    if (redemption) releaseRedemption(redemption.id);
     throw error;
   }
 
@@ -131,24 +177,87 @@ export async function startCheckout(input: StartCheckoutInput): Promise<Checkout
     // forma rastreable. Mejor fallar aca, con el cobro sin empezar, que abrir un
     // producto que nadie puede conciliar.
     cancelSubscription(subscription.id);
+    if (redemption) releaseRedemption(redemption.id);
     throw new AppError(502, 'La pasarela no devolvió una referencia de pago');
   }
 
-  // El pago PENDIENTE guarda el monto del catalogo, congelado. Ese es el monto
-  // oficial: si manana sube el precio, este pago sigue siendo el de hoy. Por eso
-  // la comparacion del paso 2 es contra este numero y no contra el precio actual.
+  // El pago PENDIENTE guarda el monto YA rebajado, congelado. Ese es el monto
+  // oficial: si manana sube el precio, este pago sigue siendo el de hoy; y si la
+  // pasarela intenta cobrar otra cosa, la comparacion del paso 2 lo caza.
   const payment = createPayment({
     organizationId: input.organizationId,
     subscriptionId: subscription.id,
     productId: product.id,
-    amount: product.price,
+    amount: monto,
+    originalAmount: quote ? quote.amountBefore : null,
+    discountAmount: quote ? quote.discountAmount : 0,
+    discountCode: quote ? quote.code : null,
     currency: product.currency,
     provider: input.provider,
     status: 'pending',
     providerReference: checkout.providerReference,
   });
 
-  return { subscription, product, payment, checkout };
+  if (redemption) setRedemptionPayment(redemption.id, payment.id);
+
+  return { subscription, product, payment, checkout, discount: quote };
+}
+
+/**
+ * Camino `promo`: el pago es de $0, así que no hay pasarela ni webhook. Se abre
+ * el producto directamente y se deja una redención `used`. Es el único lugar
+ * donde algo se activa sin un pago confirmado, y por eso es explícito y auditable.
+ */
+function activatePromo(input: {
+  input: StartCheckoutInput;
+  product: Product;
+  quote: DiscountQuote;
+  redemption?: DiscountRedemption;
+}): CheckoutSession {
+  const { product, quote, redemption } = input;
+  const ahora = new Date();
+  const subscription = createSubscription({
+    organizationId: input.input.organizationId,
+    productId: product.id,
+    provider: 'manual',
+  });
+  const periodEnd = finDelPeriodo(
+    product.billing_period,
+    ahora,
+    quote.trialDays > 0 ? quote.trialDays : undefined,
+  );
+  const active = activateSubscription(subscription.id, periodEnd);
+  const payment = createPayment({
+    organizationId: input.input.organizationId,
+    subscriptionId: active.id,
+    productId: product.id,
+    amount: 0,
+    originalAmount: quote.amountBefore,
+    discountAmount: quote.discountAmount,
+    discountCode: quote.code,
+    currency: product.currency,
+    provider: 'manual',
+    status: 'paid',
+    paidAt: ahora.toISOString(),
+    providerReference: `promo-${redemption?.id ?? product.slug}`,
+  });
+  if (redemption) {
+    setRedemptionPayment(redemption.id, payment.id);
+    markRedemptionUsedByPayment(payment.id);
+  }
+
+  const detalle = quote.trialDays > 0
+    ? `Prueba gratis de ${quote.trialDays} día(s) activada con el cupón ${quote.code}.`
+    : `Cupón ${quote.code} aplicado: ${product.name} quedó activo.`;
+
+  return {
+    subscription: active,
+    product,
+    payment,
+    checkout: { provider: 'manual', providerReference: payment.provider_reference ?? 'promo', instructions: detalle },
+    discount: quote,
+    activado: true,
+  };
 }
 
 export interface ConfirmCheckoutInput {
@@ -213,6 +322,8 @@ export async function confirmCheckout(input: ConfirmCheckoutInput): Promise<Conf
         paidAt: payment.paid_at ?? new Date().toISOString(),
         periodEnd: finDelPeriodo(product?.billing_period ?? 'monthly'),
       });
+      // El cupón ya se consumió: si quedó reservado, pasa a usado.
+      markRedemptionUsedByPayment(payment.id);
       return { subscription: reparado.subscription, payment: reparado.payment, yaConfirmado: false };
     }
     return { subscription, payment, yaConfirmado: true };
@@ -272,6 +383,9 @@ export async function confirmCheckout(input: ConfirmCheckoutInput): Promise<Conf
     paidAt: confirmacion.paidAt,
     periodEnd: finDelPeriodo(product.billing_period),
   });
+
+  // El pago se confirmó: el cupón reservado pasa a usado.
+  markRedemptionUsedByPayment(payment.id);
 
   return { subscription, payment: pagado, yaConfirmado: false };
 }

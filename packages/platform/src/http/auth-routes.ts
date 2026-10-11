@@ -87,6 +87,9 @@ const registerSchema = z.object({
     .max(40)
     .regex(/^[a-z0-9-]+$/, 'Solo minúsculas, números y guiones')
     .optional(),
+  // El registro entra directo a una sesión: si vino de "Contratar product X",
+  // se continúa ahí (mismo patrón que /login).
+  returnUrl: z.string().optional(),
 });
 
 authRouter.post(
@@ -101,6 +104,7 @@ authRouter.post(
       user: result.user,
       organization: result.organization,
       role: result.role,
+      return_url: safeReturnUrl(input.returnUrl),
     });
   }),
 );

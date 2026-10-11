@@ -396,6 +396,19 @@
     return '/';
   }
 
+  /* Convierte un destino interno (relativo o mismo-origen) en URL absoluta, que
+   * es lo que el Core acepta como `returnUrl` (safeReturnUrl exige host válido).
+   * Devuelve '' si no es un destino propio, para no reenviar a un sitio ajeno. */
+  function internalDestination(raw) {
+    if (!raw) return '';
+    if (/^\/(?!\/)/.test(raw)) return location.origin + raw;
+    try {
+      var url = new URL(raw);
+      if (url.origin === location.origin) return url.toString();
+    } catch (err) { /* no es una URL: se descarta */ }
+    return '';
+  }
+
   /* ── páginas ──────────────────────────────────────────────────────────── */
 
   var pages = {};
@@ -445,7 +458,7 @@
     var detail = '/productos/' + encodeURIComponent(product.slug);
     var activate = session
       ? '/contratar?p=' + encodeURIComponent(product.slug)
-      : '/login?return_to=' + encodeURIComponent('/contratar?p=' + product.slug);
+      : '/registro?p=' + encodeURIComponent(product.slug);
     return el('article', { class: 'card product' },
       el('div', { class: 'product__top' },
         el('a', { class: 'product__title', href: detail }, el('h3', { text: product.name })),
@@ -473,7 +486,7 @@
       document.title = product.name + ' · AMG';
       var activate = session
         ? '/contratar?p=' + encodeURIComponent(product.slug)
-        : '/login?return_to=' + encodeURIComponent('/contratar?p=' + product.slug);
+        : '/registro?p=' + encodeURIComponent(product.slug);
       mount(target, el('div', { class: 'grid grid--2' },
         el('div', { class: 'stack' },
           el('a', { class: 'small mute', href: '/productos', text: '← Todos los productos' }),
@@ -516,7 +529,8 @@
     var params = new URLSearchParams(location.search);
 
     if (session && (mode === 'login' || mode === 'registro' || mode === 'invitacion')) {
-      location.replace(returnTarget());
+      var p = params.get('p');
+      location.replace(p ? '/contratar?p=' + encodeURIComponent(p) : returnTarget());
       return Promise.resolve();
     }
 
@@ -530,7 +544,7 @@
 
   function renderLogin(target) {
     document.title = 'Ingresar · AMG';
-    var back = new URLSearchParams(location.search).get('return_to') || '';
+    var back = internalDestination(new URLSearchParams(location.search).get('return_to') || '');
     var form = el('form', { class: 'stack', novalidate: true },
       el('div', { dataset: { alert: '' } }),
       field('email', 'Correo', { type: 'email', autocomplete: 'email', inputMode: 'email', placeholder: 'tucorreo@negocio.cl' }),
@@ -538,6 +552,8 @@
       back ? el('input', { type: 'hidden', name: 'returnUrl', value: back }) : null,
       el('button', { class: 'btn btn--block', type: 'submit', text: 'Ingresar' }),
       el('p', { class: 'small mute center' }, '¿Olvidaste tu contraseña? ', el('a', { href: '/recuperar', text: 'Recuperarla' })),
+      el('p', { class: 'small mute center' }, '¿No tienes cuenta? ',
+        el('a', { href: '/registro' + (back ? '?return_to=' + encodeURIComponent(back) : ''), text: 'Créala' })),
     );
     bindForm(form, function (values) {
       return api('/auth/login', {
@@ -552,6 +568,14 @@
 
   function renderRegistro(target) {
     document.title = 'Crear cuenta · AMG';
+    /* El registro encadena al pago: si el visitante llegó desde "Activar" un
+     * producto (/registro?p=<slug>), el destino es la pantalla de contratación
+     * de ESE producto. Se manda como `returnUrl` y el Core lo devuelve saneado. */
+    var params = new URLSearchParams(location.search);
+    var slugProducto = params.get('p');
+    var back = internalDestination(
+      slugProducto ? '/contratar?p=' + encodeURIComponent(slugProducto) : (params.get('return_to') || ''),
+    );
     var form = el('form', { class: 'stack', novalidate: true },
       el('div', { dataset: { alert: '' } }),
       field('name', 'Tu nombre', { autocomplete: 'name', placeholder: 'Andrea González' }),
@@ -562,8 +586,10 @@
         required: false,
         hint: 'Solo minúsculas, números y guiones. Queda como tu enlace público.',
       }),
+      back ? el('input', { type: 'hidden', name: 'returnUrl', value: back }) : null,
       el('button', { class: 'btn btn--block', type: 'submit', text: 'Crear cuenta' }),
-      el('p', { class: 'small mute center' }, '¿Ya tienes cuenta? ', el('a', { href: '/login', text: 'Ingresa' })),
+      el('p', { class: 'small mute center' }, '¿Ya tienes cuenta? ',
+        el('a', { href: '/login' + (back ? '?return_to=' + encodeURIComponent(back) : ''), text: 'Ingresa' })),
     );
 
     var nameInput = form.querySelector('[name="organizationName"]');
@@ -582,8 +608,9 @@
         organizationName: values.organizationName,
       };
       if (values.organizationSlug) body.organizationSlug = values.organizationSlug;
-      return api('/auth/register', { method: 'POST', body: body }).then(function () {
-        location.assign('/');
+      if (values.returnUrl) body.returnUrl = values.returnUrl;
+      return api('/auth/register', { method: 'POST', body: body }).then(function (result) {
+        location.assign(result.return_url || returnTarget());
       });
     });
     mount(target, authCard('Crea tu cuenta', 'Un solo acceso para todas las herramientas de AMG.', form));
@@ -1003,6 +1030,174 @@
       ),
     );
   }
+
+  /* ── contratar ────────────────────────────────────────────────────────── */
+
+  function pagoBanner(pago) {
+    if (pago === 'ok') {
+      return el('div', { class: 'alert alert--ok', role: 'status' },
+        'Pago recibido. Tu acceso se activa apenas se confirme el cobro; puede tardar unos segundos.');
+    }
+    if (pago === 'pendiente') {
+      return el('div', { class: 'alert alert--warn', role: 'status' },
+        'Tu pago quedó pendiente de confirmación. Te avisaremos por correo cuando se acredite.');
+    }
+    if (pago === 'error') {
+      return el('div', { class: 'alert alert--bad', role: 'alert' },
+        'El pago no se completó. Puedes intentarlo de nuevo o elegir otro medio.');
+    }
+    return null;
+  }
+
+  /* Pantalla de contratación: una sola cosa a la vez. Se pide el cupón (opcional),
+   * se elige el medio de pago y se envía. La respuesta manda:
+   *   - activado (prueba gratis / 100%): el producto ya está abierto.
+   *   - checkoutUrl (Mercado Pago): se sale a pagar y se vuelve con ?pago=.
+   *   - instrucciones (transferencia): se muestra la referencia para transferir. */
+  function pantallaContratar(product, pago) {
+    var quote = null;
+
+    var priceEl = el('div', { class: 'product__price', style: 'font-size: 1.7rem' });
+    var noteEl = el('p', { class: 'small mute' });
+    function pintarPrecio() {
+      if (quote && quote.valid) {
+        mount(priceEl,
+          el('span', { text: money(quote.amount, product.currency) }),
+          el('span', { class: 'mute', style: 'margin-left: .5rem' },
+            el('s', { text: money(quote.original_amount, product.currency) })),
+        );
+        mount(noteEl, el('span', { class: 'tag tag--ok' }, el('span', { class: 'dot' }), quote.message));
+      } else {
+        mount(priceEl, el('span', {}, money(product.price, product.currency),
+          el('span', { class: 'mute', text: ' ' + periodLabel(product.billing_period) })));
+        mount(noteEl, 'El acceso se activa cuando AMG confirma el cobro.');
+      }
+    }
+    pintarPrecio();
+
+    var couponInput = el('input', {
+      id: 'f-cupon', name: 'cupon', placeholder: 'Código de descuento', autocomplete: 'off', maxlength: 64,
+    });
+    var couponError = el('span', { class: 'field-error' });
+    var applyBtn = el('button', { class: 'btn btn--sm btn--ghost', type: 'button', text: 'Aplicar' });
+    applyBtn.addEventListener('click', function () {
+      var code = couponInput.value.trim();
+      couponError.textContent = '';
+      if (!code) { quote = null; pintarPrecio(); return; }
+      setBusy(applyBtn, true);
+      api('/account/discounts/validate', { method: 'POST', body: { productSlug: product.slug, code: code } })
+        .then(function (res) { quote = res; pintarPrecio(); })
+        .catch(function (err) { quote = null; pintarPrecio(); couponError.textContent = err.message; })
+        .then(function () { setBusy(applyBtn, false); });
+    });
+    couponInput.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') { event.preventDefault(); applyBtn.click(); }
+    });
+
+    var providerSelect = el('select', { id: 'f-provider', name: 'provider' },
+      el('option', { value: 'mercadopago' }, 'Mercado Pago (tarjeta, débito, crédito)'),
+      el('option', { value: 'transfer' }, 'Transferencia bancaria'),
+    );
+
+    var submit = el('button', { class: 'btn btn--block', type: 'button', text: 'Contratar' });
+    var resultBox = el('div', { class: 'stack' });
+
+    submit.addEventListener('click', function () {
+      var monto = quote && quote.valid ? money(quote.amount, product.currency) : money(product.price, product.currency);
+      var pregunta = quote && quote.trial_days > 0
+        ? 'El cupón activa una prueba gratis de ' + quote.trial_days + ' día(s). ¿Continuar?'
+        : '¿Contratar ' + product.name + ' por ' + monto + '?';
+      if (!window.confirm(pregunta)) return;
+
+      setBusy(submit, true);
+      mount(resultBox);
+      var body = { productSlug: product.slug, provider: providerSelect.value };
+      if (quote && quote.code) body.discountCode = quote.code;
+
+      api('/account/subscriptions', { method: 'POST', body: body })
+        .then(function (result) {
+          if (result.activado) {
+            mount(resultBox, el('div', { class: 'alert alert--ok', role: 'status' }, result.message));
+            setTimeout(function () { location.assign('/mis-aplicaciones'); }, 1400);
+            return;
+          }
+          if (result.checkout && result.checkout.checkoutUrl) {
+            location.assign(result.checkout.checkoutUrl);
+            return;
+          }
+          mount(resultBox, el('div', { class: 'alert alert--warn', role: 'status' },
+            el('strong', { text: 'Casi listo. ' }),
+            result.checkout ? result.checkout.instructions : result.message));
+          setBusy(submit, false);
+        })
+        .catch(function (err) {
+          mount(resultBox, el('div', { class: 'alert alert--bad', role: 'alert', text: err.message }));
+          setBusy(submit, false);
+        });
+    });
+
+    var banner = pagoBanner(pago);
+
+    var izquierda = el('div', { class: 'stack' },
+      el('a', { class: 'small mute', href: '/productos/' + encodeURIComponent(product.slug), text: '← Ver detalle' }),
+      el('h1', { text: product.name }),
+      product.tagline ? el('p', { class: 'soft', text: product.tagline }) : null,
+      product.description ? el('p', { class: 'soft', text: product.description }) : null,
+      el('p', { class: 'small mute' }, 'Un solo pago por el periodo. La renovación es manual: no hay cargos automáticos.'),
+    );
+
+    var derecha = el('div', { class: 'card card--pad-lg stack' },
+      banner,
+      el('div', { class: 'stack' },
+        priceEl,
+        noteEl,
+      ),
+      el('div', { class: 'field' },
+        el('label', { for: 'f-cupon', text: 'Cupón de descuento (opcional)' }),
+        el('div', { class: 'row' }, el('div', { class: 'field grow', style: 'margin: 0' }, couponInput), applyBtn),
+        couponError,
+      ),
+      el('div', { class: 'field' },
+        el('label', { for: 'f-provider', text: 'Medio de pago' }),
+        providerSelect,
+      ),
+      submit,
+      resultBox,
+      el('p', { class: 'small mute center' }, '¿Dudas? ', el('a', { href: '/contacto', text: 'Escríbenos' }), '.'),
+    );
+
+    return el('div', { class: 'grid grid--2' }, izquierda, derecha);
+  }
+
+  pages.contratar = function (session) {
+    var target = slot('contratar');
+    document.title = 'Contratar · AMG';
+    if (!target) return Promise.resolve();
+    if (!session) { requireSession(null); return Promise.resolve(); }
+
+    var params = new URLSearchParams(location.search);
+    var slug = params.get('p') || params.get('product') || '';
+    var pago = params.get('pago');
+
+    if (!slug) {
+      mount(target, errorBox(new ApiError(400, 'No indicaste qué herramienta quieres contratar.')));
+      return Promise.resolve();
+    }
+
+    mount(target, el('div', { class: 'grid grid--2' },
+      el('div', { class: 'card skeleton', style: 'height: 14rem' }),
+      el('div', { class: 'card skeleton', style: 'height: 14rem' }),
+    ));
+
+    return api('/products/' + encodeURIComponent(slug)).then(function (data) {
+      mount(target, pantallaContratar(data.product, pago));
+    }).catch(function (err) {
+      mount(target, el('div', { class: 'stack' },
+        errorBox(err),
+        el('a', { class: 'btn btn--ghost', href: '/productos', text: 'Ver todos los productos' }),
+      ));
+    });
+  };
 
   pages.contacto = function () { return Promise.resolve(); };
 

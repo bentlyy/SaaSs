@@ -80,12 +80,47 @@ CREATE TABLE IF NOT EXISTS payments (
   subscription_id TEXT REFERENCES subscriptions(id) ON DELETE SET NULL,
   product_id TEXT REFERENCES products(id) ON DELETE SET NULL,
   amount INTEGER NOT NULL DEFAULT 0,
+  original_amount INTEGER,
+  discount_amount INTEGER NOT NULL DEFAULT 0,
+  discount_code TEXT,
   currency TEXT NOT NULL DEFAULT 'CLP',
   status TEXT NOT NULL DEFAULT 'pending',
   provider TEXT NOT NULL DEFAULT 'manual',
   provider_reference TEXT,
   paid_at TEXT,
   created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS discounts (
+  id TEXT PRIMARY KEY,
+  code TEXT NOT NULL UNIQUE,
+  kind TEXT NOT NULL,
+  value INTEGER NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'CLP',
+  product_slug TEXT,
+  max_redemptions INTEGER,
+  per_org_limit INTEGER,
+  starts_at TEXT,
+  ends_at TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  note TEXT,
+  created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS discount_redemptions (
+  id TEXT PRIMARY KEY,
+  discount_id TEXT NOT NULL REFERENCES discounts(id) ON DELETE CASCADE,
+  organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  payment_id TEXT REFERENCES payments(id) ON DELETE SET NULL,
+  code TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  amount_before INTEGER NOT NULL,
+  amount_after INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'reserved',
+  created_at TEXT NOT NULL,
+  used_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -182,6 +217,9 @@ CREATE INDEX IF NOT EXISTS idx_memberships_user ON memberships(user_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_org ON subscriptions(organization_id, status);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_product ON subscriptions(product_id, status);
 CREATE INDEX IF NOT EXISTS idx_payments_org ON payments(organization_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_discounts_code ON discounts(code);
+CREATE INDEX IF NOT EXISTS idx_redemptions_discount ON discount_redemptions(discount_id, status);
+CREATE INDEX IF NOT EXISTS idx_redemptions_org ON discount_redemptions(organization_id, discount_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token_hash);
 CREATE INDEX IF NOT EXISTS idx_sso_codes_hash ON sso_codes(code_hash);
@@ -210,6 +248,11 @@ const MIGRATIONS: Array<[string, string, string]> = [
   ['products', 'app_url', 'TEXT'],
   ['products', 'sort_order', 'INTEGER NOT NULL DEFAULT 0'],
   ['sso_clients', 'logout_redirect_uris', "TEXT NOT NULL DEFAULT '[]'"],
+  // Columnas de descuento en pagos: sobre una base vieja la tabla `payments` ya
+  // existe, así que `CREATE TABLE IF NOT EXISTS` no las agrega.
+  ['payments', 'original_amount', 'INTEGER'],
+  ['payments', 'discount_amount', 'INTEGER NOT NULL DEFAULT 0'],
+  ['payments', 'discount_code', 'TEXT'],
 ];
 
 export interface CoreDbHandle {

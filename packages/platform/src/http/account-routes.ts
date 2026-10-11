@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { AppError, asyncHandler } from '@saas-mini/core';
 import { authRequired, requireRole } from './middleware.js';
@@ -10,6 +11,7 @@ import {
   assertCanManageBilling,
   cancelSubscription,
 } from '../domain/subscriptions.js';
+import { quoteDiscount } from '../domain/discounts.js';
 import { billingProviders } from '../db/schema.js';
 import { startCheckout } from '../billing/checkout.js';
 import { platformConfig } from '../config.js';
@@ -33,6 +35,18 @@ import { me } from '../auth/service.js';
 export const accountRouter = Router();
 
 accountRouter.use(authRequired);
+
+/**
+ * Freno a la adivinación de cupones: sin esto un script prueba códigos hasta dar
+ * con uno activo. Generoso a propósito (no es login), pero no infinito.
+ */
+const discountLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  limit: 40,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos con códigos. Espera unos minutos.' },
+});
 
 accountRouter.get(
   '/summary',
@@ -126,7 +140,56 @@ accountRouter.get(
 const contractSchema = z.object({
   productSlug: z.string().min(1),
   provider: z.enum(billingProviders).default('transfer'),
+  /** Cupón opcional. Se valida en `startCheckout`; acá solo se transporta. */
+  discountCode: z.string().min(1).max(64).optional(),
 });
+
+const validateDiscountSchema = z.object({
+  productSlug: z.string().min(1),
+  code: z.string().min(1).max(64),
+});
+
+/**
+ * COTIZAR UN CUPÓN
+ * ================
+ *
+ * Muestra el precio con descuento ANTES de contratar. No escribe nada: la
+ * reserva del cupo ocurre en `startCheckout`. Es de solo lectura a propósito,
+ * para que un cliente indeciso no queme un uso del cupón con solo mirar el precio.
+ */
+accountRouter.post(
+  '/discounts/validate',
+  requireRole('member'),
+  discountLimiter,
+  asyncHandler(async (req, res) => {
+    const session = req.amg!;
+    const { productSlug, code } = validateDiscountSchema.parse(req.body);
+    const product = requireProductBySlug(productSlug);
+    const quote = quoteDiscount({
+      code,
+      product,
+      organizationId: session.organizationId,
+      amount: product.price,
+    });
+    return res.json({
+      valid: true,
+      code: quote.code,
+      productSlug: product.slug,
+      kind: quote.kind,
+      original_amount: quote.amountBefore,
+      discount_amount: quote.discountAmount,
+      amount: quote.amountAfter,
+      currency: product.currency,
+      trial_days: quote.trialDays,
+      free: quote.free,
+      message: quote.free
+        ? quote.trialDays > 0
+          ? `Prueba gratis de ${quote.trialDays} día(s).`
+          : 'Cupón del 100%: no pagas nada.'
+        : `Cupón aplicado: pagas ${quote.amountAfter.toLocaleString('es-CL')} ${product.currency}.`,
+    });
+  }),
+);
 
 accountRouter.post(
   '/subscriptions',
@@ -134,14 +197,15 @@ accountRouter.post(
   asyncHandler(async (req, res) => {
     const session = req.amg!;
     assertCanManageBilling(session.role);
-    const { productSlug, provider } = contractSchema.parse(req.body);
+    const { productSlug, provider, discountCode } = contractSchema.parse(req.body);
     const product = requireProductBySlug(productSlug);
 
     // La vuelta pasa por el MISMO validador de lista blanca que el SSO, no por
     // una concatenación nueva. Si `returnUrl` no está en la lista, la pasarela
     // manda al usuario a un sitio ajeno después de pagar, y eso es un phishing
-    // con unwitting de por medio.
-    const returnUrl = safeReturnUrl(`${platformConfig.coreUrl}/mi-cuenta.html`);
+    // con unwitting de por medio. Se vuelve a la propia pantalla de contratación,
+    // que sabe leer `?pago=ok|error` que agrega la pasarela.
+    const returnUrl = safeReturnUrl(`${platformConfig.coreUrl}/contratar?p=${encodeURIComponent(product.slug)}`);
     if (!returnUrl) {
       throw new AppError(500, `La URL de retorno (${platformConfig.coreUrl}) no está permitida. Revisa CORE_RETURN_URL_HOSTS.`);
     }
@@ -152,6 +216,7 @@ accountRouter.post(
       provider,
       returnUrl,
       customerEmail: findUserById(session.userId)?.email,
+      discountCode,
     });
 
     return res.status(201).json({
@@ -159,9 +224,13 @@ accountRouter.post(
       subscription: sesion.subscription,
       payment: sesion.payment,
       checkout: sesion.checkout,
-      message: sesion.checkout.checkoutUrl
-        ? `Te llevamos a pagar ${product.name}. El acceso se activa apenas se confirme el pago.`
-        : sesion.checkout.instructions,
+      discount: sesion.discount,
+      activado: sesion.activado ?? false,
+      message: sesion.activado
+        ? sesion.checkout.instructions
+        : sesion.checkout.checkoutUrl
+          ? `Te llevamos a pagar ${product.name}. El acceso se activa apenas se confirme el pago.`
+          : sesion.checkout.instructions,
     });
   }),
 );

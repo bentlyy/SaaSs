@@ -1,11 +1,14 @@
 import { AppError } from '@saas-mini/core';
 import { TransferProvider } from './transfer.js';
 import { StripeProvider } from './stripe.js';
+import { MercadoPagoProvider } from './mercadopago.js';
+import { platformConfig } from '../config.js';
 import type { BillingProvider, BillingProviderName } from './types.js';
 
 export * from './types.js';
 export { TransferProvider } from './transfer.js';
 export { StripeProvider } from './stripe.js';
+export { MercadoPagoProvider } from './mercadopago.js';
 
 /**
  * DATO BANCARIO DE EJEMPLO. Esta cadena se cambia al desplegar.
@@ -33,6 +36,12 @@ registrarProveedor('transfer', () => new TransferProvider(DATOS_BANCARIOS_POR_DE
 registrarProveedor('stripe', () => new StripeProvider({
   secretKey: process.env.STRIPE_SECRET_KEY ?? '',
   webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? '',
+}));
+registrarProveedor('mercadopago', () => new MercadoPagoProvider({
+  accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN ?? '',
+  webhookSecret: process.env.MERCADOPAGO_WEBHOOK_SECRET ?? '',
+  coreUrl: platformConfig.coreUrl,
+  mode: process.env.MERCADOPAGO_MODE === 'sandbox' ? 'sandbox' : 'production',
 }));
 
 export function obtenerProveedor(name: BillingProviderName): BillingProvider {
