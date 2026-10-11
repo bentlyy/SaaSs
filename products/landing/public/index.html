@@ -268,6 +268,11 @@
       background-color: #A8A093;
       background-clip: content-box;
     }
+    /* Desplegables de contratación */
+    .amg-fold > summary { list-style: none; cursor: pointer; }
+    .amg-fold > summary::-webkit-details-marker { display: none; }
+    .amg-fold .amg-chev { transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1); }
+    .amg-fold[open] .amg-chev { transform: rotate(180deg); }
   </style>
 <meta name="description" content="AMG: un mapa visual de nueve herramientas operativas independientes para negocios reales.">
 <style>
@@ -577,26 +582,59 @@ Entornos demo activos
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="tus-aplicaciones-grid"></div>
 <div class="hidden" id="tus-aplicaciones-vacio"></div>
 <div class="mt-16 pt-12 border-t border-outline-variant/40" id="apps-contratar">
-<div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6">
-<div class="max-w-2xl">
+<div class="max-w-2xl mb-8">
 <div class="inline-flex items-center gap-2 mb-2">
 <span aria-hidden="true" class="w-2 h-2 rounded-full bg-secondary"></span>
 <span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">CONTRATACIÓN EN LÍNEA</span>
 </div>
-<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">Sumar una herramienta</h2>
-<p class="text-body-md font-body-md text-on-surface-variant mt-2">Eliges la herramienta, el mes o el año, y pagas con Mercado Pago o transferencia. Se activa apenas se confirma el cobro.</p>
+<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">Sumar herramientas</h2>
+<p class="text-body-md font-body-md text-on-surface-variant mt-2">Elige cómo pagar: la suite completa con un combo, o una herramienta sola, al mes o al año.</p>
 </div>
+<details class="amg-fold rounded-2xl border border-outline-variant/50 bg-surface-container-lowest overflow-hidden">
+<summary class="px-6 py-5 flex items-center justify-between gap-4">
+<div>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">LA SUITE COMPLETA</span>
+<h3 class="text-headline-sm font-headline-sm text-primary tracking-tight mt-1">Suite y combos · desde $29.000/mes</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant mt-1">3 herramientas $29.000/mes · suite completa $49.000/mes. Arma tu combo y te lo dejamos listo.</p>
+</div>
+<span aria-hidden="true" class="material-symbols-outlined amg-chev text-on-surface-variant shrink-0">expand_more</span>
+</summary>
+<div class="px-6 pb-6 pt-5 border-t border-outline-variant/40">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+<div class="rounded-2xl border border-outline-variant/50 ambient-inset p-6">
+<h4 class="text-body-md font-body-md font-semibold text-primary">Combo · 3 herramientas</h4>
+<p class="text-body-sm font-body-sm text-on-surface-variant mt-1">Elige cualquier trío de herramientas y págala como un solo plan.</p>
+<p class="mt-4 text-headline-sm font-headline-sm text-primary font-semibold">$29.000<span class="text-body-sm font-body-sm text-on-surface-variant font-normal">/mes</span></p>
+</div>
+<div class="rounded-2xl border border-outline-variant/50 ambient-inset p-6">
+<h4 class="text-body-md font-body-md font-semibold text-primary">Suite completa</h4>
+<p class="text-body-sm font-body-sm text-on-surface-variant mt-1">Las nueve herramientas, todo el stack operativo junto.</p>
+<p class="mt-4 text-headline-sm font-headline-sm text-primary font-semibold">$49.000<span class="text-body-sm font-body-sm text-on-surface-variant font-normal">/mes</span></p>
+</div>
+</div>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+<p class="text-body-sm font-body-sm text-on-surface-variant max-w-xl">Los combos los activamos a mano para dejar bien los accesos. Escríbenos y te lo dejamos listo.</p>
+<a class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-on-primary font-body-sm font-semibold hover:bg-neutral-800 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary shrink-0" href="https://wa.me/56953818617?text=Hola!%20Quiero%20armar%20un%20combo%20de%20herramientas%20AMG." rel="noopener noreferrer" target="_blank">Armar mi combo por WhatsApp</a>
+</div>
+</div>
+</details>
+<details class="amg-fold mt-4 rounded-2xl border border-outline-variant/50 bg-surface-container-lowest overflow-hidden">
+<summary class="px-6 py-5 flex items-center justify-between gap-4">
+<div>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">DE A UNA</span>
+<h3 class="text-headline-sm font-headline-sm text-primary tracking-tight mt-1">Herramientas individuales</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant mt-1">Toma una sola herramienta, al mes o al año. Se activa apenas se confirma el cobro.</p>
+</div>
+<span aria-hidden="true" class="material-symbols-outlined amg-chev text-on-surface-variant shrink-0">expand_more</span>
+</summary>
+<div class="px-6 pb-6 pt-6 border-t border-outline-variant/40">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+<p class="text-body-sm font-body-sm text-on-surface-variant max-w-xl">Pagas con Mercado Pago o transferencia. Cambia entre mensual y anual cuando quieras.</p>
 <div class="shrink-0" id="apps-contratar-toggle"></div>
 </div>
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="apps-contratar-grid" aria-label="Herramientas disponibles para contratar"></div>
-<div class="mt-8 p-5 rounded-2xl ambient-inset border border-outline-variant/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-<p class="text-body-sm font-body-sm text-on-surface-variant max-w-2xl">
-            El plan anual regala dos meses. ¿Vas por varias herramientas o la suite completa? Arma tu combo: <span class="font-semibold text-primary">3 herramientas $29.000/mes · suite completa $49.000/mes</span>.
-          </p>
-<a class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-on-primary font-body-sm font-semibold hover:bg-neutral-800 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary shrink-0" href="https://wa.me/56953818617?text=Hola!%20Quiero%20armar%20un%20combo%20de%20herramientas%20AMG." rel="noopener noreferrer" target="_blank">
-            Armar un combo
-          </a>
 </div>
+</details>
 </div>
 </div>
 </section>
