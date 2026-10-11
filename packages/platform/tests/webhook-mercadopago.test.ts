@@ -158,6 +158,25 @@ describe('webhook de MercadoPago (ruta HTTP)', () => {
     expect(productAccess(o.id, SLUG).allowed).toBe(false);
   });
 
+  it('sin secreto configurado valida por re-consulta (aunque no venga firma)', async () => {
+    const guardado = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+    delete process.env.MERCADOPAGO_WEBHOOK_SECRET;
+    try {
+      const o = await org();
+      montarFetchFalso('approved', producto().price);
+      await pagoPendiente(o.id);
+
+      await request(app)
+        .post('/api/billing/webhook/mercadopago')
+        .send({ type: 'payment', data: { id: PAYMENT_ID } })
+        .expect(200);
+
+      expect(productAccess(o.id, SLUG).allowed).toBe(true);
+    } finally {
+      process.env.MERCADOPAGO_WEBHOOK_SECRET = guardado;
+    }
+  });
+
   it('si el pago no está aprobado, no abre el producto', async () => {
     const o = await org();
     montarFetchFalso('pending', producto().price);

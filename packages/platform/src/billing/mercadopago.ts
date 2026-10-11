@@ -6,7 +6,11 @@ const MP_API = 'https://api.mercadopago.com';
 
 export interface MercadoPagoConfig {
   accessToken: string;
-  /** Secreto del webhook (Panel de MP → Webhooks). Sin él no se puede validar la firma. */
+  /**
+   * Secreto del webhook (Panel de MP → Webhooks). Opcional: si está, la firma se
+   * exige y se valida; si está vacío, el webhook se acepta y la verdad se pide a
+   * MP por re-consulta del pago con el token.
+   */
   webhookSecret: string;
   /** URL pública del Core: con ella se arma el `notification_url`. */
   coreUrl: string;
@@ -129,9 +133,18 @@ export class MercadoPagoProvider implements BillingProvider {
   }
 
   /**
-   * Resuelve nuestra referencia a partir de la notificación. Verifica la firma
-   * ANTES de tocar la API: si no calza, no gastamos una llamada ni dejamos que un
-   * tercero nos haga consultar pagos arbitrarios.
+   * Resuelve nuestra referencia a partir de la notificación.
+   *
+   * Si hay `MERCADOPAGO_WEBHOOK_SECRET`, la firma se exige y se verifica ANTES de
+   * tocar la API: así una notificación inventada ni siquiera gasta una llamada.
+   *
+   * Si NO hay secreto configurado (la app de MP todavía no lo tiene, o no se
+   * pudo sacar del panel), la notificación se acepta, pero la verdad se sigue
+   * pidiendo a MP con nuestro token (`fetchPayment`) y `confirmCheckout` vuelve a
+   * exigir que el pago esté `approved`, sea de esta cuenta y calce con un pago
+   * pendiente nuestro. Es decir: sin firma no se confía en el cuerpo del webhook,
+   * solo en la respuesta autenticada de MP. Es lo que hacía la integración previa
+   * (Vitaria), con la re-consulta como única garantía.
    */
   async referenceFromNotification(
     rawBody: string,
@@ -144,11 +157,10 @@ export class MercadoPagoProvider implements BillingProvider {
     if (dataId === undefined || dataId === null || dataId === '') {
       throw new AppError(400, 'La notificación no trae el id del pago');
     }
-    if (!this.config.webhookSecret) {
-      throw new AppError(503, 'Falta MERCADOPAGO_WEBHOOK_SECRET: no se puede validar la firma del webhook');
-    }
-    if (!verifyMercadoPagoSignature({ dataId: String(dataId), requestId, signature, secret: this.config.webhookSecret })) {
-      throw new AppError(401, 'La firma del webhook de MercadoPago no es válida');
+    if (this.config.webhookSecret) {
+      if (!verifyMercadoPagoSignature({ dataId: String(dataId), requestId, signature, secret: this.config.webhookSecret })) {
+        throw new AppError(401, 'La firma del webhook de MercadoPago no es válida');
+      }
     }
 
     const pago = await this.fetchPayment(String(dataId));

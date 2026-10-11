@@ -246,16 +246,19 @@ Las rutas no deben saber cómo cobrar.
 `mercadopago` se registra en `billing/index.ts` con tres variables de entorno:
 
 - `MERCADOPAGO_ACCESS_TOKEN` — sin él la pasarela da 503 (no finge cobrar).
-- `MERCADOPAGO_WEBHOOK_SECRET` — valida la firma `x-signature` del webhook.
+- `MERCADOPAGO_WEBHOOK_SECRET` — si está, valida la firma `x-signature` del
+  webhook y **exige** que calce. Si no está (la app de MP aún no lo tiene), el
+  webhook se acepta pero la verdad se pide igual a MP por re-consulta del pago.
 - `MERCADOPAGO_MODE` — `sandbox` usa `sandbox_init_point`; cualquier otra cosa es
   producción.
 
 El webhook vive en `POST /api/billing/webhook/mercadopago`. **No confía en el
-cuerpo de la notificación**: verifica la firma HMAC y luego **re-consulta el pago**
-a la API de MP con nuestro token, comprobando que `external_reference` sea la
-nuestra. Una notificación es una campanada; la prueba es la respuesta autenticada
-de la API. Se acusa con 2xx (para que MP no reintente) salvo error de
-infraestructura, que es 5xx para que reintente.
+cuerpo de la notificación**: si hay secreto verifica la firma HMAC, y en todos
+los casos **re-consulta el pago** a la API de MP con nuestro token, comprobando
+que `external_reference` sea la nuestra y que el estado sea `approved`. Una
+notificación es una campanada; la prueba es la respuesta autenticada de la API.
+Se acusa con 2xx (para que MP no reintente) salvo error de infraestructura, que
+es 5xx para que reintente.
 
 ## Descuentos y cupones
 

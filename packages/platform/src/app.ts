@@ -120,8 +120,10 @@ export function createPlatformApp(options: PlatformAppOptions = {}): Express {
    *
    * La notificación solo dice "hubo un pago". La URL pública es un bocinazo:
    * cualquiera puede llamarla. Por eso este handler, antes de tocar base de
-   * datos, (1) verifica la firma HMAC y (2) re-consulta el pago a MP con nuestro
-   * token y comprueba que `external_reference` sea la nuestra.
+   * datos, (1) si hay `MERCADOPAGO_WEBHOOK_SECRET` verifica la firma HMAC y
+   * (2) SIEMPRE re-consulta el pago a MP con nuestro token y comprueba que
+   * `external_reference` sea la nuestra. Sin secreto no se confía en el cuerpo
+   * del webhook: la garantía es la respuesta autenticada de MP.
    *
    * Respuestas: 2xx para MP = "procesado, no vuelvas a insistir". Un 5xx hace
    * que MP reintente (útil si la API de MP falló de forma transitoria); un 4xx
