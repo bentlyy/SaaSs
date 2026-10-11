@@ -78,7 +78,7 @@ export async function register(input: {
   name: string;
   email: string;
   password: string;
-  organizationName: string;
+  organizationName?: string;
   organizationSlug?: string;
   meta?: RequestMeta;
 }): Promise<AuthResult> {
@@ -86,17 +86,21 @@ export async function register(input: {
   if (findUserByEmail(email)) {
     throw new AppError(409, 'Ya existe una cuenta con ese correo. Inicia sesión.');
   }
-  if (input.organizationSlug && slugTaken(input.organizationSlug)) {
+  const organizationSlug = input.organizationSlug?.trim() || undefined;
+  if (organizationSlug && slugTaken(organizationSlug)) {
     throw new AppError(409, 'Ese nombre corto (slug) ya está en uso');
   }
+  // El nombre del negocio es de vitrina: si no lo escriben, se usa el de la
+  // persona para que la organización nunca quede sin título.
+  const organizationName = (input.organizationName || '').trim() || input.name;
   const passwordHash = await hashPassword(registerPasswordSchema.parse(input.password));
 
   const { sqlite } = getCoreDb();
   const created = sqlite.transaction(() => {
     const user = createUser({ name: input.name, email, passwordHash });
     const organization = createOrganization({
-      name: input.organizationName,
-      slug: input.organizationSlug,
+      name: organizationName,
+      slug: organizationSlug,
     });
     createMembership({ userId: user.id, organizationId: organization.id, role: 'owner' });
     return { user, organization };

@@ -215,9 +215,29 @@
         required: opts.required !== false,
       });
     }
+    var control = input;
+    // Ver/ocultar contraseña: un botón dentro del campo que alterna el tipo.
+    if (opts.type === 'password' && opts.reveal) {
+      var toggle = el('button', {
+        type: 'button',
+        class: 'field-reveal__toggle',
+        'aria-label': 'Mostrar contraseña',
+        title: 'Mostrar contraseña',
+        text: 'Ver',
+      });
+      toggle.addEventListener('click', function () {
+        var show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        toggle.textContent = show ? 'Ocultar' : 'Ver';
+        toggle.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña');
+        toggle.title = show ? 'Ocultar contraseña' : 'Mostrar contraseña';
+        input.focus();
+      });
+      control = el('div', { class: 'field-reveal' }, input, toggle);
+    }
     return el('div', { class: 'field' },
       el('label', { for: 'f-' + name, text: label }),
-      input,
+      control,
       opts.hint ? el('span', { class: 'hint', text: opts.hint }) : null,
       el('span', { class: 'field-error', dataset: { error: name } }),
     );
@@ -589,11 +609,14 @@
       el('div', { dataset: { alert: '' } }),
       field('name', 'Tu nombre', { autocomplete: 'name', placeholder: 'Andrea González' }),
       field('email', 'Correo', { type: 'email', autocomplete: 'email', inputMode: 'email', placeholder: 'tucorreo@negocio.cl' }),
-      field('password', 'Contraseña', { type: 'password', autocomplete: 'new-password', minLength: 8, hint: 'Mínimo 8 caracteres' }),
-      field('organizationName', 'Nombre del negocio', { placeholder: 'Salón Aurora' }),
-      field('organizationSlug', 'Identificador del negocio', {
+      field('password', 'Contraseña', { type: 'password', reveal: true, autocomplete: 'new-password', minLength: 8, hint: 'Mínimo 8 caracteres' }),
+      field('organizationName', 'Nombre del negocio (opcional)', {
         required: false,
-        hint: 'Solo minúsculas, números y guiones. Queda como tu enlace público.',
+        placeholder: 'Si lo dejas vacío, usamos tu nombre',
+      }),
+      field('organizationSlug', 'Identificador del negocio (opcional)', {
+        required: false,
+        hint: 'Queda como tu enlace público. Si lo dejas vacío, lo generamos por ti.',
       }),
       back ? el('input', { type: 'hidden', name: 'returnUrl', value: back }) : null,
       el('button', { class: 'btn btn--block', type: 'submit', text: 'Crear cuenta' }),
@@ -602,20 +625,27 @@
     );
 
     var nameInput = form.querySelector('[name="organizationName"]');
+    var userInput = form.querySelector('[name="name"]');
     var slugInput = form.querySelector('[name="organizationSlug"]');
     var slugEdited = false;
     slugInput.addEventListener('input', function () { slugEdited = true; });
-    nameInput.addEventListener('input', function () {
-      if (!slugEdited) slugInput.value = slugify(nameInput.value);
-    });
+    function autollenarSlug() {
+      if (slugEdited) return;
+      var base = (nameInput.value || '').trim() || (userInput.value || '').trim();
+      slugInput.value = base ? slugify(base) : '';
+    }
+    userInput.addEventListener('input', autollenarSlug);
+    nameInput.addEventListener('input', autollenarSlug);
 
     bindForm(form, function (values) {
       var body = {
         name: values.name,
         email: values.email,
         password: values.password,
-        organizationName: values.organizationName,
       };
+      // Ambos son opcionales: si van vacíos, el Core usa el nombre de la persona
+      // como negocio y genera el identificador solo.
+      if (values.organizationName) body.organizationName = values.organizationName;
       if (values.organizationSlug) body.organizationSlug = values.organizationSlug;
       if (values.returnUrl) body.returnUrl = values.returnUrl;
       return api('/auth/register', { method: 'POST', body: body }).then(function (result) {

@@ -80,7 +80,9 @@ const registerSchema = z.object({
   name: z.string().min(2, 'Escribe tu nombre').max(80),
   email: z.string().email('Correo inválido'),
   password: z.string().min(8, 'Mínimo 8 caracteres').max(200),
-  organizationName: z.string().min(2, 'Escribe el nombre del negocio').max(80),
+  // Opcional: si no viene (o viene vacío), el negocio toma el nombre de la
+  // persona. El alta no se detiene por un campo de vitrina.
+  organizationName: z.string().trim().max(80).optional(),
   organizationSlug: z
     .string()
     .min(3)

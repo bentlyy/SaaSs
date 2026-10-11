@@ -861,6 +861,71 @@
     });
   }
 
+  /* ── sección "Contratar" (autoservicio, pagos integrados) ────────────── */
+
+  var BTN_TOGGLE_ON = 'px-4 py-1.5 rounded-full bg-primary text-on-primary text-body-sm font-body-sm font-semibold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary';
+  var BTN_TOGGLE_OFF = 'px-4 py-1.5 rounded-full text-on-surface-variant hover:text-primary text-body-sm font-body-sm font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary';
+
+  function contratarCard(product, estado) {
+    var anual = estado.periodo === 'yearly' && product.annual_price != null;
+    var precio = anual ? product.annual_price : product.price;
+    // Mismo encadenado que el SPA: sin sesión, primero crear cuenta; con
+    // sesión, directo a la pantalla de contratación de ese producto.
+    var destino = sesionActual
+      ? '/contratar?p=' + encodeURIComponent(product.slug)
+      : '/registro?p=' + encodeURIComponent(product.slug);
+    return el('article', { class: 'bg-surface-container-lowest rounded-3xl p-6 border border-outline-variant/60 bento-shadow flex flex-col justify-between' },
+      el('div', {},
+        el('div', { class: 'flex items-start justify-between gap-4 mb-3' },
+          el('h3', { class: 'text-headline-sm font-headline-sm text-primary tracking-tight', text: product.name }),
+          el('span', { class: PILL_NEUTRO, text: anual ? 'Anual' : 'Mensual' }),
+        ),
+        product.tagline ? el('p', { class: 'text-body-sm font-body-sm text-on-surface-variant mb-5', text: product.tagline }) : null,
+        el('div', { class: 'flex items-baseline gap-2' },
+          el('span', { class: 'text-headline-md font-headline-md text-primary font-semibold tracking-tight', text: money(precio, product.currency) }),
+          el('span', { class: 'text-body-sm font-body-sm text-on-surface-variant', text: anual ? '/año' : '/mes' }),
+        ),
+        anual && product.annual_savings
+          ? el('p', { class: 'text-label-mono-xs font-label-mono-xs text-emerald-700 font-semibold mt-1', text: 'Ahorras ' + money(product.annual_savings, product.currency) + ' al año' })
+          : (product.annual_price != null
+            ? el('p', { class: 'text-label-mono-xs font-label-mono-xs text-on-surface-variant mt-1', text: 'o ' + money(product.annual_price, product.currency) + ' al año · 2 meses gratis' })
+            : null),
+      ),
+      el('div', { class: 'pt-5 border-t border-outline-variant/30 flex items-center justify-between gap-3 mt-6' },
+        el('a', { class: 'text-body-sm font-body-sm font-medium text-on-surface-variant hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded', href: '/productos/' + encodeURIComponent(product.slug), text: 'Ver detalle' }),
+        el('a', { class: 'inline-flex items-center justify-center bg-primary-container text-on-primary hover:bg-neutral-800 transition-all duration-200 active:scale-95 text-body-sm font-body-sm font-semibold px-4 py-2 rounded-lg shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary', href: destino, text: 'Contratar' }),
+      ),
+    );
+  }
+
+  function renderContratar(session) {
+    var section = document.getElementById('contratar');
+    if (!section) return;
+    var grid = document.getElementById('contratar-grid');
+    var toggleBox = document.getElementById('contratar-toggle');
+    if (!grid) return;
+    mount(grid, el('div', { class: 'opacity-60 text-body-sm font-body-sm text-on-surface-variant', text: 'Cargando herramientas…' }));
+    return api('/products').then(function (data) {
+      var products = (data && data.products) || [];
+      if (!products.length) {
+        mount(grid, el('div', { class: 'text-body-sm font-body-sm text-on-surface-variant', text: 'No hay herramientas disponibles por ahora.' }));
+        return;
+      }
+      var estado = { periodo: 'monthly' };
+      var btnMes = el('button', { type: 'button', class: BTN_TOGGLE_OFF, onclick: function () { estado.periodo = 'monthly'; pintar(); } }, 'Mensual');
+      var btnAnio = el('button', { type: 'button', class: BTN_TOGGLE_OFF, onclick: function () { estado.periodo = 'yearly'; pintar(); } }, 'Anual · 2 meses gratis');
+      function pintar() {
+        mount(grid, products.map(function (product) { return contratarCard(product, estado); }));
+        btnMes.className = estado.periodo === 'monthly' ? BTN_TOGGLE_ON : BTN_TOGGLE_OFF;
+        btnAnio.className = estado.periodo === 'yearly' ? BTN_TOGGLE_ON : BTN_TOGGLE_OFF;
+      }
+      if (toggleBox) mount(toggleBox, el('div', { class: 'inline-flex items-center gap-1 p-1 rounded-full bg-surface-container border border-outline-variant/60' }, btnMes, btnAnio));
+      pintar();
+    }).catch(function () {
+      mount(grid, el('div', { class: 'text-body-sm font-body-sm text-on-surface-variant', text: 'No pudimos cargar las herramientas. Recarga la página e inténtalo de nuevo.' }));
+    });
+  }
+
   /* ── vistas: landing, aplicaciones y cuenta ─────────────────────────────── */
 
   var sesionActual = null;
@@ -937,7 +1002,7 @@
   /* ── arranque ────────────────────────────────────────────────────────── */
 
   function boot() {
-    if (!document.getElementById('auth-nav') && !document.getElementById('tus-aplicaciones') && !document.getElementById('mi-cuenta')) return;
+    if (!document.getElementById('auth-nav') && !document.getElementById('tus-aplicaciones') && !document.getElementById('mi-cuenta') && !document.getElementById('contratar')) return;
     function run() {
       loadSession().then(function (session) {
         sesionActual = session;
@@ -945,6 +1010,7 @@
         if (nav) mount(nav, navAuth(!session));
         renderApps(session);
         renderCuenta(session);
+        renderContratar(session);
         aplicarHashInicial();
         vincularSesionEnPagina();
         document.addEventListener('click', function () { cerrarMenuActivo(); });

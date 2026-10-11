@@ -152,6 +152,15 @@ main { flex: 1; padding: 2.5rem 0 4rem; }
 .field .hint { font-size: 12px; color: var(--ink-mute); }
 .field-error { font-size: 12px; color: var(--bad); }
 .field-error:empty { display: none; }
+.field-reveal { position: relative; display: flex; }
+.field-reveal > input { flex: 1; padding-right: 4.75rem; }
+.field-reveal__toggle {
+  position: absolute; top: 50%; right: 0.4rem; transform: translateY(-50%);
+  border: 0; background: transparent; color: var(--accent);
+  font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  padding: 0.25rem 0.55rem; border-radius: var(--radius);
+}
+.field-reveal__toggle:hover { background: var(--surface-low); }
 .is-invalid { border-color: var(--bad); }
 .is-invalid:focus { outline-color: var(--bad); }
 input, select, textarea {

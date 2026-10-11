@@ -63,6 +63,16 @@ describe('registro central', () => {
     await expect(nuevoDueño({ email: 'letras@ejemplo.cl', password: 'soloLetrasLargas' })).rejects.toBeTruthy();
     await expect(nuevoDueño({ email: 'numeros@ejemplo.cl', password: '12345678901' })).rejects.toBeTruthy();
   });
+
+  it('sin nombre de negocio usa el nombre de la persona y genera el identificador', async () => {
+    const r = await register({ name: 'Andrea González', email: 'sin-negocio@ejemplo.cl', password: PASSWORD });
+    expect(r.organization.name).toBe('Andrea González');
+    expect(r.organization.slug).toBe('andrea-gonzalez');
+
+    // Un nombre en blanco cuenta como ausente: no deja la organización sin título.
+    const enBlanco = await register({ name: 'Bruno', email: 'blanco@ejemplo.cl', password: PASSWORD, organizationName: '   ' });
+    expect(enBlanco.organization.name).toBe('Bruno');
+  });
 });
 
 describe('login', () => {
