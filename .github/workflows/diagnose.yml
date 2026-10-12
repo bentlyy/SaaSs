@@ -60,6 +60,9 @@ jobs:
             v=$(docker exec "$c" sh -c 'echo "${AMG_SSO_INTROSPECT:-unset}"' 2>/dev/null)
             echo "$c procesado (printenv): ${v:-no responde}"
           done
-          echo; echo "===== env crudo del contenedor pagos (json) ====="
-          docker inspect saasmini-pagos --format '{{json .Config.Env}}' 2>/dev/null | tr ',' '\n' | grep "INTROSPECT" || echo "sin INTROSPECT en pagos"
+          echo; echo "===== sanity: docker exec y estado del contenedor pagos ====="
+          docker exec saasmini-pagos sh -c 'echo HELLO_FROM_PAGOS' 2>&1
+          docker inspect saasmini-pagos --format '{{println "Status:" .State.Status}}{{println "Running:" .State.Running}}' 2>&1
+          echo; echo "===== env CRUDO (json) del contenedor pagos ====="
+          docker inspect saasmini-pagos 2>/dev/null | python3 -c 'import json,sys; d=json.load(sys.stdin); print("\n".join(d[0]["Config"]["Env"]))' 2>&1 || docker inspect saasmini-pagos --format '{{json .Config.Env}}' 2>&1
           '
