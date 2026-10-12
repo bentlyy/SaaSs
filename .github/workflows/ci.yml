@@ -46,16 +46,20 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      - name: Guarda del lockfile (binarios linux de rollup/oxide)
+      - name: Guarda del lockfile (binarios linux de rollup/oxide/lightningcss)
         # npm#4828: un package-lock.json generado en Windows omite los paquetes
         # opcionales de otras plataformas, y `vite build` muere con
-        # "Cannot find module @rollup/rollup-linux-x64-gnu". Se comprueban las
-        # dos familias que el frontend usa (rollup y @tailwindcss/oxide).
+        # "Cannot find module @rollup/rollup-linux-x64-gnu" (o lightningcss).
+        # Se comprueban las familias con binario nativo en linux que el frontend
+        # usa (rollup, @tailwindcss/oxide y lightningcss). Regenera el lockfile
+        # en Linux (npm ci) si alguna falta.
         run: |
           fallo=0
           for p in \
             "node_modules/@rollup/rollup-linux-x64-gnu" \
-            "node_modules/@tailwindcss/oxide-linux-x64-gnu"; do
+            "node_modules/@tailwindcss/oxide-linux-x64-gnu" \
+            "node_modules/lightningcss-linux-x64-gnu" \
+            "node_modules/@napi-rs/lzma-linux-x64-gnu"; do
             if grep -q "\"$p\"" package-lock.json; then
               echo "OK      : $p"
             else
