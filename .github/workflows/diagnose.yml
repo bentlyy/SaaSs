@@ -28,12 +28,14 @@ jobs:
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
-          # El heredoc con delimitador citado ('EOF') evita que el shell LOCAL
-          # del runner rompa el script remoto por las comillas simples anidadas.
+          # TODO el script remoto va en un solo arg ssh con comillas simples.
+          # REGLA: adentro NO van comillas simples (rompen el parseo local del
+          # runner) ni parentesis. Todo lo que sea un valor sin espacios va a
+          # secas; lo que tiene espacios, con comillas dobles.
           ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=accept-new \
             -o ServerAliveInterval=30 \
-            "$USER@$HOST" bash -s <<'EOF'
+            "$USER@$HOST" '
           set -u
           echo "===== df -h ====="; df -h
           echo; echo "===== docker system df ====="; docker system df
@@ -49,21 +51,20 @@ jobs:
           fi
           echo; echo "===== volumenes docker ====="; docker volume ls
           echo; echo "===== AMG_SSO_INTROSPECT resuelto por docker compose ====="
-          docker compose -f "$HOME/projects/saas-mini/docker-compose.yml" -p saas-mini config 2>/dev/null | grep -A2 'AMG_SSO_INTROSPECT' | head -16 || echo "compose config no resuelve INTROSPECT"
+          docker compose -f "$HOME/projects/saas-mini/docker-compose.yml" -p saas-mini config 2>/dev/null | grep -A2 AMG_SSO_INTROSPECT | head -20 || echo "compose config no resuelve INTROSPECT"
           echo; echo "===== AMG_SSO_INTROSPECT en .env del server ====="
           if [ -f "$HOME/projects/saas-mini/.env" ]; then
-            grep '^AMG_SSO_INTROSPECT=' "$HOME/projects/saas-mini/.env" || echo "AMG_SSO_INTROSPECT no definido en .env"
-            grep '^CORE_SSO_' "$HOME/projects/saas-mini/.env" || true
+            grep -E "^AMG_SSO_INTROSPECT=" "$HOME/projects/saas-mini/.env" || echo "AMG_SSO_INTROSPECT no definido en .env"
+            grep -E "^CORE_SSO_" "$HOME/projects/saas-mini/.env" || true
           else
             echo "no existe $HOME/projects/saas-mini/.env"
           fi
-          echo; echo "===== AMG_SSO_INTROSPECT runtime por contenedor ====="
+          echo; echo "===== AMG_SSO_INTROSPECT runtime por contenedor (printenv) ====="
           for c in saasmini-landing saasmini-pagos saasmini-crm saasmini-inventario; do
-            v=$(docker exec "$c" sh -c 'echo "${AMG_SSO_INTROSPECT:-unset}"' 2>/dev/null)
-            echo "$c printenv: ${v:-no responde}"
+            v=$(docker exec "$c" printenv AMG_SSO_INTROSPECT 2>/dev/null)
+            echo "$c: ${v:-no-definido}"
           done
-          echo; echo "===== sanity: estado del contenedor pagos ====="
-          docker inspect saasmini-pagos --format '{{if .State.Running}}RUNNING{{else}}STOPPED{{end}} state={{.State.Status}} pid={{.State.Pid}}' 2>&1
-          echo; echo "===== env CRUDO (json) del contenedor pagos ====="
-          docker inspect saasmini-pagos -f '{{json .Config.Env}}' 2>&1 | tr ',' '\n'
-EOF
+          echo; echo "===== env del contenedor pagos via inspect (conteo y muestra) ====="
+          docker inspect saasmini-pagos -f {{json .Config.Env}} | grep -c INTROSPECT
+          docker inspect saasmini-pagos --format "{{range .Config.Env}}{{println .}}{{end}}" | grep -n INTROSPECT || echo "sin INTROSPECT en pagos"
+          '
