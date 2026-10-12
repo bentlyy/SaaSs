@@ -70,3 +70,31 @@ RLS por `app.tenant_id`) y suite de tests que asume login local.
   `frontendMoney.test.ts` → `packages/platform/tests/`.
 - **Suite** desplegada verde en `main` `54ad149`; `AMG_SSO_INTROSPECT=1` verificado en runtime.
 - **Vitaria** `backup.yml` reescrito a SSH + `pg_dump` en el host OCI (commit `bafe7af`).
+
+## Deuda diferida al cierre del SSO (2026-10-12)
+
+Decisiones tomadas para **no bloquear** el cierre del SSO (retomar al final):
+
+- **Gates de cobertura del CI de Vitaria (preexistente; NO lo causó el SSO).** El job `CI`
+  lleva rojo desde ~22-sep-2026. En `master` (`bafe7af`): Lines 84.53 / Branches 75.42 /
+  Funcs 83.21 / Stmts 83.41 vs umbral 85/80/85/85 (`vitest.config.js`). Backend además fallaba
+  antes en `npm audit --audit-level=critical` (**ya corregido** con `npm audit fix` en
+  `feat/vitaria-sso`); frontend incumple sus umbrales en `master` y en este PR. Decisión:
+  **no tocar umbrales ni perseguir cobertura ahora**. Módulos con más hueco cuando se aborde:
+  `shared/metrics.service.ts`, `modules/saas/*onboarding*.service.ts`, `shared/currencies.ts`,
+  `shared/db.ts`, `shared/ownership.ts`, controllers `attachments`/`calendar`, `modules/booking`.
+- **Ops al desplegar (dependen del usuario):** (1) mergear `SaaSs#1` para registrar
+  producto/cliente `vitaria` + derivar secreto (`npm run sso:secret -w @amg/platform -- vitaria`);
+  (2) custom domain `vitaria.amgdeveloper.cl` en Render + **CNAME proxied** en Cloudflare;
+  (3) aplicar `032_amg_sso.sql` y **vincular `tenants.sso_org_id`** fuera de banda (BYPASSRLS).
+- **Precio placeholder:** `vitaria` = `29900` CLP/mes provisional en el catálogo del Core.
+- **`docs/db-architecture.html`** aún cita `packages/core/src/db/init.ts` (ruta inexistente).
+
+**Aclaraciones a los "pendientes destructivos" previos:**
+- (7) **resuelto/no aplica:** `feature.middleware` sí se usa (`laboratory.routes.ts` →
+  `requireFeature('laboratory')`); `sessionActivity.middleware` se conserva (mantiene
+  `users.last_activity_at`); `cleanup.service` es cron diario inofensivo (se conserva).
+- (6) **encaminado:** PR `SaaSs#1` (`feat/vitaria-product`, commit `b1dbfa9`) registra `vitaria`.
+- Purga SSO Vitaria commiteada hasta `a2ef115` (cubre `localAccount`, retira `base32.ts` y
+  `encrypt/decrypt/hashToken` muertos, `docs/SSO.md` §7 con esta deuda).
+
