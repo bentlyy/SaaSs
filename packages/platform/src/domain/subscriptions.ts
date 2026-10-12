@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray, isNull, lte } from 'drizzle-orm';
-import { AppError } from '@saas-mini/core';
+import { AppError } from '@amg/core';
 import { getCoreDb } from '../db/index.js';
 import { schema } from '../db/schema.js';
 import { findOrganizationById, type Organization } from './organizations.js';

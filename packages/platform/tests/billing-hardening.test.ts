@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { AppError } from '@saas-mini/core';
+import { AppError } from '@amg/core';
 import { confirmCheckout, startCheckout } from '../src/billing/checkout.js';
 import { registrarProveedor } from '../src/billing/index.js';
 import type { BillingProvider, CheckoutRequest, CheckoutResult, PaymentConfirmation } from '../src/billing/types.js';

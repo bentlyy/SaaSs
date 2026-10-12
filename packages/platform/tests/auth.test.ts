@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AppError } from '@saas-mini/core';
+import { AppError } from '@amg/core';
 import { register, login, logout, logoutEverywhere, requestPasswordReset, resetPassword, changePassword, verifyEmail, switchOrganization, updateProfile } from '../src/auth/service.js';
 import { getCoreDb } from '../src/db/init.js';
 import { createId } from '../src/db/id.js';

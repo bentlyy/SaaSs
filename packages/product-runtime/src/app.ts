@@ -9,7 +9,7 @@ import {
   assetHeaders,
   ASSET_MAX_AGE_MS,
   HTML_CACHE_CONTROL,
-} from '@saas-mini/core';
+} from '@amg/core';
 import { loadProductConfig, type ProductConfig } from './config.js';
 import { openProductDb, type OpenOptions, type ProductDb, type ProductSchema } from './db.js';
 import { mountAmgProductAuth, type MountAuthOptions } from './auth.js';

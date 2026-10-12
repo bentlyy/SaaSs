@@ -12,7 +12,7 @@ import {
   AppError,
   ASSET_MAX_AGE_MS,
   HTML_CACHE_CONTROL,
-} from '@saas-mini/core';
+} from '@amg/core';
 import { platformConfig } from './config.js';
 import { clearSessionCookie, cookieParser, sessionFromRequest } from './http/middleware.js';
 import { authRouter } from './http/auth-routes.js';

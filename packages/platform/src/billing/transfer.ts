@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { AppError } from '@saas-mini/core';
+import { AppError } from '@amg/core';
 import type { BillingProvider, CheckoutRequest, CheckoutResult, PaymentConfirmation } from './types.js';
 
 /**

@@ -1,4 +1,4 @@
-import { logger } from '@saas-mini/core';
+import { logger } from '@amg/core';
 import { getCoreDb } from '../db/init.js';
 import { seedCatalog } from '../seed.js';
 import { listSsoClients } from '../sso/registry.js';

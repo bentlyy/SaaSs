@@ -1,4 +1,4 @@
-﻿import { logger } from '@saas-mini/core';
+import { logger } from '@amg/core';
 import {
   findProductBySlug,
   listProducts,

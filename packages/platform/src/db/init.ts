@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import Database from 'better-sqlite3';
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { logger } from '@saas-mini/core';
+import { logger } from '@amg/core';
 import { platformConfig } from '../config.js';
 import * as schema from './schema.js';
 

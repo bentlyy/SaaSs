@@ -5,10 +5,19 @@ FROM node:20-bookworm-slim
 
 WORKDIR /app
 
-# Herramientas de compilación para módulos nativos (better-sqlite3)
+# Herramientas de compilación para módulos nativos (better-sqlite3).
+# git es necesario porque @amg/core llega como dependencia git (no vive en el
+# monorepo): sin git, `npm ci` no puede clonar el repo del core.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 make g++ \
+  && apt-get install -y --no-install-recommends python3 make g++ git \
   && rm -rf /var/lib/apt/lists/*
+
+# @amg/core viene como dependencia git (git+https://github.com/bentlyy/amg-core)
+# y npm normaliza esas URLs a `git+ssh` en el lockfile. El servidor no tiene
+# llave SSH para clonarla: se reescribe a HTTPS, que para un repo publico clona
+# anonimo. Omitir esto rompe `npm ci` con "Permission denied (publickey)".
+RUN git config --global url."https://github.com/".insteadOf ssh://git@github.com/ \
+ && git config --global url."https://github.com/".insteadOf git@github.com:
 
 # Monorepo con workspaces (npm ci resuelve todos los package.json)
 COPY package.json package-lock.json ./

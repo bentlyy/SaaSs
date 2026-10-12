@@ -1,4 +1,4 @@
-import { AppError } from '@saas-mini/core';
+import { AppError } from '@amg/core';
 import { TransferProvider } from './transfer.js';
 import { StripeProvider } from './stripe.js';
 import { MercadoPagoProvider } from './mercadopago.js';

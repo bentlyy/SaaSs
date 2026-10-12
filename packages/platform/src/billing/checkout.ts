@@ -1,4 +1,4 @@
-import { AppError } from '@saas-mini/core';
+import { AppError } from '@amg/core';
 import { obtenerProveedor } from './index.js';
 import type { BillingProviderName, CheckoutResult } from './types.js';
 import {

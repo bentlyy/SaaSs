@@ -21,7 +21,7 @@ import { describe, expect, it } from 'vitest';
  * dentro de su propia capa. Lo que se rompe es la CONVENCION entre capas. Asi
  * que el test no mira montos: mira que no vuelva el codigo de compensacion.
  *
- * La regla (packages/core/src/money.ts):
+ * La regla (@amg/core, money.ts):
  *   base = entero en unidades menores -> el backend convierte una vez -> el
  *   frontend solo pinta. En el JS del navegador no hay `* 100` ni `/ 100`
  *   sobre un monto.
@@ -106,29 +106,6 @@ describe('el frontend no convierte dinero', () => {
   }
 });
 
-describe('el backend convierte solo por money.ts', () => {
-  const modulos = join(RAIZ, 'packages', 'core', 'src', 'modules');
-  const rutas = readdirSync(modulos)
-    .map((mod) => join(modulos, mod, 'routes.ts'))
-    .filter((ruta) => existsSync(ruta));
-
-  it('se encontraron las rutas de modulos', () => {
-    expect(rutas.length).toBeGreaterThan(5);
-  });
-
-  for (const ruta of rutas) {
-    const nombre = ruta.split(/[\\/]/).slice(-2).join('/');
-    it(`${nombre}: no convierte montos a mano`, () => {
-      const culpables: string[] = [];
-      readFileSync(ruta, 'utf8')
-        .split(/\r?\n/)
-        .forEach((linea, i) => {
-          if (/^\s*(\*|\/\/)/.test(linea)) return; // comentario: puede explicar la regla
-          if (linea.includes('fromMinor') || linea.includes('toMinor')) return;
-          if (!esOperacionDeDinero(linea)) return;
-          if (/([*/])\s*100\b/.test(linea)) culpables.push(`  L${i + 1}: ${linea.trim()}`);
-        });
-      expect(culpables.join('\n'), `convierte dinero a mano en ${nombre}:\n${culpables.join('\n')}`).toBe('');
-    });
-  }
-});
+// El barrido del backend que convertia dinero a mano vivia aca y escaneaba
+// `packages/core/src/modules`. Ahora que el core es su propio repo (@amg/core),
+// esa comprobacion vive en los tests de ese repo, mirando su propia fuente.

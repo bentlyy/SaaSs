@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll } from 'vitest';
-import { AppError } from '@saas-mini/core';
+import { AppError } from '@amg/core';
 import { register } from '../src/auth/service.js';
 import { getCoreDb } from '../src/db/init.js';
 import { verifySessionToken, type VerifiedSession } from '../src/domain/sessions.js';

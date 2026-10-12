@@ -21,7 +21,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@saas-mini/core": "0.1.0",
+    "@amg/core": "git+https://github.com/bentlyy/amg-core.git#v0.1.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.10.0",
     "drizzle-orm": "^0.38.4",

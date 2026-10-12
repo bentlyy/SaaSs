@@ -1,7 +1,7 @@
 # Integracion continua de la suite SaaS Mini.
 #
 # Corre en cada push a main y en cada PR. El orden NO es libre: el contrato de
-# frontend (`packages/core/tests/frontendContract.test.ts`) exige que los nueve
+# frontend (`packages/platform/tests/frontendContract.test.ts`) exige que los nueve
 # bundles de `web/dist` existan ANTES de `npm test`, y lo dice en su propio
 # mensaje ("corre `npm run build:webs` antes que `npm test`"). Por eso el build
 # de los frontends va entre el typecheck y los tests.
@@ -36,6 +36,13 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Git: clonar deps git por HTTPS (publico, sin llaves)
+        # @amg/core llega como dependencia git y npm escribe `git+ssh` en el
+        # lockfile. Este runner no tiene llave SSH: se reescribe a HTTPS.
+        run: |
+          git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+          git config --global url."https://github.com/".insteadOf git@github.com:
+
       - name: Instalar dependencias
         run: npm ci
 
@@ -59,15 +66,18 @@ jobs:
           exit "$fallo"
 
       - name: Construir las librerias internas (dependencias de typecheck/tests)
-        # Los productos importan @amg/product-runtime, @amg/auth-client,
-        # @saas-mini/core y @amg/platform, que exportan desde dist/ (gitignored).
-        # En un clone limpio no existe ese dist: tsc muere con "Cannot find
-        # module '@amg/product-runtime'" y los tests no resuelven
+        # Los productos importan @amg/product-runtime, @amg/auth-client y
+        # @amg/platform, que exportan desde dist/ (gitignored). En un clone
+        # limpio no existe ese dist: tsc muere con "Cannot find module
+        # '@amg/product-runtime'" y los tests no resuelven
         # @amg/product-runtime/testing. Por eso las librerias se compilan ANTES
-        # del typecheck. El orden respeta las dependencias (core <- auth-client
-        # <- product-runtime; platform solo necesita core).
+        # del typecheck. El orden respeta las dependencias (auth-client <-
+        # product-runtime; platform solo necesita @amg/core).
+        #
+        # @amg/core ya NO vive en este monorepo: llega como dependencia git
+        # (github.com/bentlyy/amg-core) y su dist lo construye el script
+        # `prepare` del propio paquete durante `npm ci`.
         run: |
-          npm run build -w @saas-mini/core
           npm run build -w @amg/auth-client
           npm run build -w @amg/product-runtime
           npm run build -w @amg/platform

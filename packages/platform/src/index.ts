@@ -9,7 +9,7 @@
  */
 
 // configuración y arranque
-export { logger } from '@saas-mini/core';
+export { logger } from '@amg/core';
 export { platformConfig, type PlatformConfig } from './config.js';
 export { createPlatformApp, startPlatform, type PlatformAppOptions } from './app.js';
 export { getCoreDb, createCoreDb, closeCoreDb, type CoreDb } from './db/index.js';

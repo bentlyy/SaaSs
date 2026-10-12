@@ -1,4 +1,4 @@
-import { AppError } from '@saas-mini/core';
+import { AppError } from '@amg/core';
 import { platformConfig } from '../config.js';
 import { getCoreDb } from '../db/index.js';
 import { hashPassword, verifyPassword, registerPasswordSchema } from './passwords.js';

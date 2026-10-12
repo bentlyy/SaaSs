@@ -5,7 +5,7 @@ import { createPlatformApp, platformConfig, logger } from '@amg/platform';
 /**
  * Punto de entrada de la plataforma central.
  *
- * Antes esto era solo la landing de marketing, servida por @saas-mini/core. Ahora
+ * Antes esto era solo la landing de marketing, servida por @amg/core. Ahora
  * el mismo proceso es el Core: sirve la API de identidad y suscripciones y la UI
  * (catálogo, acceso, mi cuenta, mis aplicaciones). El HTML de marketing se sigue
  * sirviendo en `/`, así que la web pública no cambia.

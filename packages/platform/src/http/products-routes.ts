@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { asyncHandler } from '@saas-mini/core';
+import { asyncHandler } from '@amg/core';
 import { listProducts, publicProduct, requireProductBySlug } from '../domain/products.js';
 
 /**

@@ -17,7 +17,7 @@ donde una contraseña se filtra. Ahora la contraseña existe en un solo lado.
 
 | | Core (plataforma) | Producto (mini-SaaS) |
 |---|---|---|
-| Package | `@amg/platform` | `@saas-mini/core` + `products/<x>` |
+| Package | `@amg/platform` | `@amg/core` + `products/<x>` |
 | Base | `core.sqlite` | `data/<x>/app.db` |
 | Guarda | usuarios, organizaciones, membresías, sesiones, catálogo, suscripciones, pagos, SSO | lo de su dominio: citas, stock, órdenes... |
 | Puerto | `3108` (host) | `3100`-`3109` (host) |
@@ -26,8 +26,8 @@ donde una contraseña se filtra. Ahora la contraseña existe en un solo lado.
 
 ### Paquetes
 
-- **`packages/core`** (`@saas-mini/core`): lo que comparten los productos. `createApp`, config por producto, helpers HTTP. **No sabe nada de la plataforma.**
-- **`packages/platform`** (`@amg/platform`): el Core. Depende de `@saas-mini/core` solo por utilidades de HTTP y logger. No se importa desde un producto.
+- **`@amg/core`** (repo aparte, `github.com/bentlyy/amg-core`): lo que comparten los productos. `createApp`, config por producto, helpers HTTP. **No sabe nada de la plataforma.** Ya no vive en este monorepo: se consume como dependencia git.
+- **`packages/platform`** (`@amg/platform`): el Core. Depende de `@amg/core` solo por utilidades de HTTP y logger. No se importa desde un producto.
 - **`packages/auth-client`** (`@amg/auth-client`): lo único que un producto importa para validar usuarios. Habla con el Core por HTTP; no depende del package del Core.
 - **`products/landing`**: el servicio del Core. Sirve la API **y** la web (landing de marketing, catálogo, login, mi cuenta, mis aplicaciones). Es el único lugar donde se ejecuta `@amg/platform`.
 
@@ -127,9 +127,9 @@ npm run typecheck
 npm run build
 ```
 
-`npm run typecheck` y `npm run build` asumen que `@saas-mini/core` y
-`@amg/platform` ya compilaron: los tipos se resuelven desde `dist/`. Si cambiaste
-un package del que depende otro, compilá primero.
+`npm run typecheck` y `npm run build` asumen que `@amg/platform` ya compiló: los
+tipos se resuelven desde `dist/`. Si cambiaste un package del que depende otro,
+compilá primero. `@amg/core` llega ya compilado desde su repo (dependencia git).
 
 En desarrollo, si no definís los dos secretos, se generan al azar **por proceso**:
 el repo nunca lleva un secreto conocido. El costo es que reiniciar cierra las
@@ -144,9 +144,9 @@ arranca.
 La plataforma está completa en su parte de identidad, catálogo y suscripciones.
 Los **nueve productos corren sobre `@amg/product-runtime`** con `@amg/auth-client`
 (SSO del Core): sin login propio, sin `JWT_SECRET`, sin `clientsGuard`. La puerta
-de acceso es únicamente la suscripción en el Core. `packages/core` queda como
-núcleo legacy: conserva `createApp` y sus tests, pero ningún producto desplegado
-lo usa.
+de acceso es únicamente la suscripción en el Core. El núcleo compartido vive en
+su propio repo (`github.com/bentlyy/amg-core`, paquete `@amg/core`) y se consume
+como dependencia git; aquí ya no hay carpeta `packages/core`.
 
 ## Documentos relacionados
 

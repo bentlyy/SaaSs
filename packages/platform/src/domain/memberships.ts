@@ -1,5 +1,5 @@
 import { and, eq, sql } from 'drizzle-orm';
-import { AppError } from '@saas-mini/core';
+import { AppError } from '@amg/core';
 import { getCoreDb } from '../db/index.js';
 import { schema } from '../db/schema.js';
 import { isRole, type Role } from './roles.js';

@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm';
-import { AppError } from '@saas-mini/core';
+import { AppError } from '@amg/core';
 import { platformConfig } from '../config.js';
 import { getCoreDb, createId } from '../db/index.js';
 import { schema } from '../db/schema.js';

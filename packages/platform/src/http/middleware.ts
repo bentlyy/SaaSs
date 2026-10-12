@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { AppError, asyncHandler, cookieParser } from '@saas-mini/core';
+import { AppError, asyncHandler, cookieParser } from '@amg/core';
 import { platformConfig } from '../config.js';
 import {
   switchOrganization,

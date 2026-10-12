@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
-import { AppError, asyncHandler } from '@saas-mini/core';
+import { AppError, asyncHandler } from '@amg/core';
 import { platformConfig } from '../config.js';
 import { sessionFromRequest } from './middleware.js';
 import { authorize, exchangeCode, introspectToken } from '../sso/service.js';

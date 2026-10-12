@@ -1,0 +1,85 @@
+# Actualizacion automatica de @amg/core en la suite.
+#
+# Lo dispara el repo del core (bentlyy/amg-core) con un repository_dispatch
+# `core-released` cada vez que se publica un tag nuevo. Tambien se puede correr a
+# mano (Actions > Core release > Run workflow) pasando el tag.
+#
+# Hace SOLO una cosa: fija ese tag de @amg/core en los package.json que lo
+# consumen y refresca el lockfile. El commit a main entra en el pipeline normal
+# de la suite (ci.yml -> deploy.yml), que ya sabe typechequear, construir la imagen
+# y desplegar a produccion. Por eso el push usa DISPATCH_TOKEN (un PAT): un push
+# hecho con el GITHUB_TOKEN por defecto NO dispara los otros workflows.
+name: Core release
+
+on:
+  repository_dispatch:
+    types: [core-released]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag de @amg/core a fijar (ej: v0.1.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: core-release
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    name: Fijar @amg/core y commitear
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.DISPATCH_TOKEN || github.token }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Git: clonar @amg/core por HTTPS (release publico, sin llaves)
+        # El lockfile resuelve @amg/core como `git+ssh` y este runner no tiene
+        # llave SSH: se reescribe https://github.com a HTTPS, que clona anonimo.
+        run: |
+          git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+          git config --global url."https://github.com/".insteadOf git@github.com:
+
+      - name: Fijar el tag de @amg/core
+        env:
+          TAG: ${{ github.event.client_payload.tag || github.event.inputs.tag }}
+        run: |
+          if [ -z "$TAG" ]; then
+            echo "::error::No llego ningun tag (client_payload.tag / inputs.tag)."
+            exit 1
+          fi
+          echo "aplicando @amg/core $TAG"
+          for f in \
+            packages/platform/package.json \
+            packages/product-runtime/package.json \
+            products/landing/package.json; do
+            sed -i -E "s|(amg-core\.git#)[^\"]+|\1${TAG}|" "$f"
+            grep -H "@amg/core" "$f"
+          done
+
+      - name: Refrescar el lockfile
+        run: npm install --package-lock-only
+
+      - name: Commit y push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add packages/platform/package.json \
+                  packages/product-runtime/package.json \
+                  products/landing/package.json \
+                  package-lock.json
+          if git diff --cached --quiet; then
+            echo "sin cambios: la suite ya estaba en $TAG"
+            exit 0
+          fi
+          git commit -m "chore: @amg/core $TAG"
+          git push
