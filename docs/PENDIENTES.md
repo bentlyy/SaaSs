@@ -25,6 +25,44 @@ Actualizado: 2026-10-12
   describe la arquitectura vieja (DDL compartido de 17 tablas); hoy los productos usan
   `openProductDb` de `product-runtime` y DDL por producto. Requiere reescritura, no solo renombrar.
 
+## Plan — Vitaria (bentlyy/Clinica-Salud-Vital) SSO + billing propio
+
+Alcance confirmado: **SSO con el Core + billing propio** (mismo token MP; la BD se queda como está).
+
+**Prerrequisitos en el Core (ops):**
+- Registrar el producto `vitaria` en el catálogo (`products`: slug, name, `app_url`).
+- Derivar el secreto del cliente SSO:
+  `npm run sso:secret -w @amg/platform -- vitaria` (crea/repair del `ssoClient`).
+
+**Lado Vitaria:**
+- Dep: `@amg/auth-client`.
+- Env: `CORE_URL`, `APP_URL`, `AMG_SSO_CLIENT_ID=vitaria`, `AMG_SSO_CLIENT_SECRET`.
+- Migración: `tenants.sso_org_id`, `users.sso_sub` (+ índices), `users.sso_provider`.
+- `src/sso/amgSso.ts` (`loadConfig(env,'vitaria')` + `mountAmgAuth`) y resolución
+  identidad Core → tenant (`sso_org_id`) y usuario (`sso_sub`); rol `owner/admin`→`admin`,
+  `member`→`user`.
+- `app.ts`: montar tras `cookieParser`/`express.json`.
+- Billing: se mantiene tal cual.
+
+**Riesgos:** auth propio grande (JWT+cookies, 2FA/TOTP, `user_sessions`/`refresh_tokens`,
+RLS por `app.tenant_id`) y suite de tests que asume login local.
+
+**Decisiones (usuario):** reemplazo total (como el Taller) · `APP_URL=https://clinica-salud-vital.onrender.com` (se queda en Render).
+
+**Hallazgos que condicionan el diseño (recon):**
+- **RLS en `tenants` es `USING(true)` + `WITH CHECK(false)`** → la app NO puede crear tenants en runtime; el vínculo `sso_org_id` se hace fuera de banda (ops/rol BYPASSRLS `DATABASE_URL_SUPERADMIN`). La cuenta local NO auto-crea tenant: si la org no está vinculada, el login se rechaza (`TenantNoVinculadoError`).
+- `users` RLS: la fila solo es visible/escribible con `app.tenant_id = tenant_id` → la resolución del usuario debe correr dentro de `tenantContext.run(tenantId)`.
+- `users.password` es `NOT NULL` → alta SSO usa placeholder (`randomUUID`); rol por defecto `owner/admin→admin`, `member→user`.
+- **4 servicios usan `jwt.service`** además del login: `booking.service`, `doctor.service`, `guest.service`, `lab-result-email.service` (tokens de flujos/emails) → hay que conservar un camino de token o reworks; NO borrar `jwt.service` a ciegas.
+- `optionalAuth` + `tenantMiddleware` hoy derivan de `req.user` (JWT). Con SSO el orden cambia: guard (req.amg) → resolver cuenta local/tenant → tenantMiddleware. `csrfProtection` también debe revisarse.
+- Tests afectados por el reemplazo (~10): `auth.controller/service/middleware/schema`, `auth-refresh-2fa.service`, `jwt.service`, `sessions.service`, `sessionActivity.middleware`, `feature.middleware`, `auth.routes`, `tenant.middleware`.
+
+**Progreso:**
+- **Hecho (base, no destructiva)** en rama `feat/vitaria-sso` (commit `f1d3db8`, pusheada): dep `@amg/auth-client` (vendor tarball), env, migración `db/migrations/032_amg_sso.sql` (`tenants.sso_org_id`, `users.sso_sub` + índices únicos parciales), `src/sso/{amgTypes,amgSso,localAccount}.ts`. `npm run typecheck` OK; el paquete resuelve por CJS `require`. Aún **sin cablear** (no rompe prod).
+- **Hecho (Etapa 1 — cableado)** commit `9970fbb`: `app.ts` monta `mountAmgAuthMiddleware()` + `app.use('/api', amgRouter)` (login→Core, `/api/auth/me`, `/api/auth/inicio`) tras cookieParser/json y antes de `csrfProtection`, con `express.static(..., { index: false })` y catch-all SPA movido tras las rutas; `auth.middleware.ts` reescrito: `optionalAuth` resuelve la cuenta local desde `req.amg` (tenant por `sso_org_id`, usuario por `sso_sub`) y `authMiddleware` consume `req.user`, con camino JWT legado conservado pero **inalcanzable en prod** (el guard rechaza antes). `tests/setup.js` con env SSO; `tests/unit/app.test.js` mockea `src/sso/amgSso.js`.
+- **Hecho (Etapa 2 — retiro del auth local)** commit `db2c41e` (pusheado): eliminados los endpoints de credenciales (`login/refresh/logout/2FA/change/forgot/reset/admin/jwks/sessions/me`), `sessions.service.ts`, el `sessionLimiter` y los handlers muertos de `auth.controller`/`auth.service`; `auth.routes`/`auth.schema` quedan **solo con el alta por invitación** (`GET /invite-info` + `POST /register`), que crea la cuenta local que luego se vincula por `sso_sub`/email al entrar vía SSO. `amgPublicPaths` expone `/api/auth/{login,register,invite-info}`. `jwt.service` **conservado**. Tests del auth retirado borrados (4 archivos) y 2 recortados → suite **110 files / 1491 tests verde**; `typecheck` OK.
+- **Pendiente (destructivo restante):** (5) revisar `csrfProtection` con el guard; (6) registrar producto/cliente `vitaria` en el Core (`npm run sso:secret -w @amg/platform -- vitaria`) y vincular `sso_org_id` del tenant (ops/BYPASSRLS); (7) decidir si `sessionActivity.middleware`/`feature.middleware` y el job `cleanup.service` (tablas `refresh_tokens`/`user_sessions` ya sin uso) se retiran.
+
 ## Hecho (2026-10-12)
 
 - **B6 —** `docs/qa/06-crm.md`, `07-activos.md`, `10-regresion-compartida.md`: referencias
