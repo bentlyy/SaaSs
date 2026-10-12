@@ -31,19 +31,19 @@ jobs:
           ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=accept-new \
             -o ServerAliveInterval=30 \
-            "$USER@$HOST" 'bash -s' <<'EOF'
-set -u
-echo "===== df -h ====="; df -h
-echo; echo "===== docker system df ====="; docker system df
-echo; echo "===== imagenes ====="; docker images
-echo; echo "===== contenedores ====="; docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
-echo; echo "===== lo mas pesado de /var/lib/docker ====="
-if command -v du >/dev/null 2>&1; then
-  sudo du -h --max-depth=2 /var/lib/docker 2>/dev/null | sort -rh | head -25 || true
-fi
-echo; echo "===== lo mas pesado del repo saas-mini ====="
-if command -v du >/dev/null 2>&1; then
-  du -h --max-depth=2 "$HOME/projects/saas-mini" 2>/dev/null | sort -rh | head -15 || true
-fi
-echo; echo "===== volumenes docker ====="; docker volume ls
-EOF
+            "$USER@$HOST" '
+          set -u
+          echo "===== df -h ====="; df -h
+          echo; echo "===== docker system df ====="; docker system df
+          echo; echo "===== imagenes ====="; docker images
+          echo; echo "===== contenedores ====="; docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+          echo; echo "===== lo mas pesado de /var/lib/docker ====="
+          if command -v du >/dev/null 2>&1; then
+            sudo du -h --max-depth=2 /var/lib/docker 2>/dev/null | sort -rh | head -25 || true
+          fi
+          echo; echo "===== lo mas pesado del repo saas-mini ====="
+          if command -v du >/dev/null 2>&1; then
+            du -h --max-depth=2 "$HOME/projects/saas-mini" 2>/dev/null | sort -rh | head -15 || true
+          fi
+          echo; echo "===== volumenes docker ====="; docker volume ls
+          '
