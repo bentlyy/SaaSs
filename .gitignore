@@ -16,3 +16,6 @@ server.err.log
 
 # Scripts de inspeccion temporal del repo (abiertos a mano, no son codigo)
 .inspect-*.cjs
+
+# Config local de opencode (permisos de la maquina, no del repo)
+opencode.json
