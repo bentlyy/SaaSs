@@ -1,0 +1,49 @@
+# Diagnostico temporal del servidor OCI. NO es para quedarse: se corre a mano
+# (Actions > Diagnose server > Run workflow) y se borra al terminar.
+#
+# Reporta que esta llenando el disco: df, docker system df, imagenes,
+# contenedores y los directorios mas pesados del store de Docker y del repo.
+name: Diagnose server
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diag:
+    name: Estado del servidor
+    runs-on: ubuntu-latest
+    steps:
+      - name: Recoger estado
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          if [ -z "$DEPLOY_SSH_KEY" ] || [ -z "$HOST" ] || [ -z "$USER" ]; then
+            echo "::error::Faltan los secretos DEPLOY_*; no se puede inspeccionar el server."
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=accept-new \
+            -o ServerAliveInterval=30 \
+            "$USER@$HOST" 'bash -s' <<'EOF'
+set -u
+echo "===== df -h ====="; df -h
+echo; echo "===== docker system df ====="; docker system df
+echo; echo "===== imagenes ====="; docker images
+echo; echo "===== contenedores ====="; docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+echo; echo "===== lo mas pesado de /var/lib/docker ====="
+if command -v du >/dev/null 2>&1; then
+  sudo du -h --max-depth=2 /var/lib/docker 2>/dev/null | sort -rh | head -25 || true
+fi
+echo; echo "===== lo mas pesado del repo saas-mini ====="
+if command -v du >/dev/null 2>&1; then
+  du -h --max-depth=2 "$HOME/projects/saas-mini" 2>/dev/null | sort -rh | head -15 || true
+fi
+echo; echo "===== volumenes docker ====="; docker volume ls
+EOF
