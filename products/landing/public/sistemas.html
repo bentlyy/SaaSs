@@ -1,0 +1,1678 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AMG — Sistemas: Suite de 9 herramientas, Taller Mecánico y Vitaria</title>
+<!-- Material Symbols Google Font (Exact link as mandated) -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Plus Jakarta Sans & JetBrains Mono Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Verbatim Tailwind Config Injection -->
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "inverse-primary": "#c6c6c9",
+            "on-surface-variant": "#44474a",
+            "on-primary": "#ffffff",
+            "primary-container": "#1e2022",
+            "on-surface": "#1b1c1a",
+            "tertiary-container": "#002042",
+            "on-primary-container": "#86878a",
+            "on-tertiary-fixed-variant": "#0a4783",
+            "on-secondary": "#ffffff",
+            "on-error-container": "#93000a",
+            "secondary-fixed-dim": "#ffb68c",
+            "primary-fixed-dim": "#c6c6c9",
+            "primary": "#06080a",
+            "surface-container-highest": "#e4e2df",
+            "tertiary-fixed-dim": "#a6c8ff",
+            "surface-dim": "#dbdad7",
+            "outline": "#75777a",
+            "on-error": "#ffffff",
+            "error-container": "#ffdad6",
+            "on-secondary-fixed": "#321200",
+            "secondary": "#994703",
+            "secondary-container": "#fc934f",
+            "on-secondary-fixed-variant": "#753400",
+            "on-secondary-container": "#6d3000",
+            "primary-fixed": "#e2e2e5",
+            "on-tertiary-fixed": "#001c3a",
+            "surface-variant": "#e4e2df",
+            "error": "#ba1a1a",
+            "surface-container": "#efeeeb",
+            "secondary-fixed": "#ffdbc9",
+            "on-tertiary-container": "#5b89c9",
+            "on-background": "#1b1c1a",
+            "on-tertiary": "#ffffff",
+            "background": "#fbf9f6",
+            "inverse-surface": "#30312f",
+            "surface-tint": "#5d5e61",
+            "on-primary-fixed": "#1a1c1e",
+            "surface-container-lowest": "#ffffff",
+            "outline-variant": "#c5c6ca",
+            "surface-bright": "#fbf9f6",
+            "tertiary-fixed": "#d4e3ff",
+            "surface-container-low": "#f5f3f0",
+            "tertiary": "#000818",
+            "surface": "#fbf9f6",
+            "inverse-on-surface": "#f2f0ed",
+            "surface-container-high": "#eae8e5",
+            "on-primary-fixed-variant": "#454749"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xs": "0.25rem",
+            "space-md": "0.875rem",
+            "space-xl": "2.25rem",
+            "space-lg": "1.5rem",
+            "gutter-desktop": "1.5rem",
+            "margin": "1.25rem",
+            "gutter": "1.25rem",
+            "margin-desktop": "3rem",
+            "space-sm": "0.5rem"
+          },
+          "fontFamily": {
+            "display-hero-mobile": [
+              "Plus Jakarta Sans"
+            ],
+            "headline-lg-mobile": [
+              "Plus Jakarta Sans"
+            ],
+            "label-caps": [
+              "Plus Jakarta Sans"
+            ],
+            "headline-sm": [
+              "Plus Jakarta Sans"
+            ],
+            "headline-lg": [
+              "Plus Jakarta Sans"
+            ],
+            "label-mono-xs": [
+              "JetBrains Mono"
+            ],
+            "body-md": [
+              "Plus Jakarta Sans"
+            ],
+            "display-hero": [
+              "Plus Jakarta Sans"
+            ],
+            "body-lg": [
+              "Plus Jakarta Sans"
+            ],
+            "headline-md": [
+              "Plus Jakarta Sans"
+            ],
+            "label-mono": [
+              "JetBrains Mono"
+            ],
+            "body-sm": [
+              "Plus Jakarta Sans"
+            ]
+          },
+          "fontSize": {
+            "display-hero-mobile": [
+              "36px",
+              {
+                "lineHeight": "44px",
+                "letterSpacing": "-0.025em",
+                "fontWeight": "700"
+              }
+            ],
+            "headline-lg-mobile": [
+              "26px",
+              {
+                "lineHeight": "34px",
+                "letterSpacing": "-0.015em",
+                "fontWeight": "600"
+              }
+            ],
+            "label-caps": [
+              "11px",
+              {
+                "lineHeight": "16px",
+                "letterSpacing": "0.06em",
+                "fontWeight": "700"
+              }
+            ],
+            "headline-sm": [
+              "18px",
+              {
+                "lineHeight": "26px",
+                "letterSpacing": "-0.01em",
+                "fontWeight": "600"
+              }
+            ],
+            "headline-lg": [
+              "32px",
+              {
+                "lineHeight": "40px",
+                "letterSpacing": "-0.02em",
+                "fontWeight": "600"
+              }
+            ],
+            "label-mono-xs": [
+              "10px",
+              {
+                "lineHeight": "14px",
+                "letterSpacing": "0.04em",
+                "fontWeight": "500"
+              }
+            ],
+            "body-md": [
+              "15px",
+              {
+                "lineHeight": "24px",
+                "letterSpacing": "0em",
+                "fontWeight": "400"
+              }
+            ],
+            "display-hero": [
+              "56px",
+              {
+                "lineHeight": "64px",
+                "letterSpacing": "-0.03em",
+                "fontWeight": "700"
+              }
+            ],
+            "body-lg": [
+              "17px",
+              {
+                "lineHeight": "26px",
+                "letterSpacing": "-0.005em",
+                "fontWeight": "400"
+              }
+            ],
+            "headline-md": [
+              "22px",
+              {
+                "lineHeight": "30px",
+                "letterSpacing": "-0.015em",
+                "fontWeight": "600"
+              }
+            ],
+            "label-mono": [
+              "12px",
+              {
+                "lineHeight": "16px",
+                "letterSpacing": "0.02em",
+                "fontWeight": "500"
+              }
+            ],
+            "body-sm": [
+              "13px",
+              {
+                "lineHeight": "20px",
+                "letterSpacing": "0.005em",
+                "fontWeight": "400"
+              }
+            ]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    
+    /* Warm ambient shadow custom treatment according to guidelines */
+    .bento-shadow {
+      box-shadow: 0 1px 2px rgba(44, 34, 20, 0.02), 0 8px 24px -4px rgba(44, 34, 20, 0.04);
+      transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .bento-shadow:hover {
+      box-shadow: 0 2px 4px rgba(44, 34, 20, 0.02), 0 16px 36px -6px rgba(44, 34, 20, 0.08);
+      transform: translateY(-2px);
+    }
+    .ambient-inset {
+      background-color: #F6F4EE;
+      border: 1px solid #EBE6DE;
+    }
+    /* Scroll interno del resumen de herramientas: 7 filas visibles, el resto al desplazar */
+    .tool-scroll {
+      scrollbar-width: thin;
+      scrollbar-color: #B9B2A4 transparent;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tool-scroll::-webkit-scrollbar {
+      width: 8px;
+    }
+    .tool-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .tool-scroll::-webkit-scrollbar-thumb {
+      background-color: #C9C2B4;
+      border-radius: 9999px;
+      border: 2px solid transparent;
+      background-clip: content-box;
+    }
+    .tool-scroll::-webkit-scrollbar-thumb:hover {
+      background-color: #A8A093;
+      background-clip: content-box;
+    }
+    /* Desplegables de contratación */
+    .amg-fold > summary { list-style: none; cursor: pointer; }
+    .amg-fold > summary::-webkit-details-marker { display: none; }
+    .amg-fold .amg-chev { transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1); }
+    .amg-fold[open] .amg-chev { transform: rotate(180deg); }
+  </style>
+<meta name="description" content="AMG reúne tres sistemas independientes: la Suite con 9 herramientas, un Taller Mecánico completo y Vitaria para clínicas. Cada uno en su propio dominio y con tu misma cuenta.">
+<style>
+footer a { min-height: 24px; display: inline-flex; align-items: center; }
+.text-outline { color: #5f6368 !important; }
+</style>
+</head>
+<body class="bg-background text-on-surface antialiased selection:bg-surface-container-high selection:text-primary min-h-screen flex flex-col justify-between">
+<!-- ========================================== -->
+<!-- 1. TOP NAVBAR (Shared Component Mapping)  -->
+<!-- ========================================== -->
+<header class="sticky top-0 z-50 bg-surface dark:bg-primary-container shadow-sm dark:shadow-none border-b border-outline-variant/40 dark:border-outline/20 backdrop-blur-md bg-opacity-95">
+<nav aria-label="Navegación principal" class="max-w-7xl mx-auto px-gutter-desktop py-space-md flex items-center justify-between w-full">
+<!-- Brand Logo with Stylized AMG Geometry SVG -->
+<a class="flex items-center gap-3 text-headline-sm font-headline-sm text-primary dark:text-inverse-primary tracking-tight font-semibold group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg p-1" href="#">
+<svg aria-hidden="true" class="w-7 h-7 text-primary dark:text-inverse-primary transition-transform duration-200 group-hover:scale-105" fill="none" viewbox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<rect class="fill-primary dark:fill-inverse-primary" height="15" rx="3.5" width="10" x="2" y="2"></rect>
+<rect class="fill-primary/75 dark:fill-inverse-primary/80" height="7" rx="3" width="12" x="14" y="2"></rect>
+<rect class="fill-primary/90 dark:fill-inverse-primary/90" height="15" rx="3.5" width="12" x="14" y="11"></rect>
+<rect class="fill-primary/60 dark:fill-inverse-primary/70" height="7" rx="3" width="10" x="2" y="19"></rect>
+</svg>
+<span class="tracking-tight">AMG</span>
+</a>
+<!-- Desktop Links (Using exact anchors from Shared Components JSON) -->
+<div class="hidden md:flex items-center space-x-8">
+<a class="text-on-surface-variant dark:text-outline-variant font-medium text-body-sm font-body-sm hover:text-primary dark:hover:text-inverse-primary transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded" href="index.html">
+          Inicio
+        </a>
+<a class="text-on-surface-variant dark:text-outline-variant font-medium text-body-sm font-body-sm hover:text-primary dark:hover:text-inverse-primary transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded" href="#programas">
+          Sistemas
+        </a>
+<a class="text-on-surface-variant dark:text-outline-variant font-medium text-body-sm font-body-sm hover:text-primary dark:hover:text-inverse-primary transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded" href="#herramientas">
+          Suite
+        </a>
+<a class="text-on-surface-variant dark:text-outline-variant font-medium text-body-sm font-body-sm hover:text-primary dark:hover:text-inverse-primary transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded" href="#sistemas">
+          Taller
+        </a>
+<a class="text-on-surface-variant dark:text-outline-variant font-medium text-body-sm font-body-sm hover:text-primary dark:hover:text-inverse-primary transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded" href="#vitaria">
+          Vitaria
+        </a>
+</div>
+<!-- Trailing Elements & Badges -->
+<div class="flex items-center gap-3">
+<!-- Live Demo Technical Badge -->
+<details class="relative hidden lg:block">
+<summary class="list-none cursor-pointer select-none flex items-center gap-2 px-3 py-1.5 rounded-full ambient-inset text-label-mono-xs font-label-mono-xs text-primary border border-outline-variant/60 hover:border-primary/40 transition-colors [&::-webkit-details-marker]:hidden" aria-label="Ver sistemas y herramientas AMG">
+<span aria-hidden="true" class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+<span class="tracking-wide">SISTEMAS</span>
+<svg aria-hidden="true" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</summary>
+<div class="absolute right-0 mt-2 w-72 p-1.5 rounded-2xl bg-surface border border-outline-variant/60 shadow-2xl">
+<div class="px-3 pt-2 pb-1.5 text-label-caps font-label-caps text-on-surface-variant tracking-wider">SISTEMAS Y HERRAMIENTAS</div>
+<ul class="divide-y divide-outline-variant/30">
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://vitaria.app" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-teal-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Vitaria</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://taller.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Taller Mecánico</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://citas.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-indigo-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Agenda de Citas</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://espacios.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Reservas de Canchas</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://solicitudes.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Órdenes de Trabajo</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://inventario.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Almacenaje</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://cotizaciones.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-teal-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Cotizaciones y Presupuestos</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://crm.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Gestión de Clientes</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://activos.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-sky-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Control de Activos</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://checklists.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-cyan-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Checklists e Inspecciones</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://pagos.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-orange-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Control de Pagos</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+</ul>
+</div>
+</details>
+<!-- Trailing CTA with anchor jump -->
+<div id="auth-nav" class="flex items-center gap-3">
+<button class="hidden sm:inline-flex items-center justify-center px-4 py-2 rounded-lg text-body-sm font-body-sm font-medium border border-outline-variant/60 text-primary hover:bg-surface-container-low transition-all duration-200 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" type="button"><span>Ingresar</span></button>
+<a class="inline-flex items-center justify-center bg-primary-container text-on-primary hover:bg-neutral-800 transition-all duration-200 active:scale-95 text-body-sm font-body-sm font-medium px-4 py-2 rounded-lg shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="/registro">
+<span>Crear cuenta</span>
+</a>
+</div>
+</div>
+</nav>
+</header>
+<main>
+<!-- ========================================== -->
+<!-- 2a. SISTEMAS (hub central de todos los sistemas AMG)      -->
+<!-- ============================================================ -->
+<!-- ============================================================ -->
+<!-- 2a. SISTEMAS (hub central: tabs que cambian el panel)       -->
+<!-- ============================================================ -->
+<section class="py-margin-desktop bg-surface-container-low/70 border-t border-b border-outline-variant/30 scroll-mt-20" id="programas">
+<div class="max-w-7xl mx-auto px-gutter-desktop">
+<div class="text-center max-w-3xl mx-auto mb-12">
+<div class="inline-flex items-center gap-2 mb-3">
+<span aria-hidden="true" class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">ECOSISTEMA AMG</span>
+</div>
+<h1 class="text-display-hero-mobile md:text-display-hero font-display-hero text-primary tracking-tight">Nuestros sistemas</h1>
+<p class="text-body-md font-body-md text-on-surface-variant mt-3">
+          Cada sistema resuelve una industria distinta y vive en su propio dominio, con su propia base de datos. Pincha el que te interesa para ver su información completa.
+        </p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6" role="tablist" aria-label="Sistemas AMG">
+<button type="button" role="tab" data-programa-tab="suite" aria-selected="true" class="programa-tab text-left bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 aria-selected:border-indigo-400 aria-selected:ring-2 aria-selected:ring-indigo-200/60">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<span class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-800 border border-indigo-200/70 flex items-center justify-center"><span aria-hidden="true" class="material-symbols-outlined">apps</span></span>
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">01 / 03</span>
+</div>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">PRODUCTO 01 · SUITE AMG</span>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mt-2">Suite AMG</h3>
+<p class="text-body-md font-body-md text-on-surface-variant mt-2">Nueve herramientas operativas ligeras e independientes para el día a día de tu negocio.</p>
+<ul class="mt-6 space-y-2 text-body-sm font-body-sm text-on-surface-variant">
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>Reserva de Citas y Espacios</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Inventario y Solicitudes</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Cotizaciones y Pagos</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>Clientes, Activos y Checklists</li>
+</ul>
+</div>
+<span class="mt-8 inline-flex items-center gap-2 text-body-sm font-body-sm font-semibold text-indigo-900 group"><span>Ver la Suite AMG</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</span>
+</button>
+<button type="button" role="tab" data-programa-tab="taller" aria-selected="false" class="programa-tab text-left bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 aria-selected:border-amber-400 aria-selected:ring-2 aria-selected:ring-amber-200/60">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<span class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-900 border border-amber-200/70 flex items-center justify-center"><span aria-hidden="true" class="material-symbols-outlined">construction</span></span>
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">02 / 03</span>
+</div>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">PRODUCTO 02 · TALLER AMG</span>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mt-2">Taller Mecánico</h3>
+<p class="text-body-md font-body-md text-on-surface-variant mt-2">Un proyecto completo aparte de la Suite: sistema integral de taller de principio a fin.</p>
+<ul class="mt-6 space-y-2 text-body-sm font-body-sm text-on-surface-variant">
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Órdenes de trabajo</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Vehículos y clientes</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Repuestos con trazabilidad</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Misma cuenta AMG</li>
+</ul>
+</div>
+<span class="mt-8 inline-flex items-center gap-2 text-body-sm font-body-sm font-semibold text-amber-900 group"><span>Ver Taller Mecánico</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</span>
+</button>
+<button type="button" role="tab" data-programa-tab="vitaria" aria-selected="false" class="programa-tab text-left bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 aria-selected:border-teal-400 aria-selected:ring-2 aria-selected:ring-teal-200/60">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<span class="w-12 h-12 rounded-2xl bg-teal-50 text-teal-900 border border-teal-200/70 flex items-center justify-center"><span aria-hidden="true" class="material-symbols-outlined">medical_services</span></span>
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">03 / 03</span>
+</div>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">PRODUCTO 03 · VITARIA</span>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mt-2">Vitaria</h3>
+<p class="text-body-md font-body-md text-on-surface-variant mt-2">Plataforma SaaS para la gestión integral de centros médicos, con seguridad de nivel empresarial.</p>
+<ul class="mt-6 space-y-2 text-body-sm font-body-sm text-on-surface-variant">
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Gestión de citas</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Historial clínico</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Laboratorio</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Reportes y análisis</li>
+</ul>
+</div>
+<span class="mt-8 inline-flex items-center gap-2 text-body-sm font-body-sm font-semibold text-teal-900 group"><span>Ver Vitaria</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</span>
+</button>
+</div>
+</div>
+
+<!-- Panel del programa activo: cada programa contiene TODA su informacion -->
+<div id="programa-panel" class="mt-10">
+<div class="programa-vista" data-programa="suite">
+<section class="py-margin-desktop bg-background scroll-mt-20" id="herramientas" data-programa="suite">
+<div class="max-w-7xl mx-auto px-gutter-desktop">
+<!-- Section Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+<div>
+<div class="inline-flex items-center gap-2 mb-2">
+<span aria-hidden="true" class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">PRODUCTO 01 · SUITE AMG</span>
+</div>
+<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">La Suite AMG: nueve aplicaciones</h2>
+<p class="text-body-md font-body-md text-on-surface-variant mt-2 max-w-2xl">
+            Los nueve SaaS de AMG en un solo conjunto. Cada aplicación vive en su propio subdominio, resuelve un problema concreto y guarda tus datos con total independencia.
+          </p>
+          <p class="text-body-sm font-body-sm text-on-surface-variant mt-2"><span class="font-semibold text-primary">Ideal para:</span> negocios que quieren una aplicación por proceso, sin sistemas gigantes. Pincha una aplicación para ver su detalle y funciones.</p>
+</div>
+<div class="text-right hidden sm:block">
+<span class="text-label-mono font-label-mono text-outline">9 APLICACIONES · UN MISMO CONJUNTO</span>
+</div>
+</div>
+<!-- 12-Column Asymmetric Grid: contenedor con altura tope y scroll interno para que la seccion no crezca -->
+<div class="max-h-[720px] overflow-y-auto pr-1" aria-label="Listado de las nueve herramientas, con scroll interno">
+<div class="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-6">
+<!-- BLOQUE 1 (Grande / Destacado: Col-Span-8): Agenda de Citas -->
+<article class="md:col-span-6 lg:col-span-8 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between" data-saas="citas">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<div class="flex items-center gap-3">
+<span class="px-2.5 py-1 rounded-md text-label-mono font-label-mono bg-indigo-50 text-indigo-900 border border-indigo-200/70 font-semibold">01</span>
+<span class="text-label-mono-xs font-label-mono-xs bg-surface-container-low px-2.5 py-0.5 rounded-full text-on-surface-variant border border-outline-variant/40">ENTORNO DEMO</span>
+</div>
+<span class="text-label-mono-xs font-label-mono-xs text-indigo-700 font-medium">citas.amgdeveloper.cl</span>
+</div>
+<div class="flex flex-col lg:flex-row lg:items-start justify-between gap-6 mb-6">
+<div class="space-y-2 lg:max-w-md">
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight">Agenda de Citas</h3>
+<p class="text-body-md font-body-md text-on-surface font-medium">Agenda, citas y sillones sin traslapes ni tiempos muertos.</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant pt-1">
+<span class="font-semibold text-primary">Problema resuelto:</span> Desorganización de citas, clientes y servicios en la agenda.
+                </p>
+</div>
+<!-- Micro-visual Demo: Mini calendario de turnos limpios -->
+<div class="w-full lg:w-72 ambient-inset p-3.5 rounded-xl text-label-mono-xs font-label-mono-xs border border-outline-variant/50">
+<div class="flex items-center justify-between pb-2 mb-2 border-b border-outline-variant/40">
+<span class="font-semibold text-primary">HOY · SILLÓN 01 / 02</span>
+<span class="text-emerald-700 flex items-center gap-1 font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Ocupado
+                  </span>
+</div>
+<div class="space-y-1.5">
+<div class="p-1.5 bg-surface-container-lowest rounded border border-outline-variant/40 flex justify-between items-center">
+<span>10:30 Corte &amp; Barba (Carlos M.)</span>
+<span class="text-indigo-900 font-semibold">$18.000</span>
+</div>
+<div class="p-1.5 bg-indigo-50/80 rounded border border-indigo-200/60 flex justify-between items-center text-indigo-950">
+<span>11:30 Tinte &amp; Peinado (Elena V.)</span>
+<span class="text-indigo-900 font-semibold">$35.000</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-6 border-t border-outline-variant/30 flex items-center justify-between">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">Subdominio seguro aislado</span>
+<a class="inline-flex items-center gap-2 text-body-sm font-body-sm font-semibold text-indigo-900 hover:text-indigo-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-700 rounded p-1" href="https://citas.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span>Abrir Agenda de Citas demo</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</article>
+<!-- BLOQUE 2 (Col-Span-4): Reservas de Canchas -->
+<article class="md:col-span-6 lg:col-span-4 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between" data-saas="espacios">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<div class="flex items-center gap-3">
+<span class="px-2.5 py-1 rounded-md text-label-mono font-label-mono bg-emerald-50 text-emerald-900 border border-emerald-200/70 font-semibold">02</span>
+<span class="text-label-mono-xs font-label-mono-xs bg-surface-container-low px-2 py-0.5 rounded-full text-on-surface-variant border border-outline-variant/40">ENTORNO DEMO</span>
+</div>
+</div>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mb-2">Reservas de Canchas</h3>
+<p class="text-body-md font-body-md text-on-surface font-medium mb-2">Reservas de canchas, complejos y franjas horarias.</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant mb-6">
+<span class="font-semibold text-primary">Problema resuelto:</span> Reservas superpuestas y dificultad para distribuir canchas e instalaciones.
+            </p>
+<!-- Micro-visual Demo: Franjas Horarias -->
+<div class="ambient-inset p-3.5 rounded-xl text-label-mono-xs font-label-mono-xs border border-outline-variant/50 mb-6">
+<div class="text-xs font-semibold text-primary mb-2">CANCHA PÁDEL 1 · HOY</div>
+<div class="grid grid-cols-3 gap-1.5 text-center">
+<div class="p-1.5 bg-surface-container-lowest rounded border border-outline-variant/40 line-through text-outline">18:00</div>
+<div class="p-1.5 bg-emerald-100/70 text-emerald-950 font-bold rounded border border-emerald-300">19:30</div>
+<div class="p-1.5 bg-surface-container-lowest rounded border border-outline-variant/40 text-primary">21:00</div>
+</div>
+</div>
+</div>
+<div class="pt-6 border-t border-outline-variant/30 flex items-center justify-between">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">espacios.amgdeveloper.cl</span>
+<a class="inline-flex items-center gap-1.5 text-body-sm font-body-sm font-semibold text-emerald-900 hover:text-emerald-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 rounded p-1" href="https://espacios.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span>Abrir Reservas de Canchas demo</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</article>
+<!-- BLOQUE 3 (Col-Span-4): Órdenes de Trabajo -->
+<article class="md:col-span-6 lg:col-span-4 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between" data-saas="solicitudes">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<div class="flex items-center gap-3">
+<span class="px-2.5 py-1 rounded-md text-label-mono font-label-mono bg-amber-50 text-amber-950 border border-amber-200/70 font-semibold">03</span>
+<span class="text-label-mono-xs font-label-mono-xs bg-surface-container-low px-2 py-0.5 rounded-full text-on-surface-variant border border-outline-variant/40">ENTORNO DEMO</span>
+</div>
+</div>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mb-2">Órdenes de Trabajo</h3>
+<p class="text-body-md font-body-md text-on-surface font-medium mb-2">Órdenes de trabajo (OT), repuestos y trazabilidad de servicio técnico.</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant mb-6">
+<span class="font-semibold text-primary">Problema resuelto:</span> Órdenes, estados y piezas sin una vista clara del trabajo.
+            </p>
+<!-- Micro-visual Demo: OT #1042 -->
+<div class="ambient-inset p-3.5 rounded-xl text-label-mono-xs font-label-mono-xs border border-outline-variant/50 mb-6">
+<div class="flex justify-between items-center mb-1.5">
+<span class="font-bold text-primary">OT #1042 · PATENTE: JJ-89-21</span>
+<span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-950 font-semibold">En diagnóstico</span>
+</div>
+<div class="p-2 bg-surface-container-lowest rounded border border-outline-variant/40 text-on-surface-variant text-[11px]">
+                Falla encendido en frío + cambio de bujías. Mecánico asignado: Roberto T.
+              </div>
+</div>
+</div>
+<div class="pt-6 border-t border-outline-variant/30 flex items-center justify-between">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">solicitudes.amgdeveloper.cl</span>
+<a class="inline-flex items-center gap-1.5 text-body-sm font-body-sm font-semibold text-amber-950 hover:text-amber-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-800 rounded p-1" href="https://solicitudes.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span>Abrir Órdenes de Trabajo demo</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</article>
+<!-- BLOQUE 4 (Col-Span-4): Almacenaje -->
+<article class="md:col-span-6 lg:col-span-4 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between" data-saas="inventario">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<div class="flex items-center gap-3">
+<span class="px-2.5 py-1 rounded-md text-label-mono font-label-mono bg-purple-50 text-purple-900 border border-purple-200/70 font-semibold">04</span>
+<span class="text-label-mono-xs font-label-mono-xs bg-surface-container-low px-2 py-0.5 rounded-full text-on-surface-variant border border-outline-variant/40">ENTORNO DEMO</span>
+</div>
+</div>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mb-2">Almacenaje</h3>
+<p class="text-body-md font-body-md text-on-surface font-medium mb-2">Stock, control de existencias, entradas y salidas ágiles.</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant mb-6">
+<span class="font-semibold text-primary">Problema resuelto:</span> Pocas visibilidad de existencias, mínimos y movimientos.
+            </p>
+<!-- Micro-visual Demo: Medidor de stock crítico -->
+<div class="ambient-inset p-3.5 rounded-xl text-label-mono-xs font-label-mono-xs border border-outline-variant/50 mb-6">
+<div class="flex justify-between items-center mb-1">
+<span class="font-semibold text-primary">Filtro de Aceite Sintético 5W30</span>
+<span class="text-red-700 font-bold">4 un. (Crítico)</span>
+</div>
+<div class="w-full bg-outline-variant/30 rounded-full h-2 mb-1.5 overflow-hidden">
+<div class="bg-red-500 h-2 rounded-full w-1/4"></div>
+</div>
+<div class="text-[10px] text-on-surface-variant">Umbral mínimo sugerido: 10 unidades</div>
+</div>
+</div>
+<div class="pt-6 border-t border-outline-variant/30 flex items-center justify-between">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">inventario.amgdeveloper.cl</span>
+<a class="inline-flex items-center gap-1.5 text-body-sm font-body-sm font-semibold text-purple-900 hover:text-purple-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-700 rounded p-1" href="https://inventario.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span>Abrir Almacenaje demo</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</article>
+<!-- BLOQUE 5 (Col-Span-4): Cotizaciones y Presupuestos -->
+<article class="md:col-span-6 lg:col-span-4 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between" data-saas="cotizaciones">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<div class="flex items-center gap-3">
+<span class="px-2.5 py-1 rounded-md text-label-mono font-label-mono bg-teal-50 text-teal-900 border border-teal-200/70 font-semibold">05</span>
+<span class="text-label-mono-xs font-label-mono-xs bg-surface-container-low px-2 py-0.5 rounded-full text-on-surface-variant border border-outline-variant/40">ENTORNO DEMO</span>
+</div>
+</div>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mb-2">Cotizaciones y Presupuestos</h3>
+<p class="text-body-md font-body-md text-on-surface font-medium mb-2">Presupuestos formales y recibos en segundos.</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant mb-6">
+<span class="font-semibold text-primary">Problema resuelto:</span> Presupuestos y recibos dispersos entre documentos y planillas.
+            </p>
+<!-- Micro-visual Demo: Desglose automático con PDF -->
+<div class="ambient-inset p-3.5 rounded-xl text-label-mono-xs font-label-mono-xs border border-outline-variant/50 mb-6">
+<div class="flex justify-between items-center mb-1 text-[11px]">
+<span class="text-on-surface-variant">Neto: $120.000 · IVA (19%): $22.800</span>
+<span class="text-teal-900 font-bold">TOTAL $142.800</span>
+</div>
+<div class="p-1.5 bg-surface-container-lowest rounded border border-outline-variant/40 flex items-center justify-between text-[11px]">
+<span>Documento: Presupuesto-089.pdf</span>
+<span class="text-teal-900 font-semibold">Listo</span>
+</div>
+</div>
+</div>
+<div class="pt-6 border-t border-outline-variant/30 flex items-center justify-between">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">cotizaciones.amgdeveloper.cl</span>
+<a class="inline-flex items-center gap-1.5 text-body-sm font-body-sm font-semibold text-teal-900 hover:text-teal-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 rounded p-1" href="https://cotizaciones.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span>Abrir Cotizaciones y Presupuestos demo</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</article>
+<!-- BLOQUE 6 (Col-Span-4): Gestión de Clientes -->
+<article class="md:col-span-6 lg:col-span-4 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between" data-saas="crm">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<div class="flex items-center gap-3">
+<span class="px-2.5 py-1 rounded-md text-label-mono font-label-mono bg-blue-50 text-blue-900 border border-blue-200/70 font-semibold">06</span>
+<span class="text-label-mono-xs font-label-mono-xs bg-surface-container-low px-2 py-0.5 rounded-full text-on-surface-variant border border-outline-variant/40">ENTORNO DEMO</span>
+</div>
+</div>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mb-2">Gestión de Clientes</h3>
+<p class="text-body-md font-body-md text-on-surface font-medium mb-2">Ficha de clientes con etiquetas, visitas y seguimientos.</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant mb-6">
+<span class="font-semibold text-primary">Problema resuelto:</span> Clientes recurrentes olvidados y seguimientos dispersos.
+            </p>
+<!-- Micro-visual Demo: Embudo Compacto -->
+<div class="ambient-inset p-3.5 rounded-xl text-label-mono-xs font-label-mono-xs border border-outline-variant/50 mb-6">
+<div class="text-[11px] font-semibold text-primary mb-1">EMBUDO ACTIVO: 14 PROSPECTOS</div>
+<div class="grid grid-cols-3 gap-1 text-[10px] text-center">
+<div class="bg-surface-container-lowest p-1 rounded border border-outline-variant/40">
+<div class="text-outline">Contacto</div>
+<div class="font-bold text-primary">7 ($1.2M)</div>
+</div>
+<div class="bg-blue-100/60 p-1 rounded border border-blue-200 text-blue-950">
+<div>Cotizado</div>
+<div class="font-bold text-blue-900">4 ($2.8M)</div>
+</div>
+<div class="bg-emerald-100/60 p-1 rounded border border-emerald-200 text-emerald-950">
+<div>Cerrado</div>
+<div class="font-bold text-emerald-900">3 ($1.9M)</div>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-6 border-t border-outline-variant/30 flex items-center justify-between">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">crm.amgdeveloper.cl</span>
+<a class="inline-flex items-center gap-1.5 text-body-sm font-body-sm font-semibold text-blue-900 hover:text-blue-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 rounded p-1" href="https://crm.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span>Abrir Gestión de Clientes demo</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</article>
+
+<!-- BLOQUE 07 (Col-Span-4): Control de Activos -->
+<article class="md:col-span-6 lg:col-span-4 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between" data-saas="activos">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<div class="flex items-center gap-3">
+<span class="px-2.5 py-1 rounded-md text-label-mono font-label-mono bg-sky-50 text-sky-900 border border-sky-200/70 font-semibold">07</span>
+<span class="text-label-mono-xs font-label-mono-xs bg-surface-container-low px-2 py-0.5 rounded-full text-on-surface-variant border border-outline-variant/40">ENTORNO DEMO</span>
+</div>
+</div>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mb-2">Control de Activos</h3>
+<p class="text-body-md font-body-md text-on-surface font-medium mb-2">Patrimonio, movimientos y folios de equipos y herramientas por empresa.</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant mb-6">
+<span class="font-semibold text-primary">Problema resuelto:</span> Equipos sin historial: no sabes dónde están, quién los usa ni cuándo se movieron.
+</p>
+<div class="ambient-inset p-3.5 rounded-xl text-label-mono-xs font-label-mono-xs border border-outline-variant/50 mb-6">
+<div class="flex justify-between items-center mb-1.5">
+<span class="font-bold text-primary">ACTIVO #A-007 · COMPRESOR 7.5HP</span>
+<span class="px-1.5 py-0.5 rounded font-semibold bg-sky-100 text-sky-950 border border-sky-200">En taller</span>
+</div>
+<div class="p-2 bg-surface-container-lowest rounded border border-outline-variant/40 text-[11px]">
+<div class="flex justify-between"><span class="text-on-surface-variant">Movido · Taller → Bodega N°2</span><span class="text-sky-900 font-semibold">hoy 09:40</span></div>
+<div class="flex justify-between"><span class="text-on-surface-variant">Carga eléctrica OK · 0.0 hrs falla</span><span class="text-emerald-700 font-semibold">Al día</span></div>
+</div></div></div>
+<div class="pt-6 border-t border-outline-variant/30 flex items-center justify-between">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">activos.amgdeveloper.cl</span>
+<a class="inline-flex items-center gap-1.5 text-body-sm font-body-sm font-semibold text-sky-900 hover:text-sky-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-700 rounded p-1" href="https://activos.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span>Abrir Control de Activos demo</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</article>
+<!-- BLOQUE 08 (Col-Span-4): Checklists e Inspecciones -->
+<article class="md:col-span-6 lg:col-span-4 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between" data-saas="checklists">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<div class="flex items-center gap-3">
+<span class="px-2.5 py-1 rounded-md text-label-mono font-label-mono bg-cyan-50 text-cyan-900 border border-cyan-200/70 font-semibold">08</span>
+<span class="text-label-mono-xs font-label-mono-xs bg-surface-container-low px-2 py-0.5 rounded-full text-on-surface-variant border border-outline-variant/40">ENTORNO DEMO</span>
+</div>
+</div>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mb-2">Checklists e Inspecciones</h3>
+<p class="text-body-md font-body-md text-on-surface font-medium mb-2">Plantillas reutilizables, con ejecución firmada paso a paso.</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant mb-6">
+<span class="font-semibold text-primary">Problema resuelto:</span> Inspecciones a criterio: nadie sabe si se hicieron ni con qué resultados.
+</p>
+<div class="ambient-inset p-3.5 rounded-xl text-label-mono-xs font-label-mono-xs border border-outline-variant/50 mb-6">
+<div class="flex justify-between items-center mb-1.5">
+<span class="font-bold text-primary">INSPECCIÓN GRÚA HORQUILLA · 3/6</span>
+<span class="px-1.5 py-0.5 rounded font-semibold bg-cyan-100 text-cyan-950 border border-cyan-200">En curso</span>
+</div>
+<div class="space-y-1 text-[11px]">
+<div class="flex justify-between bg-surface-container-lowest rounded border border-outline-variant/40 p-1.5"><span>✓ Freno de servicio</span><span class="text-emerald-700 font-semibold">OK</span></div>
+<div class="flex justify-between bg-surface-container-lowest rounded border border-outline-variant/40 p-1.5"><span>✓ Nivel hidráulico</span><span class="text-emerald-700 font-semibold">OK</span></div>
+<div class="flex justify-between bg-cyan-50 rounded border border-cyan-200 p-1.5 text-cyan-950"><span>○ Luces y señalización</span><span class="text-cyan-900 font-semibold">Pendiente</span></div>
+</div></div></div>
+<div class="pt-6 border-t border-outline-variant/30 flex items-center justify-between">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">checklists.amgdeveloper.cl</span>
+<a class="inline-flex items-center gap-1.5 text-body-sm font-body-sm font-semibold text-cyan-900 hover:text-cyan-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-700 rounded p-1" href="https://checklists.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span>Abrir Checklists e Inspecciones demo</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</article>
+<!-- BLOQUE 9 (Grande / Destacado: Col-Span-8): Control de Pagos -->
+<article class="md:col-span-6 lg:col-span-8 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between" data-saas="pagos">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<div class="flex items-center gap-3">
+<span class="px-2.5 py-1 rounded-md text-label-mono font-label-mono bg-orange-50 text-orange-900 border border-orange-200/70 font-semibold">09</span>
+<span class="text-label-mono-xs font-label-mono-xs bg-surface-container-low px-2.5 py-0.5 rounded-full text-on-surface-variant border border-outline-variant/40">ENTORNO DEMO</span>
+</div>
+<span class="text-label-mono-xs font-label-mono-xs text-orange-700 font-medium">pagos.amgdeveloper.cl</span>
+</div>
+<div class="flex flex-col lg:flex-row lg:items-start justify-between gap-6 mb-6">
+<div class="space-y-2 lg:max-w-md">
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight">Control de Pagos</h3>
+<p class="text-body-md font-body-md text-on-surface font-medium">Cargos y abonos a clientes de la empresa, con saldo vivo por día.</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant pt-1">
+<span class="font-semibold text-primary">Problema resuelto:</span> Cuánto te deben y cuánto has cobrado, sin cuadrar planillas.
+</p>
+</div>
+<div class="w-full lg:w-72 ambient-inset p-3.5 rounded-xl text-label-mono-xs font-label-mono-xs border border-outline-variant/50">
+<div class="flex items-center justify-between pb-2 mb-2 border-b border-outline-variant/40">
+<span class="font-semibold text-primary">CLIENTE · AUTO REPUESTOS LARA</span>
+<span class="text-orange-800 flex items-center gap-1 font-semibold">Saldo $214.500</span>
+</div>
+<div class="space-y-1.5">
+<div class="p-1.5 bg-surface-container-lowest rounded border border-outline-variant/40 flex justify-between items-center">
+<span>Cargo #104 · Reparación mayor</span>
+<span class="text-orange-900 font-semibold">$120.000</span>
+</div>
+<div class="p-1.5 bg-emerald-50/80 rounded border border-emerald-200/60 flex justify-between items-center text-emerald-950">
+<span>Abono #88 · Transferencia</span>
+<span class="text-emerald-900 font-semibold">$60.000</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-6 border-t border-outline-variant/30 flex items-center justify-between">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">Subdominio seguro aislado</span>
+<a class="inline-flex items-center gap-2 text-body-sm font-body-sm font-semibold text-orange-900 hover:text-orange-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-700 rounded p-1" href="https://pagos.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span>Abrir Control de Pagos demo</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</article>
+</div>
+<div class="mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-body-sm font-body-sm text-on-surface-variant">
+<span class="flex items-center gap-2">El listado es desplazable para no agrandar la sección. Las nueve herramientas vienen con datos demo cargados.</span>
+<a class="inline-flex items-center gap-1.5 font-semibold text-primary hover:underline shrink-0" href="/login">Ingresar a mis aplicaciones <span aria-hidden="true">→</span></a>
+</div>
+</div>
+</div>
+</section>
+<section class="py-margin-desktop bg-surface-container-low/70 border-t border-b border-outline-variant/30 scroll-mt-20" id="combinaciones" data-programa="suite">
+<div class="max-w-7xl mx-auto px-gutter-desktop">
+<div class="max-w-2xl mb-12">
+<div class="inline-flex items-center gap-2 mb-2">
+<span aria-hidden="true" class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="text-label-caps font-label-caps text-on-surface-variant">FLUJOS REALES</span>
+</div>
+<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">Combinaciones que funcionan</h2>
+<p class="text-body-md font-body-md text-on-surface-variant mt-2">
+          Cómo los negocios reales combinan de 2 a 3 herramientas específicas sin pagar suscripciones infladas ni funciones sobrantes.
+        </p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Caso A: Salón / Barbería -->
+<div class="bg-surface-container-lowest p-7 rounded-2xl border border-outline-variant/50 bento-shadow flex flex-col justify-between">
+<div>
+<span class="text-label-caps font-label-caps text-indigo-900 bg-indigo-50 border border-indigo-200/80 px-2.5 py-1 rounded-full">CASO A · FLUJO DE ESTÉTICA</span>
+<h3 class="text-headline-sm font-headline-sm text-primary mt-4 mb-2">El Salón / Barbería de alto flujo</h3>
+<div class="flex flex-wrap items-center gap-1.5 my-4">
+<span class="px-2.5 py-1 rounded bg-surface-container font-label-mono-xs text-xs text-primary font-medium border border-outline-variant/40">Agenda de Citas</span>
+<span class="text-outline font-bold">+</span>
+<span class="px-2.5 py-1 rounded bg-surface-container font-label-mono-xs text-xs text-primary font-medium border border-outline-variant/40">Gestión de Clientes</span>
+<span class="text-outline font-bold">+</span>
+<span class="px-2.5 py-1 rounded bg-surface-container font-label-mono-xs text-xs text-primary font-medium border border-outline-variant/40">Control de Pagos</span>
+</div>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">
+              Agenda de citas + ficha por cliente + cobros y abonos al día.
+            </p>
+</div>
+<div class="pt-6 mt-6 border-t border-outline-variant/30 flex items-center justify-between text-label-mono-xs font-label-mono-xs text-primary">
+<span class="text-emerald-700 font-semibold">Cobros y saldos</span>
+<span>3 herramientas</span>
+</div>
+</div>
+<!-- Caso B: Taller Mecánico -->
+<div class="bg-surface-container-lowest p-7 rounded-2xl border border-outline-variant/50 bento-shadow flex flex-col justify-between">
+<div>
+<span class="text-label-caps font-label-caps text-amber-950 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-full">CASO B · SERVICIO TÉCNICO</span>
+<h3 class="text-headline-sm font-headline-sm text-primary mt-4 mb-2">El Taller Mecánico / Reparaciones</h3>
+<div class="flex flex-wrap items-center gap-1.5 my-4">
+<span class="px-2.5 py-1 rounded bg-surface-container font-label-mono-xs text-xs text-primary font-medium border border-outline-variant/40">Órdenes de Trabajo</span>
+<span class="text-outline font-bold">+</span>
+<span class="px-2.5 py-1 rounded bg-surface-container font-label-mono-xs text-xs text-primary font-medium border border-outline-variant/40">Almacenaje</span>
+<span class="text-outline font-bold">+</span>
+<span class="px-2.5 py-1 rounded bg-surface-container font-label-mono-xs text-xs text-primary font-medium border border-outline-variant/40">Cotizaciones y Presupuestos</span>
+</div>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">
+              Orden de trabajo + piezas que descuentan stock + cotización en PDF.
+            </p>
+</div>
+<div class="pt-6 mt-6 border-t border-outline-variant/30 flex items-center justify-between text-label-mono-xs font-label-mono-xs text-primary">
+<span class="text-emerald-700 font-semibold">Movimientos de stock</span>
+<span>3 herramientas</span>
+</div>
+</div>
+<!-- Caso C: Club de Pádel -->
+<div class="bg-surface-container-lowest p-7 rounded-2xl border border-outline-variant/50 bento-shadow flex flex-col justify-between">
+<div>
+<span class="text-label-caps font-label-caps text-emerald-950 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-full">CASO C · RECINTOS DEPORTIVOS</span>
+<h3 class="text-headline-sm font-headline-sm text-primary mt-4 mb-2">El Club de Pádel / Complejo</h3>
+<div class="flex flex-wrap items-center gap-1.5 my-4">
+<span class="px-2.5 py-1 rounded bg-surface-container font-label-mono-xs text-xs text-primary font-medium border border-outline-variant/40">Reservas de Canchas</span>
+<span class="text-outline font-bold">+</span>
+<span class="px-2.5 py-1 rounded bg-surface-container font-label-mono-xs text-xs text-primary font-medium border border-outline-variant/40">Checklists e Inspecciones</span>
+<span class="text-outline font-bold">+</span>
+<span class="px-2.5 py-1 rounded bg-surface-container font-label-mono-xs text-xs text-primary font-medium border border-outline-variant/40">Gestión de Clientes</span>
+</div>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">
+              Reservas por bloque + inspecciones firmadas + seguimiento de clientes.
+            </p>
+</div>
+<div class="pt-6 mt-6 border-t border-outline-variant/30 flex items-center justify-between text-label-mono-xs font-label-mono-xs text-primary">
+<span class="text-emerald-700 font-semibold">Ventana de anticipación configurable</span>
+<span>3 herramientas</span>
+</div>
+</div>
+</div>
+</div>
+</section><section class="py-margin-desktop bg-surface scroll-mt-20 border-b border-outline-variant/30" id="acceso-suite">
+<!-- Los valores de los planes ya no se publican en el landing: se confirman desde el panel o por WhatsApp/CTA. -->
+<div class="max-w-7xl mx-auto px-gutter-desktop">
+<div class="max-w-2xl mb-12">
+<div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-surface-container border border-outline-variant/60 shadow-sm mb-4">
+<span class="text-label-caps font-label-caps text-on-surface-variant">ACCESO A LA SUITE</span>
+</div>
+<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight mb-3">Pruébala, elige la tuya, paga y queda activa hoy.</h2>
+<p class="text-body-lg font-body-lg text-on-surface-variant leading-relaxed max-w-2xl">
+Las 9 herramientas funcionan con datos demo para que las explores libres. Cuando quieras usarla con tu negocio real, el acceso es directo y personal: depositas, avisas y te lo activo el mismo día.
+</p>
+<div class="mt-5 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+<a class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-on-primary font-body-sm font-semibold hover:bg-neutral-800 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="/login">Ingresar a mis aplicaciones</a>
+<span class="text-body-sm font-body-sm text-on-surface-variant">¿Ya contrataste? Entra y tus herramientas activas te esperan, según el plan que pagaste.</span>
+</div>
+</div>
+<!-- Pasos del proceso -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12">
+<div class="rounded-2xl border border-outline-variant/50 bg-surface-container-lowest p-5">
+<span class="text-label-mono font-label-mono text-primary font-bold">01</span>
+<h3 class="text-body-md font-body-md text-primary font-semibold mt-2 mb-1">Pruébala gratis</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant">Entra a cada demo con datos de ejemplo, sin registrarte.</p>
+</div>
+<div class="rounded-2xl border border-outline-variant/50 bg-surface-container-lowest p-5">
+<span class="text-label-mono font-label-mono text-primary font-bold">02</span>
+<h3 class="text-body-md font-body-md text-primary font-semibold mt-2 mb-1">Solicita acceso</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant">Escríbeme por WhatsApp o correo y coordinamos tu herramienta.</p>
+</div>
+<div class="rounded-2xl border border-outline-variant/50 bg-surface-container-lowest p-5">
+<span class="text-label-mono font-label-mono text-primary font-bold">03</span>
+<h3 class="text-body-md font-body-md text-primary font-semibold mt-2 mb-1">Paga el plan</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant">Pago seguro con Mercado Pago: tarjeta, débito o crédito.</p>
+</div>
+<div class="rounded-2xl border border-outline-variant/50 bg-surface-container-lowest p-5">
+<span class="text-label-mono font-label-mono text-primary font-bold">04</span>
+<h3 class="text-body-md font-body-md text-primary font-semibold mt-2 mb-1">Activado hoy</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant">Te confirmo el alta y tu cuenta queda operativa el mismo día.</p>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Plan y precios -->
+<!-- Planes sin valores: el precio se coordina por WhatsApp o se ve en el panel tras ingresar -->
+<article class="lg:col-span-7 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow">
+<div class="text-label-caps font-label-caps text-primary mb-6">PLANES AMG · A MEDIDA</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+<div class="rounded-2xl border border-outline-variant/50 bg-surface-container-low p-5">
+<div class="text-label-mono-xs font-label-mono-xs text-on-surface-variant mb-1">1 HERRAMIENTA</div>
+<div class="text-headline-md font-headline-md text-primary font-semibold tracking-tight">Una sola</div>
+<div class="text-label-mono-xs font-label-mono-xs text-on-surface-variant mt-1">tomas la aplicación que necesitas</div>
+</div>
+<div class="rounded-2xl border border-primary/40 bg-primary/5 p-5">
+<div class="text-label-mono-xs font-label-mono-xs text-primary mb-1">3 HERRAMIENTAS · COMBO</div>
+<div class="text-headline-md font-headline-md text-primary font-semibold tracking-tight">Un trío</div>
+<div class="text-label-mono-xs font-label-mono-xs text-primary/70 mt-1">ej.: agenda + canchas + órdenes</div>
+</div>
+<div class="rounded-2xl border border-primary/40 bg-primary text-on-primary p-5">
+<div class="text-label-mono-xs font-label-mono-xs opacity-90 mb-1">SUITE COMPLETA · 9</div>
+<div class="text-headline-md font-headline-md font-semibold tracking-tight">Todo junto</div>
+<div class="text-label-mono-xs font-label-mono-xs opacity-90 mt-1">las nueve aplicaciones</div>
+</div>
+</div>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">
+Los valores de cada plan te los confirmo al coordinar por WhatsApp o al ingresar a <span class="font-semibold text-primary">tus aplicaciones</span>, según las herramientas y su configuración.
+</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed mt-3">
+Setup inicial (única vez) según la herramienta: incluye datos cargados, subdominio https y soporte directo por WhatsApp.
+</p>
+</article>
+<!-- Pago con Mercado Pago -->
+<article class="lg:col-span-5 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow">
+<div class="flex items-center gap-3 mb-6">
+<span class="w-11 h-11 rounded-2xl bg-[#009EE3] flex items-center justify-center shrink-0 shadow-sm" aria-hidden="true">
+<svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"></rect><path d="M2 10h20"></path><path d="M6 15h3"></path></svg>
+</span>
+<div class="leading-tight">
+<div class="text-label-caps font-label-caps text-on-surface-variant">PAGO CON</div>
+<div class="text-body-md font-body-md font-bold text-[#009EE3]">Mercado Pago</div>
+</div>
+<span class="ml-auto px-2.5 py-1 rounded-md text-label-mono-xs font-label-mono-xs font-bold bg-[#FFE600] text-[#0B2A4A]">SEGURO</span>
+</div>
+<div class="space-y-3 text-body-sm font-body-sm text-on-surface">
+<div class="flex justify-between"><span class="text-on-surface-variant">Plataforma</span><span class="font-semibold">Mercado Pago</span></div>
+<div class="flex justify-between"><span class="text-on-surface-variant">Acepta</span><span class="font-semibold">Tarjeta, débito y crédito</span></div>
+<div class="flex justify-between"><span class="text-on-surface-variant">Periodicidad</span><span class="font-semibold">Mensual o anual</span></div>
+<div class="flex justify-between"><span class="text-on-surface-variant">Renovación</span><span class="font-semibold">Manual, sin cargos automáticos</span></div>
+<div class="flex justify-between"><span class="text-on-surface-variant">Seguridad</span><span class="font-semibold">Checkout de Mercado Pago</span></div>
+</div>
+<div class="mt-6 p-4 rounded-xl bg-surface-container-low border border-outline-variant/40 text-body-sm font-body-sm text-on-surface-variant leading-relaxed">
+Pagas en el checkout seguro de Mercado Pago. El acceso se activa apenas se confirme el cobro.
+</div>
+</article>
+<!-- CTA contacto (ancho completo) -->
+<article class="lg:col-span-12 bg-primary-container rounded-3xl px-8 py-8 border border-primary/20 flex flex-col md:flex-row md:items-center justify-between gap-6">
+<div class="max-w-xl">
+<div class="text-label-caps font-label-caps text-on-primary mb-2">SOLICITAR ACCESO</div>
+<p class="text-body-md font-body-md text-on-primary leading-relaxed">Cuéntame qué herramienta necesitas y qué hace tu negocio. Depositas y te activo el acceso el mismo día.</p>
+</div>
+<div class="flex flex-col sm:flex-row gap-3 shrink-0">
+<a class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-on-primary text-primary font-body-sm font-semibold hover:bg-neutral-100 transition-all duration-200 active:scale-95 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://wa.me/56953818617?text=Hola!%20Vi%20la%20Suite%20AMG%20y%20quiero%20activar%20mi%20plan.%20Mi%20negocio%20es:" rel="noopener noreferrer" target="_blank">
+Escríbeme por WhatsApp
+</a>
+<a class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-on-primary text-primary font-body-sm font-semibold hover:bg-neutral-100 transition-all duration-200 active:scale-95 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="mailto:GARAYAA0606@GMAIL.COM?subject=Solicitud%20de%20acceso%20Suite%20AMG&amp;body=Hola!%20Quiero%20activar%20una%20herramienta%20de%20la%20Suite%20AMG." rel="noopener noreferrer" target="_blank">
+O por correo
+</a>
+</div>
+</article>
+</div>
+</div>
+</section>
+</div>
+<div class="programa-vista hidden" data-programa="taller">
+<section class="py-margin-desktop bg-surface-container-low/70 border-t border-b border-outline-variant/30 scroll-mt-20" id="sistemas" data-programa="taller">
+<div class="max-w-7xl mx-auto px-gutter-desktop">
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+<div>
+<div class="inline-flex items-center gap-2 mb-2">
+<span aria-hidden="true" class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">PRODUCTO 02 · TALLER AMG</span>
+</div>
+<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">Taller Mecánico</h2>
+<p class="text-body-md font-body-md text-on-surface-variant mt-2 max-w-2xl">
+            Un proyecto completo aparte de la Suite: sistema integral de taller con órdenes de trabajo, vehículos, repuestos y clientes. Misma cuenta AMG, propio dominio y su propia base de datos.
+          </p>
+</div>
+<div class="text-right hidden sm:block">
+<span class="text-label-mono font-label-mono text-outline">LOS PRÓXIMOS PROYECTOS SE SUMAN AQUÍ</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-6">
+<!-- SISTEMA 01: Taller Mecánico -->
+<article class="md:col-span-6 lg:col-span-12 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between gap-4 mb-6">
+<div class="flex items-center gap-3">
+<span class="px-2.5 py-1 rounded-md text-label-mono font-label-mono bg-amber-50 text-amber-950 border border-amber-200/70 font-semibold">S1</span>
+<span class="text-label-mono-xs font-label-mono-xs bg-surface-container-low px-2.5 py-0.5 rounded-full text-on-surface-variant border border-outline-variant/40">SISTEMA COMPLETO</span>
+</div>
+<span class="text-label-mono-xs font-label-mono-xs text-amber-700 font-medium">taller.amgdeveloper.cl</span>
+</div>
+<div class="flex flex-col lg:flex-row lg:items-start justify-between gap-6 mb-6">
+<div class="space-y-2 lg:max-w-md">
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight">Taller Mecánico</h3>
+<p class="text-body-md font-body-md text-on-surface font-medium">Órdenes de trabajo, vehículos, repuestos y clientes en un solo sistema.</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant pt-1">
+<span class="font-semibold text-primary">Qué resuelve:</span> todo el taller operando en un mismo lugar, con trazabilidad de cada trabajo y su repuesto.
+</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant pt-1"><span class="font-semibold text-primary">Ideal para:</span> administradores, recepción y mecánicos de talleres mecánicos.</p>
+</div>
+<!-- Micro-visual: Orden de trabajo en curso -->
+<div class="w-full lg:w-72 ambient-inset p-3.5 rounded-xl text-label-mono-xs font-label-mono-xs border border-outline-variant/50">
+<div class="flex items-center justify-between pb-2 mb-2 border-b border-outline-variant/40">
+<span class="font-semibold text-primary">OT #1042 · PATENTE BJ-KL-42</span>
+<span class="text-amber-800 flex items-center gap-1 font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> En taller
+</span>
+</div>
+<div class="space-y-1.5">
+<div class="p-1.5 bg-surface-container-lowest rounded border border-outline-variant/40 flex justify-between items-center">
+<span>Cambio de pastillas de freno</span>
+<span class="text-amber-900 font-semibold">$48.000</span>
+</div>
+<div class="p-1.5 bg-amber-50/80 rounded border border-amber-200/60 flex justify-between items-center text-amber-950">
+<span>Repuesto · filtro de aire</span>
+<span class="text-amber-900 font-semibold">$12.900</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Funciones principales -->
+<div class="pt-6 mt-6 border-t border-outline-variant/30">
+<div class="mb-4">
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">FUNCIONES PRINCIPALES</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+<div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span><span>Órdenes de reparación con flujo de estados: en revisión → en reparación → terminado → entregado → facturado → pagado.</span></div>
+<div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span><span>Asignación de mecánico y registro de entrada y salida de cada vehículo.</span></div>
+<div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span><span>Clientes con sus vehículos (patente, marca, modelo, año y kilometraje).</span></div>
+<div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span><span>Inventario de repuestos con descuento automático de stock al usarlos en una reparación.</span></div>
+<div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span><span>Catálogo de servicios con precio base que calcula la mano de obra.</span></div>
+<div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span><span>Facturación con total = repuestos + mano de obra, y registro de pagos.</span></div>
+<div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span><span>Tablero Kanban por estado para editar cada trabajo en línea.</span></div>
+<div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span><span>Ubicaciones físicas del taller (recepción, bahía, elevador, foso y más).</span></div>
+<div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span><span>Dashboard con KPIs: autos en taller, en revisión, en reparación, terminados y repuestos bajo stock.</span></div>
+<div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span><span>Exportación a PDF de inventario, reparaciones y facturas, con filtros por fecha.</span></div>
+<div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span><span>Roles y permisos: administrador, recepción y mecánico.</span></div>
+<div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span><span>Aislamiento por empresa y acceso con la cuenta AMG (SSO).</span></div>
+</div>
+</div>
+<div class="pt-6 border-t border-outline-variant/30 flex items-center justify-between">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">Subdominio seguro aislado</span>
+<a class="inline-flex items-center gap-2 text-body-sm font-body-sm font-semibold text-amber-900 hover:text-amber-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 rounded p-1" href="https://taller.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">
+<span>Abrir Taller Mecánico</span>
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</div>
+</article>
+<!-- Los próximos proyectos se agregan acá, como una <article> más en este grid. -->
+</div>
+</div>
+</section>
+<section class="py-margin-desktop bg-surface scroll-mt-20" id="acceso-taller" data-programa="taller">
+<div class="max-w-7xl mx-auto px-gutter-desktop">
+<div class="max-w-2xl mb-12">
+<div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-surface-container border border-outline-variant/60 shadow-sm mb-4">
+<span class="text-label-caps font-label-caps text-on-surface-variant">ACCESO · TALLER AMG</span>
+</div>
+<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight mb-3">Pruébalo, actívalo y opera tu taller hoy.</h2>
+<p class="text-body-lg font-body-lg text-on-surface-variant leading-relaxed max-w-2xl">
+El Taller Mecánico funciona con datos demo para que lo explores completo. Cuando quieras usarlo con tus vehículos y clientes reales, el acceso es directo y personal: depositas, avisas y te lo activo el mismo día.
+</p>
+<div class="mt-5 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+<a class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-on-primary font-body-sm font-semibold hover:bg-neutral-800 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://taller.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">Abrir Taller Mecánico demo</a>
+<span class="text-body-sm font-body-sm text-on-surface-variant">¿Ya contrataste? Entra y tus órdenes de trabajo te esperan.</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12">
+<div class="rounded-2xl border border-outline-variant/50 bg-surface-container-lowest p-5">
+<span class="text-label-mono font-label-mono text-primary font-bold">01</span>
+<h3 class="text-body-md font-body-md text-primary font-semibold mt-2 mb-1">Explóralo gratis</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant">Abre el taller demo con vehículos y órdenes de ejemplo, sin registrarte.</p>
+</div>
+<div class="rounded-2xl border border-outline-variant/50 bg-surface-container-lowest p-5">
+<span class="text-label-mono font-label-mono text-primary font-bold">02</span>
+<h3 class="text-body-md font-body-md text-primary font-semibold mt-2 mb-1">Solicita acceso</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant">Escríbeme por WhatsApp o correo y coordinamos tu taller.</p>
+</div>
+<div class="rounded-2xl border border-outline-variant/50 bg-surface-container-lowest p-5">
+<span class="text-label-mono font-label-mono text-primary font-bold">03</span>
+<h3 class="text-body-md font-body-md text-primary font-semibold mt-2 mb-1">Paga el plan</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant">Pago seguro con Mercado Pago: tarjeta, débito o crédito.</p>
+</div>
+<div class="rounded-2xl border border-outline-variant/50 bg-surface-container-lowest p-5">
+<span class="text-label-mono font-label-mono text-primary font-bold">04</span>
+<h3 class="text-body-md font-body-md text-primary font-semibold mt-2 mb-1">Activado hoy</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant">Te confirmo el alta y tu taller queda operativo el mismo día.</p>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<article class="lg:col-span-7 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow">
+<div class="text-label-caps font-label-caps text-primary mb-6">PLANES AMG · A MEDIDA</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+<div class="rounded-2xl border border-outline-variant/50 bg-surface-container-low p-5">
+<div class="text-label-mono-xs font-label-mono-xs text-on-surface-variant mb-1">TALLER · 1 NEGOCIO</div>
+<div class="text-headline-md font-headline-md text-primary font-semibold tracking-tight">Sistema completo</div>
+<div class="text-label-mono-xs font-label-mono-xs text-on-surface-variant mt-1">órdenes, vehículos, repuestos y clientes</div>
+</div>
+<div class="rounded-2xl border border-primary/40 bg-primary text-on-primary p-5">
+<div class="text-label-mono-xs font-label-mono-xs opacity-90 mb-1">INCLUIDO</div>
+<div class="text-headline-md font-headline-md font-semibold tracking-tight">Misma cuenta AMG</div>
+<div class="text-label-mono-xs font-label-mono-xs opacity-90 mt-1">un solo acceso para todo el ecosistema</div>
+</div>
+</div>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">
+El valor del taller te lo confirmo al coordinar por WhatsApp o al ingresar a <span class="font-semibold text-primary">tus aplicaciones</span>.
+</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed mt-3">
+Setup inicial (única vez): incluye datos cargados, subdominio https y soporte directo por WhatsApp.
+</p>
+</article>
+<article class="lg:col-span-5 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow">
+<div class="flex items-center gap-3 mb-6">
+<span class="w-11 h-11 rounded-2xl bg-[#009EE3] flex items-center justify-center shrink-0 shadow-sm" aria-hidden="true">
+<svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"></rect><path d="M2 10h20"></path><path d="M6 15h3"></path></svg>
+</span>
+<div class="leading-tight">
+<div class="text-label-caps font-label-caps text-on-surface-variant">PAGO CON</div>
+<div class="text-body-md font-body-md font-bold text-[#009EE3]">Mercado Pago</div>
+</div>
+<span class="ml-auto px-2.5 py-1 rounded-md text-label-mono-xs font-label-mono-xs font-bold bg-[#FFE600] text-[#0B2A4A]">SEGURO</span>
+</div>
+<div class="space-y-3 text-body-sm font-body-sm text-on-surface">
+<div class="flex justify-between"><span class="text-on-surface-variant">Plataforma</span><span class="font-semibold">Mercado Pago</span></div>
+<div class="flex justify-between"><span class="text-on-surface-variant">Acepta</span><span class="font-semibold">Tarjeta, débito y crédito</span></div>
+<div class="flex justify-between"><span class="text-on-surface-variant">Periodicidad</span><span class="font-semibold">Mensual o anual</span></div>
+<div class="flex justify-between"><span class="text-on-surface-variant">Renovación</span><span class="font-semibold">Manual, sin cargos automáticos</span></div>
+<div class="flex justify-between"><span class="text-on-surface-variant">Seguridad</span><span class="font-semibold">Checkout de Mercado Pago</span></div>
+</div>
+<div class="mt-6 p-4 rounded-xl bg-surface-container-low border border-outline-variant/40 text-body-sm font-body-sm text-on-surface-variant leading-relaxed">
+Pagas en el checkout seguro de Mercado Pago. El acceso se activa apenas se confirme el cobro.
+</div>
+</article>
+<article class="lg:col-span-12 bg-primary-container rounded-3xl px-8 py-8 border border-primary/20 flex flex-col md:flex-row md:items-center justify-between gap-6">
+<div class="max-w-xl">
+<div class="text-label-caps font-label-caps text-on-primary mb-2">SOLICITAR ACCESO</div>
+<p class="text-body-md font-body-md text-on-primary leading-relaxed">Cuéntame qué necesitas y qué hace tu negocio. Depositas y te activo el acceso el mismo día.</p>
+</div>
+<div class="flex flex-col sm:flex-row gap-3 shrink-0">
+<a class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-on-primary text-primary font-body-sm font-semibold hover:bg-neutral-100 transition-all duration-200 active:scale-95 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://wa.me/56953818617?text=Hola!%20Vi%20el%20Taller%20AMG%20y%20quiero%20activar%20mi%20plan.%20Mi%20negocio%20es%3A" rel="noopener noreferrer" target="_blank">Escríbeme por WhatsApp</a>
+<a class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-on-primary text-primary font-body-sm font-semibold hover:bg-neutral-100 transition-all duration-200 active:scale-95 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="mailto:GARAYAA0606@GMAIL.COM?subject=Solicitud%20de%20acceso%20Taller%20AMG" rel="noopener noreferrer" target="_blank">O por correo</a>
+</div>
+</article>
+</div>
+</div>
+</section>
+</div>
+<div class="programa-vista hidden" data-programa="vitaria">
+<section class="py-margin-desktop bg-background border-t border-outline-variant/30 scroll-mt-20" id="vitaria" data-programa="vitaria">
+<div class="max-w-7xl mx-auto px-gutter-desktop">
+<!-- Section Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+<div class="max-w-2xl">
+<div class="inline-flex items-center gap-2 mb-2">
+<span aria-hidden="true" class="w-2 h-2 rounded-full bg-teal-500"></span>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">PRODUCTO 03 · VITARIA</span>
+</div>
+<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">Vitaria · Gestión de clínicas</h2>
+<p class="text-body-md font-body-md text-on-surface-variant mt-2">
+            La plataforma todo-en-uno para la gestión de citas, historial clínico, laboratorio, reportes y más. Arquitectura multi-tenant con seguridad de nivel empresarial.
+          </p>
+          <p class="text-body-sm font-body-sm text-on-surface-variant mt-2"><span class="font-semibold text-primary">Ideal para:</span> clínicas, centros médicos y profesionales de la salud.</p>
+</div>
+<div class="text-right hidden sm:block">
+<span class="text-label-mono font-label-mono text-outline">MULTI-TENANT · HIPAA · 2FA</span>
+</div>
+</div>
+<!-- Funcionalidades -->
+<div class="mb-6">
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">FUNCIONALIDADES</span>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mt-1">Todo lo que necesitas en una sola plataforma</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant mt-1">Herramientas modernas diseñadas para optimizar la operación de tu centro médico.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+<article class="p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow">
+<span aria-hidden="true" class="material-symbols-outlined text-teal-700 mb-4">calendar_month</span>
+<h4 class="text-headline-sm font-headline-sm text-primary mb-2">Gestión de Citas</h4>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Agenda y administra citas con recordatorios automáticos y calendario inteligente.</p>
+</article>
+<article class="p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow">
+<span aria-hidden="true" class="material-symbols-outlined text-teal-700 mb-4">domain</span>
+<h4 class="text-headline-sm font-headline-sm text-primary mb-2">Multi-tenancy</h4>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Múltiples clínicas en una sola plataforma, con datos completamente aislados.</p>
+</article>
+<article class="p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow">
+<span aria-hidden="true" class="material-symbols-outlined text-teal-700 mb-4">clinical_notes</span>
+<h4 class="text-headline-sm font-headline-sm text-primary mb-2">Historial Clínico</h4>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Registros médicos digitales con prescripciones, historial completo y laboratorio.</p>
+</article>
+<article class="p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow">
+<span aria-hidden="true" class="material-symbols-outlined text-teal-700 mb-4">science</span>
+<h4 class="text-headline-sm font-headline-sm text-primary mb-2">Laboratorio</h4>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Gestión de estudios de laboratorio con resultados y descarga de reportes.</p>
+</article>
+<article class="p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow">
+<span aria-hidden="true" class="material-symbols-outlined text-teal-700 mb-4">monitoring</span>
+<h4 class="text-headline-sm font-headline-sm text-primary mb-2">Reportes y Análisis</h4>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Dashboards con métricas en tiempo real, reportes de ingresos y pacientes.</p>
+</article>
+<article class="p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow">
+<span aria-hidden="true" class="material-symbols-outlined text-teal-700 mb-4">shield_lock</span>
+<h4 class="text-headline-sm font-headline-sm text-primary mb-2">Seguridad RBAC</h4>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Autenticación JWT con 2FA, roles y permisos granulares por módulo.</p>
+</article>
+</div>
+<!-- Módulos -->
+<div class="mb-6">
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">MÓDULOS</span>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mt-1">Un módulo por cada área de la clínica</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant mt-1">Todo integrado sobre la misma base de datos, con aislamiento por clínica.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 mb-12">
+            <div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0"></span><span><span class="font-semibold text-on-surface">Agenda y citas:</span> Reservas, series recurrentes, disponibilidad por doctor y calendario.</span></div>
+            <div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0"></span><span><span class="font-semibold text-on-surface">Reserva pública:</span> El paciente reserva con su RUT sin crear cuenta.</span></div>
+            <div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0"></span><span><span class="font-semibold text-on-surface">Pacientes y equipo:</span> Pacientes, doctores, especialidades y panel del médico.</span></div>
+            <div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0"></span><span><span class="font-semibold text-on-surface">Historia clínica:</span> Registros, signos vitales, catálogo CIE-10 y plantillas clínicas.</span></div>
+            <div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0"></span><span><span class="font-semibold text-on-surface">Recetas:</span> Prescripciones médicas con descarga en PDF.</span></div>
+            <div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0"></span><span><span class="font-semibold text-on-surface">Laboratorio:</span> Solicitudes, muestras, resultados, control de calidad e inventario de reactivos.</span></div>
+            <div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0"></span><span><span class="font-semibold text-on-surface">Facturación:</span> Facturas, pagos y reclamos de seguros.</span></div>
+            <div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0"></span><span><span class="font-semibold text-on-surface">Reportes:</span> Citas, ingresos, pacientes y reportes personalizados en PDF.</span></div>
+            <div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0"></span><span><span class="font-semibold text-on-surface">Analítica:</span> No-shows, ocupación, top de doctores y pronóstico de demanda.</span></div>
+            <div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0"></span><span><span class="font-semibold text-on-surface">Multi-tenant y planes:</span> Suscripciones, límites de uso y cobro con Mercado Pago.</span></div>
+            <div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0"></span><span><span class="font-semibold text-on-surface">Super-admin:</span> Panel global de clínicas, cobros y salud de la plataforma.</span></div>
+            <div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0"></span><span><span class="font-semibold text-on-surface">Roles y permisos:</span> Superadmin, administrador, doctor, laboratorista y paciente.</span></div>
+            <div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0"></span><span><span class="font-semibold text-on-surface">Seguridad:</span> Sesiones con refresh, 2FA, revocación y auditoría con integridad.</span></div>
+            <div class="flex items-start gap-2 text-body-sm font-body-sm text-on-surface-variant"><span aria-hidden="true" class="mt-1.5 w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0"></span><span><span class="font-semibold text-on-surface">Notificaciones e idioma:</span> Recordatorios y email, en español, inglés, portugués y francés.</span></div>
+</div>
+<!-- Cómo funciona -->
+<div class="mb-6">
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">CÓMO FUNCIONA</span>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mt-1">En 3 pasos estás operando</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant mt-1">Configura tu clínica en minutos, no en semanas.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+<div class="p-8 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow">
+<div class="w-10 h-10 rounded-xl bg-teal-50 border border-teal-200/70 text-teal-800 flex items-center justify-center font-label-mono font-bold mb-6">1</div>
+<h4 class="text-headline-sm font-headline-sm text-primary mb-2">Crea tu cuenta</h4>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Regístrate gratis en 30 segundos, sin tarjeta de crédito, y configura tu clínica básica.</p>
+</div>
+<div class="p-8 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow">
+<div class="w-10 h-10 rounded-xl bg-teal-50 border border-teal-200/70 text-teal-800 flex items-center justify-center font-label-mono font-bold mb-6">2</div>
+<h4 class="text-headline-sm font-headline-sm text-primary mb-2">Configura tu equipo</h4>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Invita doctores, personal de laboratorio y administradores. Asigna especialidades y horarios.</p>
+</div>
+<div class="p-8 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow">
+<div class="w-10 h-10 rounded-xl bg-teal-50 border border-teal-200/70 text-teal-800 flex items-center justify-center font-label-mono font-bold mb-6">3</div>
+<h4 class="text-headline-sm font-headline-sm text-primary mb-2">¡Listo!</h4>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Comienza a agendar citas, gestionar pacientes y monitorear todo desde el dashboard.</p>
+</div>
+</div>
+<!-- Planes (sin montos en el landing público) -->
+<div class="mb-6">
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">PLANES</span>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mt-1">Planes para cada clínica</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant mt-1">Precios transparentes, sin costos ocultos. Consulta por el plan que mejor se ajuste a tu clínica.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="p-8 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow flex flex-col">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">BASE</span>
+<h4 class="text-headline-sm font-headline-sm text-primary mt-1 mb-1">Básico</h4>
+<p class="text-body-sm font-body-sm text-on-surface-variant mb-6">Para clínicas pequeñas</p>
+<ul class="space-y-2 text-body-sm font-body-sm text-on-surface-variant flex-1">
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Hasta 5 doctores</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>200 pacientes</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Gestión de citas</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Historial clínico digital</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Soporte por email</li>
+</ul>
+<a class="mt-8 inline-flex items-center justify-center px-5 py-3 rounded-lg border border-outline-variant/70 text-primary font-body-sm font-medium hover:bg-surface-container-low transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="#acceso-vitaria">Consultar plan</a>
+</div>
+<div class="p-8 bg-surface-container-lowest rounded-2xl border-2 border-teal-500/70 bento-shadow flex flex-col relative">
+<span class="absolute -top-3 left-8 px-2.5 py-0.5 rounded-full bg-teal-600 text-on-primary text-label-mono-xs font-label-mono-xs font-semibold">MÁS POPULAR</span>
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">CRECIMIENTO</span>
+<h4 class="text-headline-sm font-headline-sm text-primary mt-1 mb-1">Profesional</h4>
+<p class="text-body-sm font-body-sm text-on-surface-variant mb-6">Para clínicas en crecimiento</p>
+<ul class="space-y-2 text-body-sm font-body-sm text-on-surface-variant flex-1">
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Hasta 20 doctores</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>1.000 pacientes</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Todo lo del plan Básico</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Laboratorio integrado</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Analytics con IA</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Multi-idioma (ES/EN/PT/FR)</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Soporte prioritario</li>
+</ul>
+<a class="mt-8 inline-flex items-center justify-center px-5 py-3 rounded-lg bg-teal-600 text-on-primary font-body-sm font-semibold hover:bg-teal-700 transition-all duration-200 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-700" href="#acceso-vitaria">Consultar plan</a>
+</div>
+<div class="p-8 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow flex flex-col">
+<span class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">REDES</span>
+<h4 class="text-headline-sm font-headline-sm text-primary mt-1 mb-1">Enterprise</h4>
+<p class="text-body-sm font-body-sm text-on-surface-variant mb-6">Para redes de clínicas</p>
+<ul class="space-y-2 text-body-sm font-body-sm text-on-surface-variant flex-1">
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Doctores y pacientes ilimitados</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Todo lo del plan Profesional</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Multi-tenant</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>API REST completa</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>SLA 99.97% uptime</li>
+<li class="flex items-center gap-2"><span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Soporte dedicado 24/7</li>
+</ul>
+<a class="mt-8 inline-flex items-center justify-center px-5 py-3 rounded-lg border border-outline-variant/70 text-primary font-body-sm font-medium hover:bg-surface-container-low transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="#acceso-vitaria">Consultar plan</a>
+</div>
+</div>
+<!-- FAQ -->
+<div class="mt-12 max-w-3xl">
+<div class="mb-6">
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">PREGUNTAS FRECUENTES</span>
+<h3 class="text-headline-md font-headline-md text-primary tracking-tight mt-1">¿Tienes dudas?</h3>
+</div>
+<div class="space-y-3">
+<details class="amg-fold bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow">
+<summary class="flex items-center justify-between gap-4 px-6 py-5 cursor-pointer">
+<span class="text-body-md font-body-md font-semibold text-primary">¿Necesito tarjeta de crédito para empezar?</span>
+<span aria-hidden="true" class="amg-chev text-on-surface-variant material-symbols-outlined">expand_more</span>
+</summary>
+<p class="px-6 pb-5 text-body-sm font-body-sm text-on-surface-variant leading-relaxed">No. El plan de prueba de 14 días es completamente gratuito y no requiere tarjeta de crédito. Si decides quedarte, eliges el plan que mejor se adapte a tu clínica.</p>
+</details>
+<details class="amg-fold bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow">
+<summary class="flex items-center justify-between gap-4 px-6 py-5 cursor-pointer">
+<span class="text-body-md font-body-md font-semibold text-primary">¿Puedo migrar datos de otro sistema?</span>
+<span aria-hidden="true" class="amg-chev text-on-surface-variant material-symbols-outlined">expand_more</span>
+</summary>
+<p class="px-6 pb-5 text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Sí. Ofrecemos migración gratuita de datos para los planes Profesional y Enterprise. Nuestro equipo se encarga del proceso completo sin interrumpir tus operaciones.</p>
+</details>
+<details class="amg-fold bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow">
+<summary class="flex items-center justify-between gap-4 px-6 py-5 cursor-pointer">
+<span class="text-body-md font-body-md font-semibold text-primary">¿Cumple con HIPAA y regulaciones de salud?</span>
+<span aria-hidden="true" class="amg-chev text-on-surface-variant material-symbols-outlined">expand_more</span>
+</summary>
+<p class="px-6 pb-5 text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Sí. Cumple con HIPAA, ISO 27001 y las regulaciones de protección de datos de salud. Ofrecemos encriptación end-to-end y auditoría completa.</p>
+</details>
+<details class="amg-fold bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow">
+<summary class="flex items-center justify-between gap-4 px-6 py-5 cursor-pointer">
+<span class="text-body-md font-body-md font-semibold text-primary">¿Cuántos usuarios puedo tener?</span>
+<span aria-hidden="true" class="amg-chev text-on-surface-variant material-symbols-outlined">expand_more</span>
+</summary>
+<p class="px-6 pb-5 text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Depende del plan. El plan Básico permite hasta 5 doctores, Profesional hasta 20, y Enterprise es ilimitado. Todos los planes incluyen usuarios de laboratorio y administradores.</p>
+</details>
+<details class="amg-fold bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow">
+<summary class="flex items-center justify-between gap-4 px-6 py-5 cursor-pointer">
+<span class="text-body-md font-body-md font-semibold text-primary">¿Ofrecen soporte en español?</span>
+<span aria-hidden="true" class="amg-chev text-on-surface-variant material-symbols-outlined">expand_more</span>
+</summary>
+<p class="px-6 pb-5 text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Sí. Todo nuestro soporte está en español. Los planes Profesional y Enterprise incluyen soporte prioritario con tiempo de respuesta garantizado.</p>
+</details>
+</div>
+</div>
+<!-- CTA -->
+<div class="mt-12 p-8 md:p-10 bg-primary-container rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+<div>
+<h3 class="text-headline-md font-headline-md text-on-primary tracking-tight">Empieza a gestionar tu clínica hoy</h3>
+<p class="text-body-md font-body-md text-on-primary-container mt-1">Únete a cientos de clínicas que ya transformaron su operación con Vitaria.</p>
+</div>
+<a class="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-on-primary text-primary font-body-sm font-semibold hover:bg-inverse-primary transition-all duration-200 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-on-primary shrink-0" href="#acceso-vitaria">
+          Consultar Vitaria
+          <svg aria-hidden="true" class="w-4 h-4 ml-2" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</a>
+</div>
+</div>
+</section>
+<section class="py-margin-desktop bg-surface scroll-mt-20" id="acceso-vitaria" data-programa="vitaria">
+<div class="max-w-7xl mx-auto px-gutter-desktop">
+<div class="max-w-2xl mb-12">
+<div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-surface-container border border-outline-variant/60 shadow-sm mb-4">
+<span class="text-label-caps font-label-caps text-on-surface-variant">ACCESO · VITARIA</span>
+</div>
+<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight mb-3">Empieza gratis y escala cuando quieras.</h2>
+<p class="text-body-lg font-body-lg text-on-surface-variant leading-relaxed max-w-2xl">
+Vitaria se prueba con datos demo y planes para cada clínica. Cuando quieras operar con tus pacientes reales, el acceso es directo: depositas, avisas y queda activo el mismo día.
+</p>
+<div class="mt-5 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+<a class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-on-primary font-body-sm font-semibold hover:bg-neutral-800 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://vitaria.app" rel="noopener noreferrer" target="_blank">Ver Vitaria demo</a>
+<span class="text-body-sm font-body-sm text-on-surface-variant">¿Ya contrataste? Entra y tu clínica te espera.</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12">
+<div class="rounded-2xl border border-outline-variant/50 bg-surface-container-lowest p-5">
+<span class="text-label-mono font-label-mono text-primary font-bold">01</span>
+<h3 class="text-body-md font-body-md text-primary font-semibold mt-2 mb-1">Pruébala gratis</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant">Explora el panel con datos de ejemplo, sin registrarte.</p>
+</div>
+<div class="rounded-2xl border border-outline-variant/50 bg-surface-container-lowest p-5">
+<span class="text-label-mono font-label-mono text-primary font-bold">02</span>
+<h3 class="text-body-md font-body-md text-primary font-semibold mt-2 mb-1">Solicita acceso</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant">Escríbeme por WhatsApp o correo y coordinamos tu clínica.</p>
+</div>
+<div class="rounded-2xl border border-outline-variant/50 bg-surface-container-lowest p-5">
+<span class="text-label-mono font-label-mono text-primary font-bold">03</span>
+<h3 class="text-body-md font-body-md text-primary font-semibold mt-2 mb-1">Paga el plan</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant">Pago seguro con Mercado Pago: tarjeta, débito o crédito.</p>
+</div>
+<div class="rounded-2xl border border-outline-variant/50 bg-surface-container-lowest p-5">
+<span class="text-label-mono font-label-mono text-primary font-bold">04</span>
+<h3 class="text-body-md font-body-md text-primary font-semibold mt-2 mb-1">Activado hoy</h3>
+<p class="text-body-sm font-body-sm text-on-surface-variant">Te confirmo el alta y tu clínica queda operativa el mismo día.</p>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<article class="lg:col-span-7 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow">
+<div class="text-label-caps font-label-caps text-primary mb-6">PLANES VITARIA · A MEDIDA</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+<div class="rounded-2xl border border-outline-variant/50 bg-surface-container-low p-5">
+<div class="text-label-mono-xs font-label-mono-xs text-on-surface-variant mb-1">BÁSICO</div>
+<div class="text-headline-md font-headline-md text-primary font-semibold tracking-tight">Clínicas pequeñas</div>
+<div class="text-label-mono-xs font-label-mono-xs text-on-surface-variant mt-1">hasta 5 doctores</div>
+</div>
+<div class="rounded-2xl border border-primary/40 bg-primary/5 p-5">
+<div class="text-label-mono-xs font-label-mono-xs text-primary mb-1">PROFESIONAL</div>
+<div class="text-headline-md font-headline-md text-primary font-semibold tracking-tight">En crecimiento</div>
+<div class="text-label-mono-xs font-label-mono-xs text-primary/70 mt-1">hasta 20 doctores</div>
+</div>
+<div class="rounded-2xl border border-primary/40 bg-primary text-on-primary p-5">
+<div class="text-label-mono-xs font-label-mono-xs opacity-90 mb-1">ENTERPRISE</div>
+<div class="text-headline-md font-headline-md font-semibold tracking-tight">Redes</div>
+<div class="text-label-mono-xs font-label-mono-xs opacity-90 mt-1">doctores ilimitados</div>
+</div>
+</div>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">
+Los valores de cada plan te los confirmo al coordinar por WhatsApp o al ingresar a <span class="font-semibold text-primary">tus aplicaciones</span>.
+</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed mt-3">
+Setup inicial (única vez): incluye configuración de tu clínica, subdominio https y soporte directo por WhatsApp.
+</p>
+</article>
+<article class="lg:col-span-5 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow">
+<div class="flex items-center gap-3 mb-6">
+<span class="w-11 h-11 rounded-2xl bg-[#009EE3] flex items-center justify-center shrink-0 shadow-sm" aria-hidden="true">
+<svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"></rect><path d="M2 10h20"></path><path d="M6 15h3"></path></svg>
+</span>
+<div class="leading-tight">
+<div class="text-label-caps font-label-caps text-on-surface-variant">PAGO CON</div>
+<div class="text-body-md font-body-md font-bold text-[#009EE3]">Mercado Pago</div>
+</div>
+<span class="ml-auto px-2.5 py-1 rounded-md text-label-mono-xs font-label-mono-xs font-bold bg-[#FFE600] text-[#0B2A4A]">SEGURO</span>
+</div>
+<div class="space-y-3 text-body-sm font-body-sm text-on-surface">
+<div class="flex justify-between"><span class="text-on-surface-variant">Plataforma</span><span class="font-semibold">Mercado Pago</span></div>
+<div class="flex justify-between"><span class="text-on-surface-variant">Acepta</span><span class="font-semibold">Tarjeta, débito y crédito</span></div>
+<div class="flex justify-between"><span class="text-on-surface-variant">Periodicidad</span><span class="font-semibold">Mensual o anual</span></div>
+<div class="flex justify-between"><span class="text-on-surface-variant">Renovación</span><span class="font-semibold">Manual, sin cargos automáticos</span></div>
+<div class="flex justify-between"><span class="text-on-surface-variant">Seguridad</span><span class="font-semibold">Checkout de Mercado Pago</span></div>
+</div>
+<div class="mt-6 p-4 rounded-xl bg-surface-container-low border border-outline-variant/40 text-body-sm font-body-sm text-on-surface-variant leading-relaxed">
+Pagas en el checkout seguro de Mercado Pago. El acceso se activa apenas se confirme el cobro.
+</div>
+</article>
+<article class="lg:col-span-12 bg-primary-container rounded-3xl px-8 py-8 border border-primary/20 flex flex-col md:flex-row md:items-center justify-between gap-6">
+<div class="max-w-xl">
+<div class="text-label-caps font-label-caps text-on-primary mb-2">SOLICITAR ACCESO</div>
+<p class="text-body-md font-body-md text-on-primary leading-relaxed">Cuéntame qué necesitas y qué hace tu negocio. Depositas y te activo el acceso el mismo día.</p>
+</div>
+<div class="flex flex-col sm:flex-row gap-3 shrink-0">
+<a class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-on-primary text-primary font-body-sm font-semibold hover:bg-neutral-100 transition-all duration-200 active:scale-95 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://wa.me/56953818617?text=Hola!%20Vi%20Vitaria%20y%20quiero%20activar%20mi%20plan.%20Mi%20cl%C3%ADnica%20es%3A" rel="noopener noreferrer" target="_blank">Escríbeme por WhatsApp</a>
+<a class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-on-primary text-primary font-body-sm font-semibold hover:bg-neutral-100 transition-all duration-200 active:scale-95 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="mailto:GARAYAA0606@GMAIL.COM?subject=Solicitud%20de%20acceso%20Vitaria" rel="noopener noreferrer" target="_blank">O por correo</a>
+</div>
+</article>
+</div>
+</div>
+</section>
+</div>
+</div>
+</section>
+<!-- 2b. TUS APLICACIONES (solo visible con sesión)              -->
+<!-- ============================================================ -->
+<section class="hidden py-margin-desktop bg-background scroll-mt-20 border-b border-outline-variant/30" id="tus-aplicaciones">
+<div class="max-w-7xl mx-auto px-gutter-desktop">
+<a class="inline-flex items-center gap-1.5 text-body-sm font-body-sm font-medium text-on-surface-variant hover:text-primary transition-colors mb-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded" data-volver="true" href="#">
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M19 12H5m0 0l6 6m-6-6l6-6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Volver al inicio</span>
+</a>
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6">
+<div>
+<div class="inline-flex items-center gap-2 mb-2">
+<span aria-hidden="true" class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">TU CUENTA · SESIÓN INICIADA</span>
+</div>
+<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">Tus aplicaciones</h2>
+<p class="text-body-md font-body-md text-on-surface-variant mt-2 max-w-2xl" id="tus-aplicaciones-sub">Tus herramientas activas, listas para abrir.</p>
+</div>
+<div class="text-right hidden sm:block">
+<span class="text-label-mono font-label-mono text-outline">ACCESO DIRECTO SIN VOLVER A PEDIR NADA</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="tus-aplicaciones-grid"></div>
+<div class="hidden" id="tus-aplicaciones-vacio"></div>
+<div class="mt-16 pt-12 border-t border-outline-variant/40" id="apps-contratar">
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6">
+<div class="max-w-2xl">
+<div class="inline-flex items-center gap-2 mb-2">
+<span aria-hidden="true" class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">CONTRATACIÓN EN LÍNEA</span>
+</div>
+<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">Sumar herramientas</h2>
+<p class="text-body-md font-body-md text-on-surface-variant mt-2">Elige el proyecto: la Suite AMG con sus nueve aplicaciones, o un proyecto aparte como Taller Mecánico. Al mes o al año.</p>
+</div>
+<div class="shrink-0" id="apps-contratar-toggle" aria-label="Periodo de cobro para todas las herramientas"></div>
+</div>
+<div class="space-y-4" id="apps-contratar-proyectos"></div>
+</div>
+</div>
+</section>
+<!-- ============================================================ -->
+<!-- 2c. TU CUENTA (solo visible con sesión)                     -->
+<!-- ============================================================ -->
+<section class="hidden py-margin-desktop bg-surface-container-low scroll-mt-20 border-b border-outline-variant/30" id="mi-cuenta">
+<div class="max-w-7xl mx-auto px-gutter-desktop">
+<a class="inline-flex items-center gap-1.5 text-body-sm font-body-sm font-medium text-on-surface-variant hover:text-primary transition-colors mb-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded" data-volver="true" href="#">
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M19 12H5m0 0l6 6m-6-6l6-6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Volver al inicio</span>
+</a>
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6">
+<div>
+<div class="inline-flex items-center gap-2 mb-2">
+<span aria-hidden="true" class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">MI CUENTA · SESIÓN INICIADA</span>
+</div>
+<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">Tu cuenta</h2>
+<p class="text-body-md font-body-md text-on-surface-variant mt-2 max-w-2xl" id="mi-cuenta-sub">Tus datos y los ajustes de la organización.</p>
+</div>
+<div class="text-right hidden sm:block">
+<span class="text-label-mono font-label-mono text-outline">IDENTIDAD Y ORGANIZACIÓN</span>
+</div>
+</div>
+<div data-toast class="mb-6"></div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6" id="mi-cuenta-grid">
+<div class="lg:col-span-7" id="mi-cuenta-datos"></div>
+<div class="lg:col-span-5" id="mi-cuenta-acciones"></div>
+</div>
+<div class="hidden mt-6" id="mi-cuenta-ajustes"></div>
+</div>
+</section>
+<!-- ============================================================ -->
+<!-- 3. EL NÚCLEO: GRID ASIMÉTRICO DE LAS 8 HERRAMIENTAS    -->
+<!-- ============================================================ -->
+
+<!-- ============================================================ -->
+<!-- 4. COMBINACIONES QUE FUNCIONAN                              -->
+<!-- ============================================================ -->
+
+<!-- ============================================================ -->
+<!-- 4b. SISTEMAS DE GESTIÓN (proyectos nuevos, fuera de las 9 herramientas) -->
+<!-- ============================================================ -->
+
+<!-- ============================================================ -->
+<!-- 4b. VITARIA (PRODUCTO 03)                                    -->
+<!-- ============================================================ -->
+
+<!-- ============================================================ -->
+<!-- ============================================================ -->
+<!-- 8. ACCESO -->
+<!-- ============================================================ -->
+
+<!-- ============================================================ -->
+<!-- 7. FOOTER COMPLETO Y ACCESIBLE (Shared Components Mapping)  -->
+<!-- ============================================================ -->
+</main>
+<footer class="w-full bg-surface-container-low dark:bg-primary-container border-t border-outline-variant/40 dark:border-outline/20 pt-margin-desktop pb-margin px-gutter-desktop">
+<div class="max-w-7xl mx-auto">
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
+<!-- Brand & Description Column -->
+<div class="col-span-2 space-y-4">
+<div class="flex items-center gap-2">
+<svg aria-hidden="true" class="w-6 h-6 text-primary dark:text-inverse-primary" fill="none" viewbox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<rect class="fill-primary dark:fill-inverse-primary" height="15" rx="3.5" width="10" x="2" y="2"></rect>
+<rect class="fill-primary/75 dark:fill-inverse-primary/80" height="7" rx="3" width="12" x="14" y="2"></rect>
+<rect class="fill-primary/90 dark:fill-inverse-primary/90" height="15" rx="3.5" width="12" x="14" y="11"></rect>
+<rect class="fill-primary/60 dark:fill-inverse-primary/70" height="7" rx="3" width="10" x="2" y="19"></rect>
+</svg>
+<span class="text-headline-sm font-headline-sm text-primary dark:text-inverse-primary font-semibold tracking-tight">AMG</span>
+</div>
+<p class="text-body-sm font-body-sm text-on-surface-variant dark:text-outline-variant max-w-sm">
+            Un ecosistema de software operativo para negocios reales: sistemas independientes, una sola cuenta y datos aislados en dominios propios.
+          </p>
+<div class="text-label-mono-xs font-label-mono-xs text-on-surface-variant/80">
+            Datos demo por app · Subdominios SSL individuales
+          </div>
+</div>
+<!-- Col 1 Links (Exact matching from JSON) -->
+<div class="space-y-3">
+<div class="text-label-caps font-label-caps text-primary dark:text-inverse-primary">HERRAMIENTAS I</div>
+<ul class="space-y-2 text-body-sm font-body-sm">
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://citas.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">01 Agenda de Citas</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://espacios.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">02 Reservas de Canchas</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://solicitudes.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">03 Órdenes de Trabajo</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://inventario.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">04 Almacenaje</a></li>
+</ul>
+</div>
+<!-- Col 2 Links (Exact matching from JSON) -->
+<div class="space-y-3">
+<div class="text-label-caps font-label-caps text-primary dark:text-inverse-primary">HERRAMIENTAS II</div>
+<ul class="space-y-2 text-body-sm font-body-sm">
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://cotizaciones.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">05 Cotizaciones y Presupuestos</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://crm.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">06 Gestión de Clientes</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://activos.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">07 Control de Activos</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://checklists.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">08 Checklists e Inspecciones</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://pagos.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">09 Control de Pagos</a></li>
+</ul>
+</div>
+<!-- Col 3 Links: Estándares & Info -->
+<div class="space-y-3">
+<div class="text-label-caps font-label-caps text-primary dark:text-inverse-primary">AMG</div>
+<ul class="space-y-2 text-body-sm font-body-sm">
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="index.html#que-es-amg">Qué es AMG</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="sistemas.html">Nuestros sistemas</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="index.html#contacto">Contacto</a></li>
+</ul>
+</div>
+</div>
+<!-- Bottom Copyright Strip as in JSON Source of Truth -->
+<div class="pt-8 border-t border-outline-variant/30 flex flex-col md:flex-row items-center justify-between gap-4 text-label-mono-xs font-label-mono-xs text-on-surface-variant dark:text-outline-variant">
+<p class="text-center md:text-left leading-relaxed">
+          © 2026 AMG. Entorno de demostración interactiva en tiempo real. Los sistemas (Suite, Taller Mecánico y Vitaria) funcionan con datos demo independientes.
+        </p>
+<div class="flex items-center gap-4 shrink-0">
+<span class="inline-flex items-center gap-1.5 text-primary dark:text-inverse-primary font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+            LATAM Cloud Ready
+          </span>
+</div>
+</div>
+</div>
+</footer>
+<!-- Subtle Keyboard & Accessibility interaction script -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Accessible smooth keyboard navigation highlight
+      const navLinks = document.querySelectorAll('header nav a');
+      navLinks.forEach(link => {
+        link.addEventListener('focus', () => {
+          link.classList.add('outline-none');
+        });
+      });
+    });
+  </script>
+<script src="/assets/landing.js" defer></script>
+</body></html>
