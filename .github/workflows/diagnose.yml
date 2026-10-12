@@ -28,10 +28,12 @@ jobs:
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
+          # El heredoc con delimitador citado ('EOF') evita que el shell LOCAL
+          # del runner rompa el script remoto por las comillas simples anidadas.
           ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=accept-new \
             -o ServerAliveInterval=30 \
-            "$USER@$HOST" '
+            "$USER@$HOST" bash -s <<'EOF'
           set -u
           echo "===== df -h ====="; df -h
           echo; echo "===== docker system df ====="; docker system df
@@ -58,11 +60,10 @@ jobs:
           echo; echo "===== AMG_SSO_INTROSPECT runtime por contenedor ====="
           for c in saasmini-landing saasmini-pagos saasmini-crm saasmini-inventario; do
             v=$(docker exec "$c" sh -c 'echo "${AMG_SSO_INTROSPECT:-unset}"' 2>/dev/null)
-            echo "$c procesado (printenv): ${v:-no responde}"
+            echo "$c printenv: ${v:-no responde}"
           done
-          echo; echo "===== sanity: docker exec y estado del contenedor pagos ====="
-          docker exec saasmini-pagos sh -c 'echo HELLO_FROM_PAGOS' 2>&1
-          docker inspect saasmini-pagos --format '{{println "Status:" .State.Status}}{{println "Running:" .State.Running}}' 2>&1
+          echo; echo "===== sanity: estado del contenedor pagos ====="
+          docker inspect saasmini-pagos --format '{{if .State.Running}}RUNNING{{else}}STOPPED{{end}} state={{.State.Status}} pid={{.State.Pid}}' 2>&1
           echo; echo "===== env CRUDO (json) del contenedor pagos ====="
-          docker inspect saasmini-pagos 2>/dev/null | python3 -c 'import json,sys; d=json.load(sys.stdin); print("\n".join(d[0]["Config"]["Env"]))' 2>&1 || docker inspect saasmini-pagos --format '{{json .Config.Env}}' 2>&1
-          '
+          docker inspect saasmini-pagos -f '{{json .Config.Env}}' 2>&1 | tr ',' '\n'
+EOF
