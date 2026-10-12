@@ -87,7 +87,8 @@ Decisiones tomadas para **no bloquear** el cierre del SSO (retomar al final):
   producto/cliente `vitaria` + derivar secreto (`npm run sso:secret -w @amg/platform -- vitaria`);
   (2) custom domain `vitaria.amgdeveloper.cl` en Render + **CNAME proxied** en Cloudflare;
   (3) aplicar `032_amg_sso.sql` y **vincular `tenants.sso_org_id`** fuera de banda (BYPASSRLS).
-- **Precio placeholder:** `vitaria` = `29900` CLP/mes provisional en el catálogo del Core.
+- **Precio de `vitaria`:** fijado en `49990` CLP/mes (12-oct-2026) «por ahora»;
+  revisar tarifa definitiva más adelante.
 - **`docs/db-architecture.html`** aún cita `packages/core/src/db/init.ts` (ruta inexistente).
 
 **Aclaraciones a los "pendientes destructivos" previos:**

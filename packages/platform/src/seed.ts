@@ -164,7 +164,7 @@ export const CATALOG: CatalogProduct[] = [
     tagline: 'Agenda clínica, fichas y laboratorio',
     description:
       'Gestión de clínicas: agenda de doctores, fichas de pacientes, recetas, resultados de laboratorio y facturación. Corre en su propio stack (Render + Postgres OCI) e integra identidad con el Core.',
-    price: 29900,
+    price: 49990,
     billingPeriod: 'monthly',
     appUrl: 'https://vitaria.amgdeveloper.cl',
     sortOrder: 110,
