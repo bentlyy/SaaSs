@@ -22,6 +22,7 @@ const ESPERADO: Record<string, string> = {
   checklists: 'checklists',
   pagos: 'pagos',
   taller: 'taller',
+  vitaria: 'vitaria',
 };
 
 /**

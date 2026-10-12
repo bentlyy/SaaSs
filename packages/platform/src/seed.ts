@@ -158,6 +158,18 @@ export const CATALOG: CatalogProduct[] = [
     sortOrder: 100,
     external: true,
   },
+  {
+    slug: 'vitaria',
+    name: 'Vitaria',
+    tagline: 'Agenda clínica, fichas y laboratorio',
+    description:
+      'Gestión de clínicas: agenda de doctores, fichas de pacientes, recetas, resultados de laboratorio y facturación. Corre en su propio stack (Render + Postgres OCI) e integra identidad con el Core.',
+    price: 49990,
+    billingPeriod: 'monthly',
+    appUrl: 'https://vitaria.amgdeveloper.cl',
+    sortOrder: 110,
+    external: true,
+  },
 ];
 
 /**
@@ -199,6 +211,7 @@ export const EXPECTED_SLUGS = [
   'checklists',
   'pagos',
   'taller',
+  'vitaria',
 ] as const;
 
 /**
