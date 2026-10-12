@@ -198,7 +198,13 @@ paso "4. Arrancar el Core"
 # `landing` se levanta aqui y no con el `up` general porque es el unico que
 # genera los secretos SSO de los demas. Los productos se paran todavia: arrancan
 # en el paso 7, cuando su `.env` ya tiene los secretos de verdad.
-$DC up -d landing
+#
+# `--force-recreate` no es un capricho: si la imagen no cambio entre deploys
+# (mismas capas, mismo digest), `up -d` deja los contenedores CORRIENDO y los
+# cambios de env/compose del .env no se aplican hasta que algo los recree. Con
+# el flag, cada deploy deja el contenedor con la config declarada (los datos
+# viven en volumenes: recrear no pierde nada).
+$DC up -d --force-recreate landing
 
 # Espera activa en vez de un `sleep`: si el Core tarda 3 s no se pierden 60, y si
 # no levanta nunca el deploy dice "no levanta" y no "migrando...".
@@ -276,7 +282,9 @@ $DC exec -T \
 
 # ── 7. El stack completo ────────────────────────────────────────────────────
 paso "7. Levantar los nueve productos"
-$DC up -d
+# `--force-recreate`: ver nota del paso 4. Sin el, un deploy que solo cambio
+# env/.env deja los productos con la config vieja sin ningun error visible.
+$DC up -d --force-recreate
 
 paso "8. Salud de los nueve + el Core"
 # El puerto sale de `docker compose port`, no de leer el `docker-compose.yml` ni de
