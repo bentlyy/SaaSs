@@ -91,6 +91,10 @@ Decisiones tomadas para **no bloquear** el cierre del SSO (retomar al final):
 - **`docs/db-architecture.html`** aún cita `packages/core/src/db/init.ts` (ruta inexistente).
 
 **Aclaraciones a los "pendientes destructivos" previos:**
+- (5) **resuelto/verificado:** `csrfProtection` es double-submit por cookie y no depende
+  de `req.user`; el guard (`mountAmgAuthMiddleware`) y `amgRouter` se montan **antes** de
+  `app.use(csrfProtection)` (`app.ts:193-194` vs `:196`) → login/callback SSO no pasa por
+  CSRF y las mutaciones del SPA mantienen protección. Sin cambios.
 - (7) **resuelto/no aplica:** `feature.middleware` sí se usa (`laboratory.routes.ts` →
   `requireFeature('laboratory')`); `sessionActivity.middleware` se conserva (mantiene
   `users.last_activity_at`); `cleanup.service` es cron diario inofensivo (se conserva).
