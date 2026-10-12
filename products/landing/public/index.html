@@ -582,59 +582,18 @@ Entornos demo activos
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="tus-aplicaciones-grid"></div>
 <div class="hidden" id="tus-aplicaciones-vacio"></div>
 <div class="mt-16 pt-12 border-t border-outline-variant/40" id="apps-contratar">
-<div class="max-w-2xl mb-8">
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6">
+<div class="max-w-2xl">
 <div class="inline-flex items-center gap-2 mb-2">
 <span aria-hidden="true" class="w-2 h-2 rounded-full bg-secondary"></span>
 <span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">CONTRATACIÓN EN LÍNEA</span>
 </div>
 <h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">Sumar herramientas</h2>
-<p class="text-body-md font-body-md text-on-surface-variant mt-2">Elige cómo pagar: la suite completa con un combo, o una herramienta sola, al mes o al año.</p>
+<p class="text-body-md font-body-md text-on-surface-variant mt-2">Elige el proyecto: la Suite AMG con sus nueve aplicaciones, o un proyecto aparte como Taller Mecánico. Al mes o al año.</p>
 </div>
-<details class="amg-fold rounded-2xl border border-outline-variant/50 bg-surface-container-lowest overflow-hidden">
-<summary class="px-6 py-5 flex items-center justify-between gap-4">
-<div>
-<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">LA SUITE COMPLETA</span>
-<h3 class="text-headline-sm font-headline-sm text-primary tracking-tight mt-1">Suite y combos · desde $29.000/mes</h3>
-<p class="text-body-sm font-body-sm text-on-surface-variant mt-1">3 herramientas $29.000/mes · suite completa $49.000/mes. Arma tu combo y te lo dejamos listo.</p>
+<div class="shrink-0" id="apps-contratar-toggle" aria-label="Periodo de cobro para todas las herramientas"></div>
 </div>
-<span aria-hidden="true" class="material-symbols-outlined amg-chev text-on-surface-variant shrink-0">expand_more</span>
-</summary>
-<div class="px-6 pb-6 pt-5 border-t border-outline-variant/40">
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-<div class="rounded-2xl border border-outline-variant/50 ambient-inset p-6">
-<h4 class="text-body-md font-body-md font-semibold text-primary">Combo · 3 herramientas</h4>
-<p class="text-body-sm font-body-sm text-on-surface-variant mt-1">Elige cualquier trío de herramientas y págala como un solo plan.</p>
-<p class="mt-4 text-headline-sm font-headline-sm text-primary font-semibold">$29.000<span class="text-body-sm font-body-sm text-on-surface-variant font-normal">/mes</span></p>
-</div>
-<div class="rounded-2xl border border-outline-variant/50 ambient-inset p-6">
-<h4 class="text-body-md font-body-md font-semibold text-primary">Suite completa</h4>
-<p class="text-body-sm font-body-sm text-on-surface-variant mt-1">Las nueve herramientas, todo el stack operativo junto.</p>
-<p class="mt-4 text-headline-sm font-headline-sm text-primary font-semibold">$49.000<span class="text-body-sm font-body-sm text-on-surface-variant font-normal">/mes</span></p>
-</div>
-</div>
-<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-<p class="text-body-sm font-body-sm text-on-surface-variant max-w-xl">Los combos los activamos a mano para dejar bien los accesos. Escríbenos y te lo dejamos listo.</p>
-<a class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-on-primary font-body-sm font-semibold hover:bg-neutral-800 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary shrink-0" href="https://wa.me/56953818617?text=Hola!%20Quiero%20armar%20un%20combo%20de%20herramientas%20AMG." rel="noopener noreferrer" target="_blank">Armar mi combo por WhatsApp</a>
-</div>
-</div>
-</details>
-<details class="amg-fold mt-4 rounded-2xl border border-outline-variant/50 bg-surface-container-lowest overflow-hidden">
-<summary class="px-6 py-5 flex items-center justify-between gap-4">
-<div>
-<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">DE A UNA</span>
-<h3 class="text-headline-sm font-headline-sm text-primary tracking-tight mt-1">Herramientas individuales</h3>
-<p class="text-body-sm font-body-sm text-on-surface-variant mt-1">Toma una sola herramienta, al mes o al año. Se activa apenas se confirma el cobro.</p>
-</div>
-<span aria-hidden="true" class="material-symbols-outlined amg-chev text-on-surface-variant shrink-0">expand_more</span>
-</summary>
-<div class="px-6 pb-6 pt-6 border-t border-outline-variant/40">
-<div class="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-<p class="text-body-sm font-body-sm text-on-surface-variant max-w-xl">Pagas con Mercado Pago o transferencia. Cambia entre mensual y anual cuando quieras.</p>
-<div class="shrink-0" id="apps-contratar-toggle"></div>
-</div>
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="apps-contratar-grid" aria-label="Herramientas disponibles para contratar"></div>
-</div>
-</details>
+<div class="space-y-4" id="apps-contratar-proyectos"></div>
 </div>
 </div>
 </section>
@@ -678,15 +637,15 @@ Entornos demo activos
 <div>
 <div class="inline-flex items-center gap-2 mb-2">
 <span aria-hidden="true" class="w-2 h-2 rounded-full bg-primary"></span>
-<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">ARQUITECTURA MODULAR</span>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">PRODUCTO 01 · SUITE AMG</span>
 </div>
-<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">El mapa de herramientas AMG</h2>
+<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">La Suite AMG: nueve aplicaciones</h2>
 <p class="text-body-md font-body-md text-on-surface-variant mt-2 max-w-2xl">
-            Cada aplicación vive en su propio subdominio, resuelve un problema concreto y guarda tus datos con total independencia.
+            Los nueve SaaS de AMG en un solo conjunto. Cada aplicación vive en su propio subdominio, resuelve un problema concreto y guarda tus datos con total independencia.
           </p>
 </div>
 <div class="text-right hidden sm:block">
-<span class="text-label-mono font-label-mono text-outline">9 SUBDOMINIOS · INDEPENDENCIA TOTAL</span>
+<span class="text-label-mono font-label-mono text-outline">9 APLICACIONES · UN MISMO CONJUNTO</span>
 </div>
 </div>
 <!-- 12-Column Asymmetric Grid: contenedor con altura tope y scroll interno para que la seccion no crezca -->
@@ -1138,15 +1097,15 @@ Entornos demo activos
 <div>
 <div class="inline-flex items-center gap-2 mb-2">
 <span aria-hidden="true" class="w-2 h-2 rounded-full bg-secondary"></span>
-<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">SISTEMAS DE GESTIÓN</span>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">PRODUCTO 02 · TALLER AMG</span>
 </div>
-<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">Sistemas completos por industria</h2>
+<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">Taller Mecánico</h2>
 <p class="text-body-md font-body-md text-on-surface-variant mt-2 max-w-2xl">
-            Más allá de las nueve herramientas: sistemas integrales que cubren un rubro entero. Se acceden con la misma cuenta AMG y la misma suscripción, pero viven en su propio dominio con su propia base de datos.
+            Un proyecto completo aparte de la Suite: sistema integral de taller con órdenes de trabajo, vehículos, repuestos y clientes. Misma cuenta AMG, propio dominio y su propia base de datos.
           </p>
 </div>
 <div class="text-right hidden sm:block">
-<span class="text-label-mono font-label-mono text-outline">1 SISTEMA · EN CRECIMIENTO</span>
+<span class="text-label-mono font-label-mono text-outline">LOS PRÓXIMOS PROYECTOS SE SUMAN AQUÍ</span>
 </div>
 </div>
 <div class="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-6">
@@ -1199,7 +1158,7 @@ Entornos demo activos
 </a>
 </div>
 </article>
-<!-- Los próximos sistemas se agregan acá, como una <article> más en este grid. -->
+<!-- Los próximos proyectos se agregan acá, como una <article> más en este grid. -->
 </div>
 </div>
 </section>
@@ -1311,7 +1270,7 @@ Entornos demo activos
 <!-- 8. ACCESO · PLANES · PAGO (comercialización manual)          -->
 <!-- ============================================================ -->
 <section class="py-margin-desktop bg-surface scroll-mt-20 border-b border-outline-variant/30" id="acceso">
-<!-- ATENCIÓN: precios CLP definidos en la sección (bundles + tabla por herramienta + setup). Número WhatsApp configurado en los CTA. -->
+<!-- Los valores de los planes ya no se publican en el landing: se confirman desde el panel o por WhatsApp/CTA. -->
 <div class="max-w-7xl mx-auto px-gutter-desktop">
 <div class="max-w-2xl mb-12">
 <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-surface-container border border-outline-variant/60 shadow-sm mb-4">
@@ -1351,37 +1310,31 @@ Las 9 herramientas funcionan con datos demo para que las explores libres. Cuando
 </div>
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 <!-- Plan y precios -->
+<!-- Planes sin valores: el precio se coordina por WhatsApp o se ve en el panel tras ingresar -->
 <article class="lg:col-span-7 bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow">
-<div class="text-label-caps font-label-caps text-primary mb-6">PLANES AMG · MENSUALIDAD</div>
+<div class="text-label-caps font-label-caps text-primary mb-6">PLANES AMG · A MEDIDA</div>
 <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
 <div class="rounded-2xl border border-outline-variant/50 bg-surface-container-low p-5">
 <div class="text-label-mono-xs font-label-mono-xs text-on-surface-variant mb-1">1 HERRAMIENTA</div>
-<div class="text-headline-md font-headline-md text-primary font-semibold tracking-tight">desde $7.000<span class="text-body-sm font-body-sm text-on-surface-variant font-normal"> /mes</span></div>
+<div class="text-headline-md font-headline-md text-primary font-semibold tracking-tight">Una sola</div>
+<div class="text-label-mono-xs font-label-mono-xs text-on-surface-variant mt-1">tomas la aplicación que necesitas</div>
 </div>
 <div class="rounded-2xl border border-primary/40 bg-primary/5 p-5">
 <div class="text-label-mono-xs font-label-mono-xs text-primary mb-1">3 HERRAMIENTAS · COMBO</div>
-<div class="text-headline-md font-headline-md text-primary font-semibold tracking-tight">$29.000<span class="text-body-sm font-body-sm text-on-surface-variant font-normal"> /mes</span></div>
+<div class="text-headline-md font-headline-md text-primary font-semibold tracking-tight">Un trío</div>
 <div class="text-label-mono-xs font-label-mono-xs text-primary/70 mt-1">ej.: agenda + canchas + órdenes</div>
 </div>
 <div class="rounded-2xl border border-primary/40 bg-primary text-on-primary p-5">
 <div class="text-label-mono-xs font-label-mono-xs opacity-90 mb-1">SUITE COMPLETA · 9</div>
-<div class="text-headline-md font-headline-md font-semibold tracking-tight">$49.000<span class="text-body-sm font-body-sm opacity-80 font-normal"> /mes</span></div>
-<div class="text-label-mono-xs font-label-mono-xs opacity-90 mt-1">todo incluido</div>
+<div class="text-headline-md font-headline-md font-semibold tracking-tight">Todo junto</div>
+<div class="text-label-mono-xs font-label-mono-xs opacity-90 mt-1">las nueve aplicaciones</div>
 </div>
-</div>
-<div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0 text-body-sm font-body-sm text-on-surface mb-4">
-<div class="flex justify-between border-b border-outline-variant/30 py-1.5"><span>01 · Agenda de Citas</span><span class="font-semibold text-label-mono font-label-mono">$12.000</span></div>
-<div class="flex justify-between border-b border-outline-variant/30 py-1.5"><span>02 · Reservas de Canchas</span><span class="font-semibold text-label-mono font-label-mono">$18.000</span></div>
-<div class="flex justify-between border-b border-outline-variant/30 py-1.5"><span>03 · Órdenes de Trabajo</span><span class="font-semibold text-label-mono font-label-mono">$18.000</span></div>
-<div class="flex justify-between border-b border-outline-variant/30 py-1.5"><span>04 · Almacenaje</span><span class="font-semibold text-label-mono font-label-mono">$9.000</span></div>
-<div class="flex justify-between border-b border-outline-variant/30 py-1.5"><span>05 · Cotizaciones y Presupuestos</span><span class="font-semibold text-label-mono font-label-mono">$8.000</span></div>
-<div class="flex justify-between border-b border-outline-variant/30 py-1.5"><span>06 · Gestión de Clientes</span><span class="font-semibold text-label-mono font-label-mono">$7.000</span></div>
-<div class="flex justify-between border-b border-outline-variant/30 py-1.5"><span>07 · Control de Activos</span><span class="font-semibold text-label-mono font-label-mono">$16.900</span></div>
-<div class="flex justify-between border-b border-outline-variant/30 py-1.5"><span>08 · Checklists e Inspecciones</span><span class="font-semibold text-label-mono font-label-mono">$14.900</span></div>
-<div class="flex justify-between border-b border-outline-variant/30 py-1.5"><span>09 · Control de Pagos</span><span class="font-semibold text-label-mono font-label-mono">$15.900</span></div>
 </div>
 <p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">
-Setup inicial (única vez): <span class="font-semibold text-primary">$15.000 – $45.000</span> según la herramienta. Incluye datos cargados, subdominio https y soporte directo por WhatsApp.
+Los valores de cada plan te los confirmo al coordinar por WhatsApp o al ingresar a <span class="font-semibold text-primary">tus aplicaciones</span>, según las herramientas y su configuración.
+</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed mt-3">
+Setup inicial (única vez) según la herramienta: incluye datos cargados, subdominio https y soporte directo por WhatsApp.
 </p>
 </article>
 <!-- Datos bancarios -->

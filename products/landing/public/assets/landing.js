@@ -900,36 +900,105 @@
     );
   }
 
+  /* Secciones de contratación, una por PROYECTO (suite, taller, y los que
+     se sumen). Para agregar un proyecto nuevo: añade una entrada a PROYECTOS
+     con su etiqueta, nombre, descripción y la lista de slugs de sús productos. */
+  var PROYECTOS = [
+    {
+      id: 'suite',
+      etiqueta: 'PRODUCTO 01 · SUITE AMG',
+      nombre: 'Suite AMG',
+      desc: 'Las nueve aplicaciones de gestión de AMG. Toma una sola, un combo de tres o la suite completa, al mes o al año.',
+      combo: true,
+      slugs: ['espacios', 'citas', 'inventario', 'solicitudes', 'cotizaciones', 'crm', 'activos', 'checklists', 'pagos'],
+    },
+    {
+      id: 'taller',
+      etiqueta: 'PRODUCTO 02 · TALLER AMG',
+      nombre: 'Taller Mecánico',
+      desc: 'Sistema completo de taller: órdenes de trabajo, vehículos, repuestos y clientes. Un proyecto aparte de la suite, con la misma cuenta AMG.',
+      combo: false,
+      slugs: ['taller'],
+    },
+  ];
+
+  var COMBO_WA = 'https://wa.me/56953818617?text=' + encodeURIComponent('Hola! Quiero armar un combo de herramientas AMG.');
+
+  function comboBlock() {
+    return el('div', { class: 'mb-6' },
+      el('div', { class: 'grid grid-cols-1 md:grid-cols-2 gap-6 mb-6' },
+        el('div', { class: 'rounded-2xl border border-outline-variant/50 ambient-inset p-6' },
+          el('h4', { class: 'text-body-md font-body-md font-semibold text-primary', text: 'Combo · 3 herramientas' }),
+          el('p', { class: 'text-body-sm font-body-sm text-on-surface-variant mt-1', text: 'Elige cualquier trío de la suite y lo pagas como un solo plan.' }),
+          el('p', { class: 'mt-4 text-headline-sm font-headline-sm text-primary font-semibold', text: '$29.000' },
+            el('span', { class: 'text-body-sm font-body-sm text-on-surface-variant font-normal', text: '/mes' })),
+        ),
+        el('div', { class: 'rounded-2xl border border-outline-variant/50 ambient-inset p-6' },
+          el('h4', { class: 'text-body-md font-body-md font-semibold text-primary', text: 'Suite completa · 9' }),
+          el('p', { class: 'text-body-sm font-body-sm text-on-surface-variant mt-1', text: 'Las nueve aplicaciones, todo el stack operativo junto.' }),
+          el('p', { class: 'mt-4 text-headline-sm font-headline-sm text-primary font-semibold', text: '$49.000' },
+            el('span', { class: 'text-body-sm font-body-sm text-on-surface-variant font-normal', text: '/mes' })),
+        ),
+      ),
+      el('div', { class: 'flex flex-col sm:flex-row sm:items-center justify-between gap-4' },
+        el('p', { class: 'text-body-sm font-body-sm text-on-surface-variant max-w-xl', text: 'Los combos los activamos a mano para dejar bien los accesos. Escríbenos y te lo dejamos listo.' }),
+        el('a', { class: 'inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-on-primary font-body-sm font-semibold hover:bg-neutral-800 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary shrink-0', href: COMBO_WA, target: '_blank', rel: 'noopener noreferrer', text: 'Armar mi combo por WhatsApp' }),
+      ),
+    );
+  }
+
+  function proyectoFold(proy, items, estado, activos) {
+    var body = [];
+    if (proy.combo) body.push(comboBlock());
+    body.push(el('div', { class: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6', 'aria-label': 'Herramientas de ' + proy.nombre },
+      items.map(function (product) { return contratarCard(product, estado, activos[product.slug]); })));
+    return el('details', { class: 'amg-fold rounded-2xl border border-outline-variant/50 bg-surface-container-lowest overflow-hidden' },
+      el('summary', { class: 'px-6 py-5 flex items-center justify-between gap-4' },
+        el('div', {},
+          el('span', { class: 'text-label-caps font-label-caps text-on-surface-variant tracking-wider', text: proy.etiqueta }),
+          el('h3', { class: 'text-headline-sm font-headline-sm text-primary tracking-tight mt-1', text: proy.nombre }),
+          el('p', { class: 'text-body-sm font-body-sm text-on-surface-variant mt-1', text: proy.desc }),
+        ),
+        el('span', { 'aria-hidden': 'true', class: 'material-symbols-outlined amg-chev text-on-surface-variant shrink-0', text: 'expand_more' }),
+      ),
+      el('div', { class: 'px-6 pb-6 pt-6 border-t border-outline-variant/40' }, body),
+    );
+  }
+
   function renderContratar(session) {
     var box = document.getElementById('apps-contratar');
     if (!box) return;
     if (!session) { box.classList.add('hidden'); return; }
     box.classList.remove('hidden');
-    var grid = document.getElementById('apps-contratar-grid');
+    var cont = document.getElementById('apps-contratar-proyectos');
     var toggleBox = document.getElementById('apps-contratar-toggle');
-    if (!grid) return;
-    mount(grid, el('div', { class: 'opacity-60 text-body-sm font-body-sm text-on-surface-variant', text: 'Cargando herramientas…' }));
+    if (!cont) return;
+    mount(cont, el('div', { class: 'opacity-60 text-body-sm font-body-sm text-on-surface-variant', text: 'Cargando herramientas…' }));
     var pApps = api('/account/applications').catch(function () { return { active: [] }; });
     return Promise.all([api('/products'), pApps]).then(function (r) {
       var products = (r[0] && r[0].products) || [];
       var activos = {};
       ((r[1] && r[1].active) || []).forEach(function (a) { activos[a.slug] = true; });
-      if (!products.length) {
-        mount(grid, el('div', { class: 'text-body-sm font-body-sm text-on-surface-variant', text: 'No hay herramientas disponibles por ahora.' }));
-        return;
-      }
+      var bySlug = {};
+      products.forEach(function (product) { bySlug[product.slug] = product; });
       var estado = { periodo: 'monthly' };
       var btnMes = el('button', { type: 'button', class: BTN_TOGGLE_OFF, onclick: function () { estado.periodo = 'monthly'; pintar(); } }, 'Mensual');
       var btnAnio = el('button', { type: 'button', class: BTN_TOGGLE_OFF, onclick: function () { estado.periodo = 'yearly'; pintar(); } }, 'Anual · 2 meses gratis');
       function pintar() {
-        mount(grid, products.map(function (product) { return contratarCard(product, estado, activos[product.slug]); }));
+        var secciones = [];
+        PROYECTOS.forEach(function (proy) {
+          var items = proy.slugs.map(function (slug) { return bySlug[slug]; }).filter(Boolean);
+          if (items.length) secciones.push(proyectoFold(proy, items, estado, activos));
+        });
+        if (!secciones.length) mount(cont, el('div', { class: 'text-body-sm font-body-sm text-on-surface-variant', text: 'No hay herramientas disponibles por ahora.' }));
+        else mount(cont, secciones);
         btnMes.className = estado.periodo === 'monthly' ? BTN_TOGGLE_ON : BTN_TOGGLE_OFF;
         btnAnio.className = estado.periodo === 'yearly' ? BTN_TOGGLE_ON : BTN_TOGGLE_OFF;
       }
       if (toggleBox) mount(toggleBox, el('div', { class: 'inline-flex items-center gap-1 p-1 rounded-full bg-surface-container border border-outline-variant/60' }, btnMes, btnAnio));
       pintar();
     }).catch(function () {
-      mount(grid, el('div', { class: 'text-body-sm font-body-sm text-on-surface-variant', text: 'No pudimos cargar las herramientas. Recarga la página e inténtalo de nuevo.' }));
+      mount(cont, el('div', { class: 'text-body-sm font-body-sm text-on-surface-variant', text: 'No pudimos cargar las herramientas. Recarga la página e inténtalo de nuevo.' }));
     });
   }
 
