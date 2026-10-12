@@ -194,6 +194,19 @@ export function createPlatformApp(options: PlatformAppOptions = {}): Express {
     // cambia con el. Sin ella, un despliegue no llegaba al navegador hasta que
     // expiraba el TTL de Cloudflare, y peor: mezclaba un JS viejo con uno nuevo.
     const version = assetVersion(dir);
+
+    const leer = htmlPages(dir, version);
+    const page = (name: string) => (_req: express.Request, res: express.Response) => {
+      res.setHeader('Cache-Control', HTML_CACHE_CONTROL);
+      res.type('html').send(leer(name));
+    };
+
+    // El hub de sistemas se sirve con la huella en los assets, igual que el resto
+    // de las paginas. Si lo entregara `express.static`, iria sin `?v=` y Cloudflare
+    // seguiria cacheando un `landing.js` viejo (immutable, un ano). Va ANTES del
+    // static para ganarle el orden de rutas.
+    app.get('/sistemas.html', page('sistemas.html'));
+
     app.use(
       express.static(dir, {
         index: false,
@@ -211,12 +224,6 @@ export function createPlatformApp(options: PlatformAppOptions = {}): Express {
         },
       }),
     );
-
-    const leer = htmlPages(dir, version);
-    const page = (name: string) => (_req: express.Request, res: express.Response) => {
-      res.setHeader('Cache-Control', HTML_CACHE_CONTROL);
-      res.type('html').send(leer(name));
-    };
 
     // Público
     app.get('/', page('index.html'));
