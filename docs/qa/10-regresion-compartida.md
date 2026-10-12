@@ -32,7 +32,7 @@ pestaña. Nunca basta con probar `?panel=` ni con abrir una sola pestaña.**
 | Endpoint de arranque | `GET /api/inicio` — lo llama `amigo.js` para pintar la cuenta y las otras herramientas |
 | Orden de scripts | `/amigo-ui.js` → `/amigo.js` → `/app.js`, **clásicos, sin `defer` ni `type="module"`** |
 | Matriz de paneles | ver §2 |
-| tests que lo blindan | `packages/product-runtime/tests/` (41 casos, incluye `time.test.ts` con 12) y `packages/core/tests/frontendMoney.test.ts`, que recorre los nueve `app.js` y falla si aparece un `* 100` o `/ 100` sobre un monto |
+| tests que lo blindan | `packages/product-runtime/tests/` (41 casos, incluye `time.test.ts` con 12) y `packages/platform/tests/frontendMoney.test.ts`, que recorre los nueve `app.js` y falla si aparece un `* 100` o `/ 100` sobre un monto |
 
 ### Matriz de paneles por producto
 
@@ -244,7 +244,7 @@ zona, los casos de fecha y hora no prueban nada. Ver `REG-UI-04` y `REG-UI-05`.
 | **Tipo / Prioridad** | `REG` · `P0` |
 | **Precondición** | Poder ver montos en varios productos |
 | **Pasos** | 1. En cada producto que muestre dinero, anotar el formato de un monto redondo y de uno con decimales.<br>2. Comparar entre productos. |
-| **Esperado** | **Todos formatean igual.** Se comprobó que hay al menos dos formatos distintos en la suite: uno redondea a pesos enteros y otro muestra decimales. En el mismo portfolio eso se ve como una inconsistencia, no como un bug de un producto. La conversión vive en `AMIGO_UI.dinero` y `packages/core/src/money.ts`, no en el `app.js` de cada uno. |
+| **Esperado** | **Todos formatean igual.** Se comprobó que hay al menos dos formatos distintos en la suite: uno redondea a pesos enteros y otro muestra decimales. En el mismo portfolio eso se ve como una inconsistencia, no como un bug de un producto. La conversión vive en `AMIGO_UI.dinero` y `amg-core/src/money.ts` (repo `bentlyy/amg-core`, paquete `@amg/core`), no en el `app.js` de cada uno. |
 
 #### `REG-UI-04` — `AMIGO_UI.fecha` respeta la zona pedida
 
@@ -681,7 +681,7 @@ qué depende de una persona ejecutando este plan.
 | `amigo.js` — navegación | **No.** Solo hay pruebas de UI de Citas en jsdom. | `REG-NAV-01` a `REG-NAV-12` |
 | `amigo.js` — cuenta y herramientas | **No** | `REG-NAV-09`, `REG-NAV-10`, `REG-NAV-11` |
 | `amigo-ui.js` — `fecha` y zona | Sí: `packages/product-runtime/tests/time.test.ts` (12 casos) | `REG-UI-04`, `REG-UI-05` |
-| `amigo-ui.js` — dinero | Sí: `packages/core/tests/frontendMoney.test.ts` recorre los nueve `app.js` y falla si alguien convierte un monto en el frontend | `REG-UI-03` |
+| `amigo-ui.js` — dinero | Sí: `packages/platform/tests/frontendMoney.test.ts` recorre los nueve `app.js` y falla si alguien convierte un monto en el frontend | `REG-UI-03` |
 | `amigo-ui.js` — tablas y estados | **No** | `REG-UI-01`, `REG-UI-02`, `REG-UI-06` |
 | `crudRouter` | Sí, en los tests de cada producto | `REG-CRUD-01` a `REG-CRUD-10` |
 | Sesión y SSO | Sí, en `packages/auth-client` | `REG-SES-01` a `REG-SES-08` |
