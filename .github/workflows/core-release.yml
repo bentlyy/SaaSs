@@ -42,7 +42,7 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Git: clonar @amg/core por HTTPS (release publico, sin llaves)
+      - name: "Git: clonar @amg/core por HTTPS (release publico, sin llaves)"
         # El lockfile resuelve @amg/core como `git+ssh` y este runner no tiene
         # llave SSH: se reescribe https://github.com a HTTPS, que clona anonimo.
         run: |

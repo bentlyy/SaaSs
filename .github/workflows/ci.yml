@@ -36,7 +36,7 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Git: clonar deps git por HTTPS (publico, sin llaves)
+      - name: "Git: clonar deps git por HTTPS (publico, sin llaves)"
         # @amg/core llega como dependencia git y npm escribe `git+ssh` en el
         # lockfile. Este runner no tiene llave SSH: se reescribe a HTTPS.
         run: |
