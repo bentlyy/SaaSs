@@ -70,6 +70,19 @@ command -v docker >/dev/null 2>&1 || fallar "no esta docker en el PATH"
 docker info >/dev/null 2>&1 || fallar "docker no responde. Esta corriendo el daemon?"
 [ -f "$RAIZ/docker-compose.yml" ] || fallar "no estoy en el repositorio ($RAIZ)"
 
+# Limpieza SOLO de colgantes, SIEMPRE antes de pedir espacio. El build de la
+# imagen necesita ~4-6 GB y cada deploy anterior deja build cache que, sin esto,
+# termina llenando el disco hasta que la exportacion de capas falla con "no space
+# left on device" (paso el 2026-10-12 al exportar /root/.npm/_cacache).
+# `docker image prune -f`: solo imagenes sin tag ni contenedor. `docker builder
+# prune -f`: solo build cache sin uso. NO se toca nada activo: ni contenedores
+# (aunque esten parados), ni redes, ni volumenes (aunque esten huerfanos).
+paso "0a. Prune de Docker (solo colgantes)"
+before_kb=$(docker system df --format '{{.BuildCache}}' 2>/dev/null || true)
+docker image prune -f >/dev/null 2>&1 || true
+docker builder prune -f >/dev/null 2>&1 || true
+info "build cache antes: ${before_kb:-n/d}; imagenes colgantes y build cache limpios"
+
 # Espacio en disco: la imagen son varios GB y se reconstruye en cada deploy.
 libre_kb=$(df -Pk "$RAIZ" | awk 'NR==2{print $4}')
 [ "$libre_kb" -ge 6000000 ] || fallar "quedan $((libre_kb/1024)) MB libres en $RAIZ; hacen falta ~6 GB para la imagen"

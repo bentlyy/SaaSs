@@ -25,7 +25,12 @@ COPY packages packages
 COPY products products
 
 # Instala dependencias de todos los workspaces y compila core + productos
-RUN npm ci
+# `npm cache clean --force` evita que la caché de npm (centenares de MB en
+# /root/.npm/_cacache) se meta como capa de la imagen: en el server, esa capa
+# ya reventó el disco EN la exportación ("no space left on device").
+RUN npm ci \
+  && npm cache clean --force \
+  && rm -rf /root/.npm/_logs
 RUN npm run build
 
 ENV NODE_ENV=production
