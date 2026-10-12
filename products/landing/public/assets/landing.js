@@ -1010,12 +1010,37 @@
     return Array.prototype.slice.call(document.querySelectorAll('main > section'));
   }
 
+  /* ── programas: hub central que cambia el panel visibles ──────────────── */
+
+  var programaActivo = 'suite';
+
+  function aplicarPrograma() {
+    document.querySelectorAll('.programa-vista[data-programa]').forEach(function (sec) {
+      if (sec.getAttribute('data-programa') === programaActivo) sec.classList.remove('hidden');
+      else sec.classList.add('hidden');
+    });
+    document.querySelectorAll('[data-programa-tab]').forEach(function (tab) {
+      var activo = tab.getAttribute('data-programa-tab') === programaActivo;
+      tab.setAttribute('aria-selected', activo ? 'true' : 'false');
+    });
+  }
+
+  function setPrograma(programa, conScroll) {
+    programaActivo = programa;
+    aplicarPrograma();
+    if (conScroll) {
+      var destino = document.querySelector('.programa-vista[data-programa="' + programa + '"]');
+      if (destino && destino.scrollIntoView) destino.scrollIntoView({ block: 'start' });
+    }
+  }
+
   function mostrarVista(vista) {
     if (vista === 'landing') {
       seccionesDeMain().forEach(function (sec) {
         if (sec.id === 'tus-aplicaciones' || sec.id === 'mi-cuenta') sec.classList.add('hidden');
         else sec.classList.remove('hidden');
       });
+      aplicarPrograma();
     } else {
       var activa = vista === 'apps' ? 'tus-aplicaciones' : 'mi-cuenta';
       seccionesDeMain().forEach(function (sec) {
@@ -1036,6 +1061,8 @@
   function saltarAAncla() {
     var id = (location.hash || '').replace(/^#/, '');
     if (!id || !document.getElementById(id)) return;
+    var destino = document.getElementById(id);
+    if (destino && destino.hasAttribute('data-programa')) setPrograma(destino.getAttribute('data-programa'));
     var intentos = 0;
     (function poll() {
       var target = document.getElementById(id);
@@ -1076,6 +1103,206 @@
     });
   }
 
+  /* ── detalle de cada SaaS de la Suite ─────────────────────────────────── */
+
+  var SAAS = {
+    espacios: {
+      nombre: 'Reserva de Espacios',
+      dominio: 'espacios.amgdeveloper.cl',
+      resuelve: 'Agenda y reserva por horas de salones, canchas y salas. Bloquea el espacio, no a una persona, y calcula el valor de cada franja.',
+      funciones: [
+        'Ficha de espacios con tipo, capacidad y precio por hora.',
+        'Horarios de disponibilidad y bloqueos puntuales.',
+        'Consulta de disponibilidad por franjas con total calculado.',
+        'Reservas con estados (confirmada, pendiente, realizada, cancelada).',
+        'Extras que se suman al valor de la reserva.',
+        'Agenda diaria y semanal con resumen de ocupación e ingresos.',
+      ],
+      target: 'Centros de eventos, recintos deportivos y espacios de coworking.',
+    },
+    citas: {
+      nombre: 'Reserva de Citas',
+      dominio: 'citas.amgdeveloper.cl',
+      resuelve: 'Agenda citas por profesional, con servicios, horarios de atención y recordatorios automáticos.',
+      funciones: [
+        'Profesionales con color y servicios con duración y precio.',
+        'Asociación entre cada servicio y los profesionales que lo realizan.',
+        'Horarios de atención y bloqueos por profesional.',
+        'Citas con uno o varios servicios y reprogramación.',
+        'Recordatorios con horas de aviso y reintento.',
+        'Agenda diaria y semanal por profesional.',
+      ],
+      target: 'Peluquerías, consultas y negocios con agenda por persona.',
+    },
+    inventario: {
+      nombre: 'Inventario',
+      dominio: 'inventario.amgdeveloper.cl',
+      resuelve: 'Control de stock que nunca se escribe a mano: el saldo se deriva de los movimientos.',
+      funciones: [
+        'Artículos con SKU, unidad, precio y stock mínimo.',
+        'Movimientos con signo (entrada, salida o ajuste) con motivo y autor.',
+        'Stock y saldo derivados de los movimientos, con historial por artículo.',
+        'Alertas de productos bajo stock mínimo.',
+        'Etiquetado y baja lógica de artículos.',
+        'Resumen general del inventario.',
+      ],
+      target: 'Bodegas y almacenes que necesitan explicar cada cambio de stock.',
+    },
+    solicitudes: {
+      nombre: 'Solicitudes y Órdenes',
+      dominio: 'solicitudes.amgdeveloper.cl',
+      resuelve: 'Mesa de ayuda donde cada solicitud es un folio con estado, comentarios y adjuntos.',
+      funciones: [
+        'Folio correlativo por organización.',
+        'Prioridad y estado que avanza por el flujo.',
+        'Solicitante y responsable asignados.',
+        'Comentarios por folio.',
+        'Adjuntos guardados y referenciados.',
+        'Historial de cambios, resolución y cierre.',
+      ],
+      target: 'Equipos de soporte, mantenimiento y órdenes internas.',
+    },
+    cotizaciones: {
+      nombre: 'Cotizaciones',
+      dominio: 'cotizaciones.amgdeveloper.cl',
+      resuelve: 'Presupuestos con líneas e impuesto, con importes congelados y un estado que avanza solo.',
+      funciones: [
+        'Folio correlativo por organización.',
+        'Líneas con cantidad, precio unitario y total.',
+        'Impuesto configurable y totales calculados.',
+        'Estados (borrador, enviada, aceptada, rechazada, vencida) con sellos de fecha.',
+        'Vigencia de la cotización.',
+        'Tablero con el resumen de propuestas.',
+      ],
+      target: 'Empresas que envían propuestas con importes fijos.',
+    },
+    crm: {
+      nombre: 'Clientes (CRM)',
+      dominio: 'crm.amgdeveloper.cl',
+      resuelve: 'Ficha y seguimiento de la cartera de clientes.',
+      funciones: [
+        'Fichas de cliente persona o empresa con documento y ciudad.',
+        'Etiquetas, notas y fecha de cumpleaños.',
+        'Seguimientos con fecha de vencimiento.',
+        'Historial de contacto de solo lectura.',
+        'Ficha por cliente y cumpleaños del mes.',
+        'Búsqueda por documento o ciudad.',
+      ],
+      target: 'Equipos comerciales que cuidan su cartera de clientes.',
+    },
+    activos: {
+      nombre: 'Control de Activos',
+      dominio: 'activos.amgdeveloper.cl',
+      resuelve: 'Patrimonio de la empresa (equipos, herramientas y vehículos) con el historial de lo que les pasó.',
+      funciones: [
+        'Activos con código, categoría, marca, modelo y número de serie.',
+        'Estado, ubicación, responsable y costo.',
+        'Código correlativo automático.',
+        'Historial de movimientos con autor (solo lectura).',
+        'Ficha por activo y tablero general.',
+        'Archivado o baja del activo.',
+      ],
+      target: 'Empresas que reparten equipos y vehículos entre personas y ubicaciones.',
+    },
+    checklists: {
+      nombre: 'Checklists e Inspecciones',
+      dominio: 'checklists.amgdeveloper.cl',
+      resuelve: 'Plantillas de inspección reutilizables y su ejecución con evidencia y veredicto.',
+      funciones: [
+        'Plantillas con secciones y puntos (sí/no, texto, número, opción).',
+        'Reordenar, duplicar y marcar puntos obligatorios.',
+        'Corridas con copia inmutable de los puntos de la plantilla.',
+        'Respuesta punto a punto y adjuntos de evidencia.',
+        'Cierre con veredicto (aprobado, observado, rechazado).',
+        'Reabrir o cancelar con registro de fecha.',
+      ],
+      target: 'Empresas con inspecciones repetibles y auditables.',
+    },
+    pagos: {
+      nombre: 'Control de Pagos',
+      dominio: 'pagos.amgdeveloper.cl',
+      resuelve: 'Cartera por cobrar: cargos con saldo que nunca queda negativo y un estado que se recalcula solo.',
+      funciones: [
+        'Cargos con folio correlativo y concepto.',
+        'Abonos parciales con método y referencia.',
+        'Devoluciones de cargos.',
+        'Saldo y estado recalculados (pendiente, parcial, pagado, vencido).',
+        'Reporte de antigüedad y listado de saldos.',
+        'Tablero de la cartera.',
+      ],
+      target: 'Empresas que cobran a crédito y siguen su recaudación.',
+    },
+  };
+
+  var saasOverlay = null;
+
+  function cerrarSaas() {
+    if (saasOverlay && saasOverlay.parentNode) saasOverlay.parentNode.removeChild(saasOverlay);
+    saasOverlay = null;
+    document.removeEventListener('keydown', saasEscape);
+    document.body.style.overflow = '';
+  }
+
+  function saasEscape(event) {
+    if (event.key === 'Escape') cerrarSaas();
+  }
+
+  function abrirSaas(slug) {
+    var info = SAAS[slug];
+    if (!info) return;
+    cerrarSaas();
+    var filas = info.funciones.map(function (f) {
+      return el('li', { class: 'flex gap-2 text-body-sm font-body-sm text-on-surface-variant' },
+        el('span', { class: 'text-primary mt-0.5 shrink-0', 'aria-hidden': 'true', text: '•' }),
+        el('span', { text: f }));
+    });
+    var card = el('div', {
+      class: 'bg-surface text-on-surface w-full sm:max-w-lg max-h-[88vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl shadow-2xl border border-outline-variant/60',
+      role: 'dialog', 'aria-modal': 'true', 'aria-label': info.nombre,
+    },
+      el('div', { class: 'flex items-start gap-3 p-5 border-b border-outline-variant/60 sticky top-0 bg-surface z-10' },
+        el('span', { class: 'shrink-0 w-10 h-10 rounded-lg bg-primary/10 text-primary font-title-sm flex items-center justify-center', text: info.nombre.charAt(0) }),
+        el('div', { class: 'min-w-0 flex-1' },
+          el('h3', { class: 'text-title-sm font-title-sm text-on-surface', text: info.nombre }),
+          el('a', { class: 'text-label-sm font-label-sm text-primary hover:underline', href: 'https://' + info.dominio, target: '_blank', rel: 'noopener', text: info.dominio })),
+        el('button', { type: 'button', class: 'shrink-0 -mt-1 -mr-1 w-9 h-9 rounded-full grid place-items-center text-on-surface-variant hover:bg-surface-container-low', onclick: cerrarSaas, 'aria-label': 'Cerrar' }, el('span', { text: '✕' }))),
+      el('div', { class: 'p-5 space-y-5' },
+        el('p', { class: 'text-body-md font-body-md text-on-surface', text: info.resuelve }),
+        el('div', {},
+          el('p', { class: 'text-label-md font-label-md uppercase tracking-wide text-on-surface-variant mb-2', text: 'Funciones' }),
+          el('ul', { class: 'space-y-1.5' }, filas)),
+        el('p', { class: 'text-body-sm font-body-sm text-on-surface-variant' },
+          el('span', { class: 'text-on-surface font-medium', text: 'Ideal para: ' }), info.target)),
+      el('div', { class: 'px-5 pb-5' },
+        el('a', { class: 'w-full inline-flex items-center justify-center px-5 py-3 rounded-lg bg-primary text-on-primary font-body-sm font-semibold hover:opacity-90 transition-all', href: 'https://' + info.dominio, target: '_blank', rel: 'noopener' },
+          'Abrir ' + info.nombre, el('span', { class: 'ml-2', 'aria-hidden': 'true', text: '→' }))));
+    saasOverlay = el('div', {
+      class: 'fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-6',
+      onclick: function (event) { if (event.target === saasOverlay) cerrarSaas(); },
+    }, card);
+    document.body.appendChild(saasOverlay);
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', saasEscape);
+  }
+
+  function vincularSaas() {
+    document.querySelectorAll('[data-saas]').forEach(function (card) {
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.classList.add('cursor-pointer', 'transition', 'hover:ring-2', 'hover:ring-primary/30');
+      card.addEventListener('click', function (event) {
+        if (event.target && event.target.closest && event.target.closest('a')) return;
+        abrirSaas(card.getAttribute('data-saas'));
+      });
+      card.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          abrirSaas(card.getAttribute('data-saas'));
+        }
+      });
+    });
+  }
+
   /* ── arranque ────────────────────────────────────────────────────────── */
 
   function boot() {
@@ -1088,6 +1315,10 @@
         renderApps(session);
         renderCuenta(session);
         renderContratar(session);
+        document.querySelectorAll('[data-programa-tab]').forEach(function (tab) {
+          tab.addEventListener('click', function () { setPrograma(tab.getAttribute('data-programa-tab'), true); });
+        });
+        vincularSaas();
         aplicarHashInicial();
         vincularSesionEnPagina();
         document.addEventListener('click', function () { cerrarMenuActivo(); });
