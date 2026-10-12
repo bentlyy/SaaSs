@@ -46,6 +46,8 @@ jobs:
             du -h --max-depth=2 "$HOME/projects/saas-mini" 2>/dev/null | sort -rh | head -15 || true
           fi
           echo; echo "===== volumenes docker ====="; docker volume ls
+          echo; echo "===== AMG_SSO_INTROSPECT resuelto por docker compose ====="
+          docker compose -f "$HOME/projects/saas-mini/docker-compose.yml" -p saas-mini config 2>/dev/null | grep -A2 'AMG_SSO_INTROSPECT' | head -16 || echo "compose config no resuelve INTROSPECT"
           echo; echo "===== AMG_SSO_INTROSPECT en .env del server ====="
           if [ -f "$HOME/projects/saas-mini/.env" ]; then
             grep '^AMG_SSO_INTROSPECT=' "$HOME/projects/saas-mini/.env" || echo "AMG_SSO_INTROSPECT no definido en .env"

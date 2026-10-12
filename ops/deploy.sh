@@ -123,6 +123,14 @@ nuevo_secreto() { openssl rand -base64 48 | tr -d '=+/' | head -c 64; }
 poner AMG_SESSION_SECRET  "$(nuevo_secreto)" conservar
 poner AMG_SSO_ROOT_SECRET "$(nuevo_secreto)" conservar
 
+# Sacar el valor por defecto del compose aparte: con esto el `.env` del server lo
+# declara EXPLICITO y los productos corren con AMG_SSO_INTROSPECT=1 pase lo que
+# pase con la interpolacion. Con introspect=1 cada request del producto pregunta
+# al Core si la sesion sigue viva: cancelar o vencer una suscripcion corta el
+# acceso al instante (sin esto, el producto confia en su sesion local hasta que
+# caduca, y "sin acceso" se cumple con horas o dias de retraso).
+poner AMG_SSO_INTROSPECT "1" conservar
+
 # La contrasena NO se genera sola a proposito. Si el script inventara una y la
 # perdiera nadie podria entrar, y una contrasena que solo existe en el historial
 # del deploy tampoco cuenta. Si falta, se para aqui y se dice que hacer.
