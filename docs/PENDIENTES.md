@@ -8,11 +8,7 @@ Nada bloqueado por ahora.
 
 ## Pendiente (accionable, sin decisión pendiente)
 
-- **C —** Actualizar `README.md` de `bentlyy/TallerMecanico` (documentar la integración SSO/AMG).
-- **E2 —** Escombros menores: sueltos de la raíz de `08_SaaS_Mini` (`harness.log`,
-  `harness.err.log`, `.inspect-sso.cjs`, `opencode.json`). Están gitignored (no trackeados);
-  `opencode.json` podría estar en uso → se conserva.
-- **Vitaria —** `/vite.svg` responde 400 (cosmético).
+Nada pendiente por ahora.
 
 ## Plan — Vitaria (bentlyy/Clinica-Salud-Vital) SSO + billing propio
 
@@ -77,6 +73,15 @@ RLS por `app.tenant_id`) y suite de tests que asume login local.
 - **Landing —** PRs `SaaSs#2`–`#7` mergeados: navbar `Inicio · Sistemas · Soluciones · Quiénes somos`,
   `index.html` a resumen con `#explora`, nuevas `soluciones.html` y `nosotros.html`, `sistemas.html`
   con navbar coherente; `typecheck` limpio y 193 tests verdes en 11 archivos.
+- **C —** `README.md` de `bentlyy/TallerMecanico`: la integración SSO/AMG ya estaba documentada
+  (commit `a9535b4`); PR `TallerMecanico#1` mergeado (`90731e0`) limpiando referencias JWT obsoletas
+  (interceptor, AuthContext, `.env`, cuentas sembradas). CI verde.
+- **E2 —** Escombros sueltos de la raíz de `08_SaaS_Mini` archivados en
+  `99_Archivo/escombros-08-saas-mini/` (`harness.log`, `harness.err.log`, `.inspect-sso.cjs`).
+  Estaban gitignored; `opencode.json` se conserva (podría estar en uso).
+- **Vitaria —** favicon `/vite.svg` faltante reemplazado: PR `Clinica-Salud-Vital#2` mergeado
+  (`bdceb96`) añade `frontend/public/favicon.svg` (marca teal), actualiza el `<link rel="icon">`
+  y expone `/favicon.svg` en `amgPublicPaths`. CI rojo solo por la cobertura preexistente.
 
 ## Deuda diferida al cierre del SSO (2026-10-12)
 
