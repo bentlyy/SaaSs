@@ -112,6 +112,27 @@ podría robar el código y canjearlo en su propio sitio.
 `return_to` solo acepta rutas internas del Core o dominios de
 `CORE_RETURN_URL_HOSTS`. Es la lista que cierra la redirección abierta.
 
+## Cloudflare y CORS
+
+El canje `POST /api/sso/token` no lo hace el navegador: sale del servidor del
+producto hacia el Core por internet. Cloudflare puede tratarlo como tráfico
+automatizado y cortarlo antes de que llegue, y eso pasó en producción: con **Bot
+Fight Mode** activo, el borde devolvía un challenge a la llamada del producto y el
+login moría en el canje (el producto recibía una respuesta que no era el token).
+
+Lo que tiene que quedar así en la zona `amgdeveloper.cl`:
+
+- **Bot Fight Mode apagado.** Es la causa directa del bloqueo de `POST /api/sso/token`.
+- El subdominio del Core (`desarrollo`) en **DNS only** (nube gris), sin el proxy
+  de Cloudflare por delante. Los productos pueden seguir proxied; el Core no.
+- `SSL/TLS` en **Full**. El origen ya termina TLS con su propio certificado de
+  Let's Encrypt; `Flexible` produce un bucle de redirecciones.
+
+Y del lado del Core, el CORS del canje: `helmet`
+(`packages/platform/src/app.ts`) responde con
+`Cross-Origin-Resource-Policy: cross-origin`. Sin eso el navegador bloquea la
+respuesta cuando el SSO salta entre el Core y un subdominio.
+
 ## El código de autorización
 
 Un uso, 60 segundos (`CORE_SSO_CODE_TTL`), guardado **hasheado**. Se marca
