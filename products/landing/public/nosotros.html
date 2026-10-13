@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Quiénes somos — AMG</title>
+<!-- Material Symbols Google Font (Exact link as mandated) -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Plus Jakarta Sans & JetBrains Mono Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Verbatim Tailwind Config Injection -->
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "inverse-primary": "#c6c6c9",
+            "on-surface-variant": "#44474a",
+            "on-primary": "#ffffff",
+            "primary-container": "#1e2022",
+            "on-surface": "#1b1c1a",
+            "tertiary-container": "#002042",
+            "on-primary-container": "#86878a",
+            "on-tertiary-fixed-variant": "#0a4783",
+            "on-secondary": "#ffffff",
+            "on-error-container": "#93000a",
+            "secondary-fixed-dim": "#ffb68c",
+            "primary-fixed-dim": "#c6c6c9",
+            "primary": "#06080a",
+            "surface-container-highest": "#e4e2df",
+            "tertiary-fixed-dim": "#a6c8ff",
+            "surface-dim": "#dbdad7",
+            "outline": "#75777a",
+            "on-error": "#ffffff",
+            "error-container": "#ffdad6",
+            "on-secondary-fixed": "#321200",
+            "secondary": "#994703",
+            "secondary-container": "#fc934f",
+            "on-secondary-fixed-variant": "#753400",
+            "on-secondary-container": "#6d3000",
+            "primary-fixed": "#e2e2e5",
+            "on-tertiary-fixed": "#001c3a",
+            "surface-variant": "#e4e2df",
+            "error": "#ba1a1a",
+            "surface-container": "#efeeeb",
+            "secondary-fixed": "#ffdbc9",
+            "on-tertiary-container": "#5b89c9",
+            "on-background": "#1b1c1a",
+            "on-tertiary": "#ffffff",
+            "background": "#fbf9f6",
+            "inverse-surface": "#30312f",
+            "surface-tint": "#5d5e61",
+            "on-primary-fixed": "#1a1c1e",
+            "surface-container-lowest": "#ffffff",
+            "outline-variant": "#c5c6ca",
+            "surface-bright": "#fbf9f6",
+            "tertiary-fixed": "#d4e3ff",
+            "surface-container-low": "#f5f3f0",
+            "tertiary": "#000818",
+            "surface": "#fbf9f6",
+            "inverse-on-surface": "#f2f0ed",
+            "surface-container-high": "#eae8e5",
+            "on-primary-fixed-variant": "#454749"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xs": "0.25rem",
+            "space-md": "0.875rem",
+            "space-xl": "2.25rem",
+            "space-lg": "1.5rem",
+            "gutter-desktop": "1.5rem",
+            "margin": "1.25rem",
+            "gutter": "1.25rem",
+            "margin-desktop": "3rem",
+            "space-sm": "0.5rem"
+          },
+          "fontFamily": {
+            "display-hero-mobile": [
+              "Plus Jakarta Sans"
+            ],
+            "headline-lg-mobile": [
+              "Plus Jakarta Sans"
+            ],
+            "label-caps": [
+              "Plus Jakarta Sans"
+            ],
+            "headline-sm": [
+              "Plus Jakarta Sans"
+            ],
+            "headline-lg": [
+              "Plus Jakarta Sans"
+            ],
+            "label-mono-xs": [
+              "JetBrains Mono"
+            ],
+            "body-md": [
+              "Plus Jakarta Sans"
+            ],
+            "display-hero": [
+              "Plus Jakarta Sans"
+            ],
+            "body-lg": [
+              "Plus Jakarta Sans"
+            ],
+            "headline-md": [
+              "Plus Jakarta Sans"
+            ],
+            "label-mono": [
+              "JetBrains Mono"
+            ],
+            "body-sm": [
+              "Plus Jakarta Sans"
+            ]
+          },
+          "fontSize": {
+            "display-hero-mobile": [
+              "36px",
+              {
+                "lineHeight": "44px",
+                "letterSpacing": "-0.025em",
+                "fontWeight": "700"
+              }
+            ],
+            "headline-lg-mobile": [
+              "26px",
+              {
+                "lineHeight": "34px",
+                "letterSpacing": "-0.015em",
+                "fontWeight": "600"
+              }
+            ],
+            "label-caps": [
+              "11px",
+              {
+                "lineHeight": "16px",
+                "letterSpacing": "0.06em",
+                "fontWeight": "700"
+              }
+            ],
+            "headline-sm": [
+              "18px",
+              {
+                "lineHeight": "26px",
+                "letterSpacing": "-0.01em",
+                "fontWeight": "600"
+              }
+            ],
+            "headline-lg": [
+              "32px",
+              {
+                "lineHeight": "40px",
+                "letterSpacing": "-0.02em",
+                "fontWeight": "600"
+              }
+            ],
+            "label-mono-xs": [
+              "10px",
+              {
+                "lineHeight": "14px",
+                "letterSpacing": "0.04em",
+                "fontWeight": "500"
+              }
+            ],
+            "body-md": [
+              "15px",
+              {
+                "lineHeight": "24px",
+                "letterSpacing": "0em",
+                "fontWeight": "400"
+              }
+            ],
+            "display-hero": [
+              "56px",
+              {
+                "lineHeight": "64px",
+                "letterSpacing": "-0.03em",
+                "fontWeight": "700"
+              }
+            ],
+            "body-lg": [
+              "17px",
+              {
+                "lineHeight": "26px",
+                "letterSpacing": "-0.005em",
+                "fontWeight": "400"
+              }
+            ],
+            "headline-md": [
+              "22px",
+              {
+                "lineHeight": "30px",
+                "letterSpacing": "-0.015em",
+                "fontWeight": "600"
+              }
+            ],
+            "label-mono": [
+              "12px",
+              {
+                "lineHeight": "16px",
+                "letterSpacing": "0.02em",
+                "fontWeight": "500"
+              }
+            ],
+            "body-sm": [
+              "13px",
+              {
+                "lineHeight": "20px",
+                "letterSpacing": "0.005em",
+                "fontWeight": "400"
+              }
+            ]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    
+    /* Warm ambient shadow custom treatment according to guidelines */
+    .bento-shadow {
+      box-shadow: 0 1px 2px rgba(44, 34, 20, 0.02), 0 8px 24px -4px rgba(44, 34, 20, 0.04);
+      transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .bento-shadow:hover {
+      box-shadow: 0 2px 4px rgba(44, 34, 20, 0.02), 0 16px 36px -6px rgba(44, 34, 20, 0.08);
+      transform: translateY(-2px);
+    }
+    .ambient-inset {
+      background-color: #F6F4EE;
+      border: 1px solid #EBE6DE;
+    }
+    /* Scroll interno del resumen de herramientas: 7 filas visibles, el resto al desplazar */
+    .tool-scroll {
+      scrollbar-width: thin;
+      scrollbar-color: #B9B2A4 transparent;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tool-scroll::-webkit-scrollbar {
+      width: 8px;
+    }
+    .tool-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .tool-scroll::-webkit-scrollbar-thumb {
+      background-color: #C9C2B4;
+      border-radius: 9999px;
+      border: 2px solid transparent;
+      background-clip: content-box;
+    }
+    .tool-scroll::-webkit-scrollbar-thumb:hover {
+      background-color: #A8A093;
+      background-clip: content-box;
+    }
+    /* Desplegables de contratación */
+    .amg-fold > summary { list-style: none; cursor: pointer; }
+    .amg-fold > summary::-webkit-details-marker { display: none; }
+    .amg-fold .amg-chev { transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1); }
+    .amg-fold[open] .amg-chev { transform: rotate(180deg); }
+  </style>
+<meta name="description" content="AMG es un estudio de software que construye sistemas independientes para negocios reales. Conoce cómo pensamos, qué hacemos y por qué.">
+<style>
+footer a { min-height: 24px; display: inline-flex; align-items: center; }
+.text-outline { color: #5f6368 !important; }
+</style>
+</head>
+<body class="bg-background text-on-surface antialiased selection:bg-surface-container-high selection:text-primary min-h-screen flex flex-col justify-between">
+<!-- ========================================== -->
+<!-- 1. TOP NAVBAR (Shared Component Mapping)  -->
+<!-- ========================================== -->
+<header class="sticky top-0 z-50 bg-surface dark:bg-primary-container shadow-sm dark:shadow-none border-b border-outline-variant/40 dark:border-outline/20 backdrop-blur-md bg-opacity-95">
+<nav aria-label="Navegación principal" class="max-w-7xl mx-auto px-gutter-desktop py-space-md flex items-center justify-between w-full">
+<!-- Brand Logo with Stylized AMG Geometry SVG -->
+<a class="flex items-center gap-3 text-headline-sm font-headline-sm text-primary dark:text-inverse-primary tracking-tight font-semibold group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg p-1" href="/">
+<svg aria-hidden="true" class="w-7 h-7 text-primary dark:text-inverse-primary transition-transform duration-200 group-hover:scale-105" fill="none" viewbox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<rect class="fill-primary dark:fill-inverse-primary" height="15" rx="3.5" width="10" x="2" y="2"></rect>
+<rect class="fill-primary/75 dark:fill-inverse-primary/80" height="7" rx="3" width="12" x="14" y="2"></rect>
+<rect class="fill-primary/90 dark:fill-inverse-primary/90" height="15" rx="3.5" width="12" x="14" y="11"></rect>
+<rect class="fill-primary/60 dark:fill-inverse-primary/70" height="7" rx="3" width="10" x="2" y="19"></rect>
+</svg>
+<span class="tracking-tight">AMG</span>
+</a>
+<!-- Desktop Links (Using exact anchors from Shared Components JSON) -->
+<div class="hidden md:flex items-center space-x-8">
+<a class="text-on-surface-variant dark:text-outline-variant font-medium text-body-sm font-body-sm hover:text-primary dark:hover:text-inverse-primary transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded" href="/#inicio">
+          Inicio
+        </a>
+<a class="text-on-surface-variant dark:text-outline-variant font-medium text-body-sm font-body-sm hover:text-primary dark:hover:text-inverse-primary transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded" href="sistemas.html#programas">
+          Sistemas
+        </a>
+<a class="text-on-surface-variant dark:text-outline-variant font-medium text-body-sm font-body-sm hover:text-primary dark:hover:text-inverse-primary transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded" href="soluciones.html">
+          Soluciones
+        </a>
+<a class="text-on-surface-variant dark:text-outline-variant font-medium text-body-sm font-body-sm hover:text-primary dark:hover:text-inverse-primary transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded" href="nosotros.html">
+          Quiénes somos
+        </a>
+<a class="text-on-surface-variant dark:text-outline-variant font-medium text-body-sm font-body-sm hover:text-primary dark:hover:text-inverse-primary transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded hidden" data-solo-sesion href="/#tus-aplicaciones">
+          Mis aplicaciones
+        </a>
+</div>
+<!-- Trailing Elements & Badges -->
+<div class="flex items-center gap-3">
+<!-- Live Demo Technical Badge -->
+<details class="relative hidden lg:block">
+<summary class="list-none cursor-pointer select-none flex items-center gap-2 px-3 py-1.5 rounded-full ambient-inset text-label-mono-xs font-label-mono-xs text-primary border border-outline-variant/60 hover:border-primary/40 transition-colors [&::-webkit-details-marker]:hidden" aria-label="Ver sistemas y herramientas AMG">
+<span aria-hidden="true" class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+<span class="tracking-wide">SISTEMAS</span>
+<svg aria-hidden="true" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</summary>
+<div class="absolute right-0 mt-2 w-max min-w-72 max-w-[92vw] p-1.5 rounded-2xl bg-surface border border-outline-variant/60 shadow-2xl">
+<div class="px-3 pt-2 pb-1.5 text-label-caps font-label-caps text-on-surface-variant tracking-wider">SISTEMAS Y HERRAMIENTAS</div>
+<ul class="divide-y divide-outline-variant/30">
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://vitaria.app" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-teal-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Vitaria</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://taller.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Taller Mecánico</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://citas.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-indigo-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Agenda de Citas</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://espacios.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Reservas de Canchas</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://solicitudes.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Órdenes de Trabajo</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://inventario.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Almacenaje</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://cotizaciones.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-teal-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Cotizaciones y Presupuestos</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://crm.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Gestión de Clientes</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://activos.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-sky-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Control de Activos</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://checklists.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-cyan-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Checklists e Inspecciones</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+<li><a class="group flex items-center gap-2.5 px-3 py-1.5 rounded-md text-on-surface hover:bg-surface-container-low transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://pagos.amgdeveloper.cl" rel="noopener noreferrer" target="_blank"><span aria-hidden="true" class="w-2 h-2 rounded-full bg-orange-500 shrink-0"></span><span class="text-xs font-medium group-hover:text-primary whitespace-nowrap">Control de Pagos</span><span class="ml-auto pl-3 shrink-0"><span class="inline-flex items-center gap-1.5 text-label-mono-xs font-label-mono-xs font-semibold text-emerald-600" title="En línea"><span aria-hidden="true" class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25"></span></span>EN LÍNEA</span></span></a></li>
+</ul>
+</div>
+</details>
+<!-- Trailing CTA with anchor jump -->
+<div id="auth-nav" class="flex items-center gap-3">
+<button class="hidden sm:inline-flex items-center justify-center px-4 py-2 rounded-lg text-body-sm font-body-sm font-medium border border-outline-variant/60 text-primary hover:bg-surface-container-low transition-all duration-200 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" type="button"><span>Ingresar</span></button>
+<a class="inline-flex items-center justify-center bg-primary-container text-on-primary hover:bg-neutral-800 transition-all duration-200 active:scale-95 text-body-sm font-body-sm font-medium px-4 py-2 rounded-lg shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="/registro">
+<span>Crear cuenta</span>
+</a>
+</div>
+</div>
+</nav>
+</header>
+<main>
+<section class="py-margin-desktop bg-background border-b border-outline-variant/30 scroll-mt-20" id="que-es-amg">
+<div class="max-w-7xl mx-auto px-gutter-desktop">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+<div>
+<div class="inline-flex items-center gap-2 mb-3">
+<span aria-hidden="true" class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">QUÉ ES AMG</span>
+</div>
+<h1 class="text-headline-lg font-headline-lg text-primary tracking-tight">Un ecosistema, no un producto suelto</h1>
+<p class="text-body-md font-body-md text-on-surface-variant mt-3">
+            AMG nace de una idea simple: los negocios no necesitan una plataforma gigante, necesitan la herramienta correcta para cada proceso. Por eso cada sistema es independiente, ligero y especializado, pero todos comparten tu misma cuenta.
+          </p>
+<ul class="mt-6 space-y-3 text-body-sm font-body-sm text-on-surface-variant">
+<li class="flex items-start gap-3"><span aria-hidden="true" class="mt-1 w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span><span><span class="font-semibold text-on-surface">Una sola cuenta.</span> Entras una vez y accedes a todos tus sistemas, sin repetir contraseñas.</span></li>
+<li class="flex items-start gap-3"><span aria-hidden="true" class="mt-1 w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span><span><span class="font-semibold text-on-surface">Cada sistema, su propio dominio y base de datos.</span> Un fallo o un cambio en uno no afecta a los demás.</span></li>
+<li class="flex items-start gap-3"><span aria-hidden="true" class="mt-1 w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span><span><span class="font-semibold text-on-surface">Datos aislados.</span> Tu información vive separada por sistema, con respaldo y dominios SSL propios.</span></li>
+<li class="flex items-start gap-3"><span aria-hidden="true" class="mt-1 w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span><span><span class="font-semibold text-on-surface">Crece contigo.</span> Empieza con lo que necesitas y suma sistemas cuando los requieras.</span></li>
+</ul>
+</div>
+<div class="bg-surface-container-lowest rounded-3xl p-8 border border-outline-variant/60 bento-shadow">
+<div class="text-label-mono-xs font-label-mono-xs text-on-surface-variant uppercase tracking-wider mb-4">Cómo se conectan</div>
+<div class="rounded-2xl bg-primary-container text-on-primary px-5 py-3 flex items-center gap-2 font-body-sm font-semibold">
+<span aria-hidden="true" class="material-symbols-outlined text-xl">account_circle</span> Una cuenta AMG
+</div>
+<div class="flex justify-center py-2 text-on-surface-variant" aria-hidden="true">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M12 5v14m0 0l-6-6m6 6l6-6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+<div class="grid gap-3">
+<div class="flex items-center gap-3 rounded-xl border border-indigo-200/70 bg-indigo-50 px-4 py-3"><span aria-hidden="true" class="material-symbols-outlined text-indigo-800">apps</span><div><div class="font-body-sm font-semibold text-primary">Suite AMG</div><div class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">9 herramientas</div></div></div>
+<div class="flex items-center gap-3 rounded-xl border border-amber-200/70 bg-amber-50 px-4 py-3"><span aria-hidden="true" class="material-symbols-outlined text-amber-900">construction</span><div><div class="font-body-sm font-semibold text-primary">Taller Mecánico</div><div class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">Sistema completo</div></div></div>
+<div class="flex items-center gap-3 rounded-xl border border-teal-200/70 bg-teal-50 px-4 py-3"><span aria-hidden="true" class="material-symbols-outlined text-teal-900">medical_services</span><div><div class="font-body-sm font-semibold text-primary">Vitaria</div><div class="text-label-mono-xs font-label-mono-xs text-on-surface-variant">Para clínicas</div></div></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<section class="py-margin-desktop bg-background border-b border-outline-variant/30 scroll-mt-20" id="sobre-amg">
+<div class="max-w-7xl mx-auto px-gutter-desktop">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+<div>
+<div class="inline-flex items-center gap-2 mb-3">
+<span aria-hidden="true" class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">SOBRE AMG</span>
+</div>
+<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">Un estudio de software, no una fábrica de plantillas</h2>
+<p class="text-body-md font-body-md text-on-surface-variant mt-3">AMG nace para resolver un problema concreto: los negocios pequeños y medianos no necesitan una plataforma gigante que lo hace todo a medias, necesitan la herramienta precisa para cada proceso. Por eso construimos sistemas independientes —y software a medida cuando ninguno calza— que comparten tu misma cuenta.</p>
+<p class="text-body-md font-body-md text-on-surface-variant mt-3">Desarrollamos y operamos nuestros propios productos, así que cada decisión de diseño nace de un negocio real que ya los usa. Trabajamos sin intermediarios: hablas con quien desarrolla, entiendes qué se construye y lo ves funcionando por etapas.</p>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+<div class="p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow"><span aria-hidden="true" class="material-symbols-outlined text-primary mb-3">public</span><h3 class="text-headline-sm font-headline-sm text-primary mb-1">Hecho para LATAM</h3><p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Pensado y soportado en español, para la operación de negocios chilenos y latinoamericanos.</p></div>
+<div class="p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow"><span aria-hidden="true" class="material-symbols-outlined text-primary mb-3">handshake</span><h3 class="text-headline-sm font-headline-sm text-primary mb-1">Trato directo</h3><p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Sin capas de venta ni soporte de terceros: contacto directo con el equipo que construye.</p></div>
+<div class="p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow"><span aria-hidden="true" class="material-symbols-outlined text-primary mb-3">widgets</span><h3 class="text-headline-sm font-headline-sm text-primary mb-1">Software propio</h3><p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Cada sistema es nuestro y se mejora con lo que aprendemos operándolo a diario.</p></div>
+<div class="p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow"><span aria-hidden="true" class="material-symbols-outlined text-primary mb-3">shield</span><h3 class="text-headline-sm font-headline-sm text-primary mb-1">Datos aislados</h3><p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Cada sistema guarda su información por separado, con dominio y certificado SSL propios.</p></div>
+</div>
+</div>
+</div>
+</section>
+
+<section class="py-margin-desktop bg-background border-b border-outline-variant/30 scroll-mt-20" id="por-que-amg">
+<div class="max-w-7xl mx-auto px-gutter-desktop">
+<div class="text-center max-w-2xl mx-auto mb-12">
+<div class="inline-flex items-center gap-2 mb-3">
+<span aria-hidden="true" class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-wider">POR QUÉ AMG</span>
+</div>
+<h2 class="text-headline-lg font-headline-lg text-primary tracking-tight">Diseñado para negocios en marcha</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<article class="p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow"><span aria-hidden="true" class="material-symbols-outlined text-primary mb-4">key</span><h3 class="text-headline-sm font-headline-sm text-primary mb-2">Una cuenta para todo</h3><p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Un solo acceso (SSO) para todos tus sistemas y herramientas. Sin contraseñas repetidas.</p></article>
+<article class="p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow"><span aria-hidden="true" class="material-symbols-outlined text-primary mb-4">lock</span><h3 class="text-headline-sm font-headline-sm text-primary mb-2">Datos aislados</h3><p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Cada sistema guarda su información por separado, con dominios y certificados SSL propios.</p></article>
+<article class="p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow"><span aria-hidden="true" class="material-symbols-outlined text-primary mb-4">bolt</span><h3 class="text-headline-sm font-headline-sm text-primary mb-2">Herramientas ligeras</h3><p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Cada app hace una cosa bien y rápido, sin módulos que nunca vas a usar.</p></article>
+<article class="p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow"><span aria-hidden="true" class="material-symbols-outlined text-primary mb-4">trending_up</span><h3 class="text-headline-sm font-headline-sm text-primary mb-2">Crece contigo</h3><p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Empiezas con lo justo y sumas sistemas o herramientas a medida que tu negocio avanza.</p></article>
+<article class="p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow"><span aria-hidden="true" class="material-symbols-outlined text-primary mb-4">language</span><h3 class="text-headline-sm font-headline-sm text-primary mb-2">Multiindustria</h3><p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Desde una bodega o un taller hasta una clínica: cada rubro tiene su sistema.</p></article>
+<article class="p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 bento-shadow"><span aria-hidden="true" class="material-symbols-outlined text-primary mb-4">support_agent</span><h3 class="text-headline-sm font-headline-sm text-primary mb-2">Soporte en español</h3><p class="text-body-sm font-body-sm text-on-surface-variant leading-relaxed">Atención directa y cercana, pensada para negocios de LATAM.</p></article>
+</div>
+</div>
+</section>
+
+<section class="py-margin-desktop bg-background scroll-mt-20" id="contacto">
+<div class="max-w-7xl mx-auto px-gutter-desktop">
+<div class="p-8 md:p-10 bg-primary-container rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+<div class="max-w-xl">
+<h2 class="text-headline-md font-headline-md text-on-primary tracking-tight">¿Quieres ver AMG en acción?</h2>
+<p class="text-body-md font-body-md text-on-primary-container mt-1">Escríbeme, cuéntame qué hace tu negocio y te muestro el sistema que mejor encaja.</p>
+</div>
+<div class="flex flex-col sm:flex-row gap-3 shrink-0">
+<a class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-on-primary text-primary font-body-sm font-semibold hover:bg-neutral-100 transition-all duration-200 active:scale-95 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="https://wa.me/56953818617?text=Hola!%20Vi%20AMG%20y%20quiero%20conocer%20los%20sistemas." rel="noopener noreferrer" target="_blank">Escríbeme por WhatsApp</a>
+<a class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border border-on-primary/40 text-on-primary font-body-sm font-semibold hover:bg-primary/40 transition-all duration-200 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-on-primary" href="sistemas.html">Ver los sistemas</a>
+</div>
+</div>
+</div>
+</section>
+</main>
+<footer class="w-full bg-surface-container-low dark:bg-primary-container border-t border-outline-variant/40 dark:border-outline/20 pt-margin-desktop pb-margin px-gutter-desktop">
+<div class="max-w-7xl mx-auto">
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
+<!-- Brand & Description Column -->
+<div class="col-span-2 space-y-4">
+<div class="flex items-center gap-2">
+<svg aria-hidden="true" class="w-6 h-6 text-primary dark:text-inverse-primary" fill="none" viewbox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<rect class="fill-primary dark:fill-inverse-primary" height="15" rx="3.5" width="10" x="2" y="2"></rect>
+<rect class="fill-primary/75 dark:fill-inverse-primary/80" height="7" rx="3" width="12" x="14" y="2"></rect>
+<rect class="fill-primary/90 dark:fill-inverse-primary/90" height="15" rx="3.5" width="12" x="14" y="11"></rect>
+<rect class="fill-primary/60 dark:fill-inverse-primary/70" height="7" rx="3" width="10" x="2" y="19"></rect>
+</svg>
+<span class="text-headline-sm font-headline-sm text-primary dark:text-inverse-primary font-semibold tracking-tight">AMG</span>
+</div>
+<p class="text-body-sm font-body-sm text-on-surface-variant dark:text-outline-variant max-w-sm">
+            Un ecosistema de software operativo para negocios reales: sistemas independientes, una sola cuenta y datos aislados en dominios propios.
+          </p>
+<div class="text-label-mono-xs font-label-mono-xs text-on-surface-variant/80">
+            Datos demo por app · Subdominios SSL individuales
+          </div>
+</div>
+<!-- Col 1 Links (Exact matching from JSON) -->
+<div class="space-y-3">
+<div class="text-label-caps font-label-caps text-primary dark:text-inverse-primary">HERRAMIENTAS I</div>
+<ul class="space-y-2 text-body-sm font-body-sm">
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://citas.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">01 Agenda de Citas</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://espacios.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">02 Reservas de Canchas</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://solicitudes.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">03 Órdenes de Trabajo</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://inventario.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">04 Almacenaje</a></li>
+</ul>
+</div>
+<!-- Col 2 Links (Exact matching from JSON) -->
+<div class="space-y-3">
+<div class="text-label-caps font-label-caps text-primary dark:text-inverse-primary">HERRAMIENTAS II</div>
+<ul class="space-y-2 text-body-sm font-body-sm">
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://cotizaciones.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">05 Cotizaciones y Presupuestos</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://crm.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">06 Gestión de Clientes</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://activos.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">07 Control de Activos</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://checklists.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">08 Checklists e Inspecciones</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="https://pagos.amgdeveloper.cl" rel="noopener noreferrer" target="_blank">09 Control de Pagos</a></li>
+</ul>
+</div>
+<!-- Col 3 Links: Estándares & Info -->
+<div class="space-y-3">
+<div class="text-label-caps font-label-caps text-primary dark:text-inverse-primary">AMG</div>
+<ul class="space-y-2 text-body-sm font-body-sm">
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="nosotros.html#que-es-amg">Quiénes somos</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="soluciones.html">Soluciones a medida</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="sistemas.html">Nuestros sistemas</a></li>
+<li><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150" href="index.html#contacto">Contacto</a></li>
+</ul>
+</div>
+</div>
+<!-- Bottom Copyright Strip as in JSON Source of Truth -->
+<div class="pt-8 border-t border-outline-variant/30 flex flex-col md:flex-row items-center justify-between gap-4 text-label-mono-xs font-label-mono-xs text-on-surface-variant dark:text-outline-variant">
+<p class="text-center md:text-left leading-relaxed">
+          © 2026 AMG. Entorno de demostración interactiva en tiempo real. Los sistemas (Suite, Taller Mecánico y Vitaria) funcionan con datos demo independientes.
+        </p>
+<div class="flex items-center gap-4 shrink-0">
+<span class="inline-flex items-center gap-1.5 text-primary dark:text-inverse-primary font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+            LATAM Cloud Ready
+          </span>
+</div>
+</div>
+</div>
+</footer>
+<!-- Subtle Keyboard & Accessibility interaction script -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Accessible smooth keyboard navigation highlight
+      const navLinks = document.querySelectorAll('header nav a');
+      navLinks.forEach(link => {
+        link.addEventListener('focus', () => {
+          link.classList.add('outline-none');
+        });
+      });
+    });
+  </script>
+<script src="/assets/landing.js" defer></script>
+</body></html>
