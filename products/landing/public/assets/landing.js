@@ -1046,6 +1046,11 @@
   }
 
   function mostrarVista(vista) {
+    /* En una pagina que no es index.html (p.ej. soluciones.html o nosotros.html)
+     * no existen las vistas de sesion: caemos a la landing para no dejar la
+     * pagina en blanco cuando hay sesion activa. */
+    if (vista === 'apps' && !document.getElementById('tus-aplicaciones')) vista = 'landing';
+    if (vista === 'cuenta' && !document.getElementById('mi-cuenta')) vista = 'landing';
     if (vista === 'landing') {
       seccionesDeMain().forEach(function (sec) {
         if (sec.id === 'tus-aplicaciones' || sec.id === 'mi-cuenta') sec.classList.add('hidden');
