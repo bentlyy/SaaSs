@@ -1,5 +1,6 @@
 import express, { type Express } from 'express';
 import path from 'node:path';
+import { readdirSync } from 'node:fs';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import {
@@ -201,11 +202,14 @@ export function createPlatformApp(options: PlatformAppOptions = {}): Express {
       res.type('html').send(leer(name));
     };
 
-    // El hub de sistemas se sirve con la huella en los assets, igual que el resto
-    // de las paginas. Si lo entregara `express.static`, iria sin `?v=` y Cloudflare
-    // seguiria cacheando un `landing.js` viejo (immutable, un ano). Va ANTES del
-    // static para ganarle el orden de rutas.
-    app.get('/sistemas.html', page('sistemas.html'));
+    // TODO el HTML se sirve con la huella en los assets, no solo el hub. Si un
+    // `.html` lo entregara `express.static`, iria sin `?v=` y el navegador (o
+    // Cloudflare) seguiria sirviendo un `landing.js` viejo —immutable, un ano—
+    // mezclado con el HTML nuevo: el navbar de ayer con la pagina de hoy. Se
+    // registran antes del static para ganarle el orden de rutas.
+    for (const archivo of readdirSync(dir)) {
+      if (archivo.endsWith('.html')) app.get(`/${archivo}`, page(archivo));
+    }
 
     app.use(
       express.static(dir, {
