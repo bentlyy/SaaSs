@@ -198,18 +198,15 @@
     return menuSesion(sesionActual);
   }
 
-  /* Con sesión, el primer enlace del navbar ("Inicio") lleva a Mis aplicaciones,
-   * que es la vista por defecto al entrar. Sin sesión se queda en el inicio
-   * público. El destino con sesión lo declara cada página con
-   * `data-inicio-logged-in` (#tus-aplicaciones, que existe en index.html y en
-   * sistemas.html). */
-  function ajustarInicioNav(session) {
-    var link = document.querySelector('[data-inicio]');
-    if (!link) return;
-    if (session) {
-      var destino = link.getAttribute('data-inicio-logged-in');
-      if (destino) link.setAttribute('href', destino);
-    }
+  /* El navbar mantiene "Inicio" normal en ambos estados. Al haber sesión se
+   * agrega el enlace "Mis aplicaciones" (marcado con `data-solo-sesion`, oculto
+   * por defecto), que lleva a la vista de aplicaciones (#tus-aplicaciones, que
+   * existe en index.html y en sistemas.html). */
+  function ajustarNavSesion(session) {
+    document.querySelectorAll('[data-solo-sesion]').forEach(function (link) {
+      if (session) link.classList.remove('hidden');
+      else link.classList.add('hidden');
+    });
   }
 
   /* ── ventana de login ────────────────────────────────────────────────── */
@@ -1326,7 +1323,7 @@
         sesionActual = session;
         var nav = document.getElementById('auth-nav');
         if (nav) mount(nav, navAuth(!session));
-        ajustarInicioNav(session);
+        ajustarNavSesion(session);
         renderApps(session);
         renderCuenta(session);
         renderContratar(session);
