@@ -1,31 +1,22 @@
 # Pendientes y bloqueados — Suite AMG (Core · SaaS Mini · Taller · Vitaria)
 
-Actualizado: 2026-10-12
+Actualizado: 2026-10-13
 
 ## Bloqueado (requiere acción del usuario)
 
-- **D1 — Backup de Vitaria.** Falta el secret `DEPLOY_SSH_KEY` en `bentlyy/Clinica-Salud-Vital`
-  (misma llave que usa el deploy de la suite; no está en disco).
-  ```
-  gh secret set DEPLOY_SSH_KEY --repo bentlyy/Clinica-Salud-Vital < "ruta\a\ssh-key-2026-08-18.key"
-  ```
-  En cuanto exista: disparar `backup.yml` y verificar dump + restore de prueba + artifact.
-- **B7 — `DISPATCH_TOKEN`.** PAT scope `repo` en `bentlyy/amg-core` y `bentlyy/SaaSs` para cerrar el
-  ciclo tag core → release suite.
-- **D2/A3 — Alcance de Vitaria.** Confirmar si se implementa SSO + billing propio y si la BD
-  migra de Render a OCI (o se queda). No tocar código hasta decidir.
+Nada bloqueado por ahora.
 
 ## Pendiente (accionable, sin decisión pendiente)
 
-- **B5 —** Borrar `08_SaaS_Mini/.github/workflows/diagnose.yml` (workflow temporal ya cumplido).
 - **C —** Actualizar `README.md` de `bentlyy/TallerMecanico` (documentar la integración SSO/AMG).
-- **E2 —** Archivar escombros: `09_Saas_miniv2`, `citas-standalone`; sueltos de la raíz de
-  `08_SaaS_Mini` (`harness.log`, `harness.err.log`, `.inspect-sso.cjs`, `opencode.json`).
-- **Docs —** `docs/db-architecture.html` sigue citando `packages/core/src/db/init.ts`. El diagrama
-  describe la arquitectura vieja (DDL compartido de 17 tablas); hoy los productos usan
-  `openProductDb` de `product-runtime` y DDL por producto. Requiere reescritura, no solo renombrar.
+- **E2 —** Escombros menores: sueltos de la raíz de `08_SaaS_Mini` (`harness.log`,
+  `harness.err.log`, `.inspect-sso.cjs`, `opencode.json`). Están gitignored (no trackeados);
+  `opencode.json` podría estar en uso → se conserva.
+- **Vitaria —** `/vite.svg` responde 400 (cosmético).
 
 ## Plan — Vitaria (bentlyy/Clinica-Salud-Vital) SSO + billing propio
+
+**Estado: cerrado (2026-10-13).** SSO en producción, verificado con login real (CDP).
 
 Alcance confirmado: **SSO con el Core + billing propio** (mismo token MP; la BD se queda como está).
 
@@ -61,7 +52,9 @@ RLS por `app.tenant_id`) y suite de tests que asume login local.
 - **Hecho (base, no destructiva)** en rama `feat/vitaria-sso` (commit `f1d3db8`, pusheada): dep `@amg/auth-client` (vendor tarball), env, migración `db/migrations/032_amg_sso.sql` (`tenants.sso_org_id`, `users.sso_sub` + índices únicos parciales), `src/sso/{amgTypes,amgSso,localAccount}.ts`. `npm run typecheck` OK; el paquete resuelve por CJS `require`. Aún **sin cablear** (no rompe prod).
 - **Hecho (Etapa 1 — cableado)** commit `9970fbb`: `app.ts` monta `mountAmgAuthMiddleware()` + `app.use('/api', amgRouter)` (login→Core, `/api/auth/me`, `/api/auth/inicio`) tras cookieParser/json y antes de `csrfProtection`, con `express.static(..., { index: false })` y catch-all SPA movido tras las rutas; `auth.middleware.ts` reescrito: `optionalAuth` resuelve la cuenta local desde `req.amg` (tenant por `sso_org_id`, usuario por `sso_sub`) y `authMiddleware` consume `req.user`, con camino JWT legado conservado pero **inalcanzable en prod** (el guard rechaza antes). `tests/setup.js` con env SSO; `tests/unit/app.test.js` mockea `src/sso/amgSso.js`.
 - **Hecho (Etapa 2 — retiro del auth local)** commit `db2c41e` (pusheado): eliminados los endpoints de credenciales (`login/refresh/logout/2FA/change/forgot/reset/admin/jwks/sessions/me`), `sessions.service.ts`, el `sessionLimiter` y los handlers muertos de `auth.controller`/`auth.service`; `auth.routes`/`auth.schema` quedan **solo con el alta por invitación** (`GET /invite-info` + `POST /register`), que crea la cuenta local que luego se vincula por `sso_sub`/email al entrar vía SSO. `amgPublicPaths` expone `/api/auth/{login,register,invite-info}`. `jwt.service` **conservado**. Tests del auth retirado borrados (4 archivos) y 2 recortados → suite **110 files / 1491 tests verde**; `typecheck` OK.
-- **Pendiente (destructivo restante):** (5) revisar `csrfProtection` con el guard; (6) registrar producto/cliente `vitaria` en el Core (`npm run sso:secret -w @amg/platform -- vitaria`) y vincular `sso_org_id` del tenant (ops/BYPASSRLS); (7) decidir si `sessionActivity.middleware`/`feature.middleware` y el job `cleanup.service` (tablas `refresh_tokens`/`user_sessions` ya sin uso) se retiran.
+- **Cierre:** (5) resuelto/verificado (ver aclaraciones abajo); (6) hecho — PR `SaaSs#1`
+  (`feat/vitaria-product`) mergeado, secreto derivado, `tenants.sso_org_id` vinculado fuera de banda
+  y login real verificado en `https://vitaria.amgdeveloper.cl`; (7) no aplica (ver aclaraciones).
 
 ## Hecho (2026-10-12)
 
@@ -70,6 +63,20 @@ RLS por `app.tenant_id`) y suite de tests que asume login local.
   `frontendMoney.test.ts` → `packages/platform/tests/`.
 - **Suite** desplegada verde en `main` `54ad149`; `AMG_SSO_INTROSPECT=1` verificado en runtime.
 - **Vitaria** `backup.yml` reescrito a SSH + `pg_dump` en el host OCI (commit `bafe7af`).
+
+## Hecho (2026-10-13)
+
+- **D1 —** `DEPLOY_SSH_KEY` cargado en `bentlyy/Clinica-Salud-Vital`; `backup.yml` en verde
+  (run `38343426771`, 40s): dump 889K, restore `tables=50`, artifact subido.
+- **B7 —** `DISPATCH_TOKEN` cargado en `bentlyy/amg-core` y `bentlyy/SaaSs`; ciclo
+  tag core → dispatch → `Core release` verificado (idempotente). Hoy vale el token del CLI de `gh`
+  (`gho_…`, scopes `repo workflow gist read:org`); se puede reemplazar por un PAT dedicado.
+- **B5 —** `diagnose.yml` ya no existe; workflows de `SaaSs`: `CI`, `Core release`, `Deploy`.
+- **Docs —** `docs/db-architecture.html` reescrito (Core `core.sqlite` + 9 bases por producto);
+  `docs/SSO.md` documenta el bloqueo de Bot Fight Mode y el CORS del canje.
+- **Landing —** PRs `SaaSs#2`–`#7` mergeados: navbar `Inicio · Sistemas · Soluciones · Quiénes somos`,
+  `index.html` a resumen con `#explora`, nuevas `soluciones.html` y `nosotros.html`, `sistemas.html`
+  con navbar coherente; `typecheck` limpio y 193 tests verdes en 11 archivos.
 
 ## Deuda diferida al cierre del SSO (2026-10-12)
 
@@ -83,13 +90,13 @@ Decisiones tomadas para **no bloquear** el cierre del SSO (retomar al final):
   **no tocar umbrales ni perseguir cobertura ahora**. Módulos con más hueco cuando se aborde:
   `shared/metrics.service.ts`, `modules/saas/*onboarding*.service.ts`, `shared/currencies.ts`,
   `shared/db.ts`, `shared/ownership.ts`, controllers `attachments`/`calendar`, `modules/booking`.
-- **Ops al desplegar (dependen del usuario):** (1) mergear `SaaSs#1` para registrar
-  producto/cliente `vitaria` + derivar secreto (`npm run sso:secret -w @amg/platform -- vitaria`);
-  (2) custom domain `vitaria.amgdeveloper.cl` en Render + **CNAME proxied** en Cloudflare;
-  (3) aplicar `032_amg_sso.sql` y **vincular `tenants.sso_org_id`** fuera de banda (BYPASSRLS).
+- **Ops de Vitaria (hecho):** (1) `SaaSs#1` (`feat/vitaria-product`) mergeado, cliente/producto
+  `vitaria` registrado y secreto derivado; (2) custom domain `vitaria.amgdeveloper.cl` operativo en
+  Render; (3) `032_amg_sso.sql` aplicado y `tenants.sso_org_id` vinculado fuera de banda.
 - **Precio de `vitaria`:** fijado en `49990` CLP/mes (12-oct-2026) «por ahora»;
   revisar tarifa definitiva más adelante.
-- **`docs/db-architecture.html`** aún cita `packages/core/src/db/init.ts` (ruta inexistente).
+- **`docs/db-architecture.html`** reescrito (2026-10-13): Core `core.sqlite` + 9 bases por producto,
+  ya no cita `packages/core/src/db/init.ts`.
 
 **Aclaraciones a los "pendientes destructivos" previos:**
 - (5) **resuelto/verificado:** `csrfProtection` es double-submit por cookie y no depende
@@ -99,7 +106,8 @@ Decisiones tomadas para **no bloquear** el cierre del SSO (retomar al final):
 - (7) **resuelto/no aplica:** `feature.middleware` sí se usa (`laboratory.routes.ts` →
   `requireFeature('laboratory')`); `sessionActivity.middleware` se conserva (mantiene
   `users.last_activity_at`); `cleanup.service` es cron diario inofensivo (se conserva).
-- (6) **encaminado:** PR `SaaSs#1` (`feat/vitaria-product`, commit `b1dbfa9`) registra `vitaria`.
+- (6) **hecho:** PR `SaaSs#1` (`feat/vitaria-product`, commit `b1dbfa9`) mergeado; `vitaria`
+  registrado en el catálogo y la vinculación `sso_org_id` aplicada (login real verificado).
 - Purga SSO Vitaria commiteada hasta `a2ef115` (cubre `localAccount`, retira `base32.ts` y
   `encrypt/decrypt/hashToken` muertos, `docs/SSO.md` §7 con esta deuda).
 
