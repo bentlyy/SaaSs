@@ -89,6 +89,14 @@ sudo openssl x509 -in /etc/letsencrypt/live/saasmini-nuevo/fullchain.pem \
 
 ## 3. Nginx
 
+`ops/deploy.sh` instala `ops/nginx.conf` solo si cambió, valida con `nginx -t` y
+recarga; si la validación falla, restaura el archivo anterior. Así un cambio en
+esa config (por ejemplo habilitar la cámara del inventario) llega a producción
+con el deploy normal y no depende de acordarse del `scp`.
+
+Si `sudo` pide contraseña en el host (no hay NOPASSWD), el deploy avisa y sigue;
+en ese caso se aplica a mano:
+
 ```bash
 scp ops/nginx.conf opc@146.181.55.59:/tmp/saas-mini.conf.new
 ssh opc@146.181.55.59 'sudo cp /tmp/saas-mini.conf.new /etc/nginx/conf.d/saas-mini.conf && sudo nginx -t && sudo systemctl reload nginx'

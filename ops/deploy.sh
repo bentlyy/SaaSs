@@ -184,6 +184,49 @@ if [ "$(sha256sum ops/deploy.sh)" != "$AMG_SCRIPT_INICIAL" ]; then
   exec bash ops/deploy.sh
 fi
 
+# ── 2b. Configuracion de nginx ──────────────────────────────────────────────
+# El proxy vive fuera del stack (nginx del host, no un contenedor), pero su
+# config SI esta versionada en `ops/nginx.conf`. Instalarla aca evita el caso que
+# ya paso: un cambio en ese archivo (habilitar la camara del inventario) queda en
+# el repo, CI lo valida, y nunca llega al servidor porque el paso manual de
+# `scp` se olvido. Solo se toca si el archivo cambia; si `sudo` pide contrasena
+# (no hay NOPASSWD) se avisa y se sigue: no es motivo para abortar un deploy.
+paso "2b. Configuracion de nginx"
+if ! command -v nginx >/dev/null 2>&1; then
+  aviso "nginx no esta instalado en el host; se omite"
+elif ! sudo -n true >/dev/null 2>&1; then
+  aviso "sudo sin contrasena no disponible; aplica el paso 3 de docs/DEPLOY.md a mano"
+else
+  destino=/etc/nginx/conf.d/saas-mini.conf
+  if sudo -n diff -q ops/nginx.conf "$destino" >/dev/null 2>&1; then
+    info "sin cambios"
+  else
+    respaldo="$(mktemp)"
+    publicado="$(mktemp)"
+    existia=0
+    if sudo -n test -f "$destino"; then
+      existia=1
+      sudo -n cp "$destino" "$respaldo"
+    fi
+    sudo -n cp ops/nginx.conf "$publicado"
+    sudo -n cp "$publicado" "$destino"
+    if sudo -n nginx -t >/dev/null 2>&1; then
+      sudo -n systemctl reload nginx
+      info "config actualizada y nginx recargado"
+    else
+      # Se restaura el archivo anterior: el nginx en ejecucion no se entera, pero
+      # un reinicio posterior leeria una config rota.
+      if [ "$existia" = 1 ]; then
+        sudo -n cp "$respaldo" "$destino"
+      else
+        sudo -n rm -f "$destino"
+      fi
+      aviso "nginx -t fallo con la config nueva; se restauro la anterior"
+    fi
+    rm -f "$respaldo" "$publicado"
+  fi
+fi
+
 # ── 3. Imagen ───────────────────────────────────────────────────────────────
 if [ "${AMG_SKIP_BUILD:-0}" = "1" ]; then
   aviso "AMG_SKIP_BUILD=1: se usa la imagen que ya hay"
