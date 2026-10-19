@@ -50,10 +50,10 @@ const HILO_VACIO: Hilo = { comments: [], attachments: [], history: [] };
  * dice cuántas hay urgentes.
  */
 const ESTADOS: Record<string, { texto: string; tono: Tono }> = {
-  open: { texto: 'Abierta', tono: 'acento' },
-  in_progress: { texto: 'En curso', tono: 'aviso' },
-  resolved: { texto: 'Resuelta', tono: 'ok' },
-  closed: { texto: 'Cerrada', tono: 'neutro' },
+  received: { texto: 'Recibida', tono: 'acento' },
+  assigned: { texto: 'Asignada', tono: 'aviso' },
+  in_progress: { texto: 'En proceso', tono: 'aviso' },
+  completed: { texto: 'Completada', tono: 'ok' },
   cancelled: { texto: 'Cancelada', tono: 'neutro' },
 };
 
@@ -69,9 +69,11 @@ const hoyIso = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0
   hoy.getDate(),
 ).padStart(2, '0')}`;
 
-/** Vencida es solo si sigue abierta: una resuelta que pasó su fecha no lo está. */
+/** Vencida es solo si sigue abierta: una completada que pasó su fecha no lo está. */
 const vencida = (r: Solicitud) =>
-  (r.status === 'open' || r.status === 'in_progress') && r.dueAt !== null && r.dueAt < hoyIso;
+  (r.status === 'received' || r.status === 'assigned' || r.status === 'in_progress') &&
+  r.dueAt !== null &&
+  r.dueAt < hoyIso;
 
 /**
  * La fecha límite se muestra como vino, sin hora: es un día, no un instante.
@@ -112,6 +114,8 @@ export function SolicitudesPage() {
   const [q, setQ] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroPrioridad, setFiltroPrioridad] = useState('');
+  const [filtroResponsable, setFiltroResponsable] = useState('');
+  const [responsables, setResponsables] = useState<string[]>([]);
   const [resumen, setResumen] = useState<Resumen | null>(null);
   const [solicitudes, setSolicitudes] = useState<Solicitud[] | null>(null);
   const [modal, setModal] = useState<Modal_>(null);
@@ -125,10 +129,16 @@ export function SolicitudesPage() {
     setResumen(await api.get<Resumen>('/resumen'));
   }
 
+  async function cargarResponsables() {
+    const { responsables: lista } = await api.get<{ responsables: string[] }>('/responsables');
+    setResponsables(lista);
+  }
+
   async function cargarLista() {
     const params = new URLSearchParams({ limit: '500' });
     if (filtroEstado) params.set('status', filtroEstado);
     if (filtroPrioridad) params.set('priority', filtroPrioridad);
+    if (filtroResponsable) params.set('responsible', filtroResponsable);
     if (q.trim()) params.set('q', q.trim());
     const { requests } = await api.get<{ requests: Solicitud[] }>(`/requests?${params.toString()}`);
     setSolicitudes(requests);
@@ -139,7 +149,12 @@ export function SolicitudesPage() {
       if (e.vencida) return;
       avisar(e.message, true);
     });
-    // Las cifras de arriba no dependen de los filtros: solo se piden una vez.
+    cargarResponsables().catch((e) => {
+      if (e.vencida) return;
+      avisar(e.message, true);
+    });
+    // Las cifras de arriba y los responsables no dependen de los filtros: solo
+    // se piden una vez.
   }, []);
 
   useEffect(() => {
@@ -150,8 +165,8 @@ export function SolicitudesPage() {
       });
     }, q ? 250 : 0);
     return () => clearTimeout(t);
-    // El disparo es la búsqueda y los dos selectores: `cargarLista` solo usa api.
-  }, [q, filtroEstado, filtroPrioridad]);
+    // El disparo es la búsqueda y los tres selectores: `cargarLista` solo usa api.
+  }, [q, filtroEstado, filtroPrioridad, filtroResponsable]);
 
   const alCambiar = (ev: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setCampos((c) => ({ ...c, [ev.target.name]: ev.target.value }));
@@ -162,10 +177,11 @@ export function SolicitudesPage() {
     setCampos({
       number: String(ajustes?.nextNumber ?? 1),
       priority: 'medium',
-      status: 'open',
+      status: 'received',
       title: '',
       description: '',
       requesterName: '',
+      requesterArea: '',
       requesterEmail: '',
       responsibleName: '',
       dueAt: '',
@@ -184,10 +200,13 @@ export function SolicitudesPage() {
       title: d.request.title,
       description: d.request.description ?? '',
       requesterName: d.request.requesterName,
+      requesterArea: d.request.requesterArea ?? '',
       requesterEmail: d.request.requesterEmail ?? '',
       responsibleName: d.request.responsibleName ?? '',
       dueAt: d.request.dueAt ?? '',
       resolution: d.request.resolution ?? '',
+      createdAt: d.request.createdAt,
+      closedAt: d.request.closedAt ?? '',
     });
     setModal({ modo: 'ver', id: d.request.id, numero: d.request.number });
   }
@@ -198,6 +217,7 @@ export function SolicitudesPage() {
       title: campos.title.trim(),
       description: campos.description.trim() || null,
       requesterName: campos.requesterName.trim(),
+      requesterArea: campos.requesterArea.trim() || null,
       requesterEmail: campos.requesterEmail.trim() || null,
       responsibleName: campos.responsibleName.trim() || null,
       priority: campos.priority,
@@ -233,7 +253,7 @@ export function SolicitudesPage() {
         await recargarSettings();
       }
       cerrar();
-      await Promise.all([cargarLista(), cargarResumen()]);
+      await Promise.all([cargarLista(), cargarResumen(), cargarResponsables()]);
     } catch (e) {
       avisar(e instanceof Error ? e.message : 'No se pudo guardar', true);
     } finally {
@@ -246,7 +266,7 @@ export function SolicitudesPage() {
     try {
       await api.delete(`/requests/${r.id}`);
       avisar('Solicitud borrada');
-      await Promise.all([cargarLista(), cargarResumen()]);
+      await Promise.all([cargarLista(), cargarResumen(), cargarResponsables()]);
     } catch (e) {
       avisar(e instanceof Error ? e.message : 'No se pudo borrar', true);
     }
@@ -300,7 +320,7 @@ export function SolicitudesPage() {
     ? [
         { etiqueta: 'Abiertas', valor: numero(resumen.abiertas), acento: true },
         { etiqueta: 'Vencidas', valor: numero(resumen.vencidas) },
-        { etiqueta: 'Resueltas', valor: numero(resumen.resueltas) },
+        { etiqueta: 'Completadas', valor: numero(resumen.completadas) },
         { etiqueta: 'Prioridad alta', valor: numero(resumen.alta) },
       ]
     : [];
@@ -320,12 +340,24 @@ export function SolicitudesPage() {
       {resumen ? <Kpis items={kpis} /> : <EsqueletoKpis />}
 
       <Tarjeta className="mt-6 p-4">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <Select etiqueta="Estado" value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)}>
             <option value="">Todos</option>
             {Object.entries(ESTADOS).map(([clave, e]) => (
               <option key={clave} value={clave}>
                 {e.texto}
+              </option>
+            ))}
+          </Select>
+          <Select
+            etiqueta="Responsable"
+            value={filtroResponsable}
+            onChange={(e) => setFiltroResponsable(e.target.value)}
+          >
+            <option value="">Todos</option>
+            {responsables.map((nombre) => (
+              <option key={nombre} value={nombre}>
+                {nombre}
               </option>
             ))}
           </Select>
@@ -366,7 +398,10 @@ export function SolicitudesPage() {
                   <tr key={r.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 font-mono text-slate-700">#{r.number}</td>
                     <td className="px-4 py-3 font-medium text-slate-800">{r.title}</td>
-                    <td className="px-4 py-3 text-slate-500">{r.requesterName}</td>
+                    <td className="px-4 py-3">
+                      <div className="text-slate-700">{r.requesterName}</div>
+                      {r.requesterArea ? <div className="text-xs text-slate-400">{r.requesterArea}</div> : null}
+                    </td>
                     <td className="px-4 py-3 text-slate-500">{r.responsibleName ?? '—'}</td>
                     <td className="px-4 py-3">
                       <Etiqueta texto={prioridad.texto} tono={prioridad.tono} />
@@ -422,7 +457,7 @@ export function SolicitudesPage() {
                   </option>
                 ))}
               </Select>
-              <Select etiqueta="Estado" name="status" value={campos.status ?? 'open'} onChange={alCambiar}>
+              <Select etiqueta="Estado" name="status" value={campos.status ?? 'received'} onChange={alCambiar}>
                 {Object.entries(ESTADOS).map(([clave, e]) => (
                   <option key={clave} value={clave}>
                     {e.texto}
@@ -449,13 +484,20 @@ export function SolicitudesPage() {
               onChange={alCambiar}
             />
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
               <Campo
                 etiqueta="Solicitante"
                 name="requesterName"
                 required
                 maxLength={150}
                 value={campos.requesterName ?? ''}
+                onChange={alCambiar}
+              />
+              <Campo
+                etiqueta="Área o cliente"
+                name="requesterArea"
+                maxLength={150}
+                value={campos.requesterArea ?? ''}
                 onChange={alCambiar}
               />
               <Campo
@@ -491,6 +533,19 @@ export function SolicitudesPage() {
               value={campos.resolution ?? ''}
               onChange={alCambiar}
             />
+
+            {modal.modo === 'ver' ? (
+              <div className="grid gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-500 sm:grid-cols-2">
+                <div>
+                  <span className="font-semibold text-slate-600">Creada: </span>
+                  {fecha(campos.createdAt)}
+                </div>
+                <div>
+                  <span className="font-semibold text-slate-600">Cerrada: </span>
+                  {campos.closedAt ? fecha(campos.closedAt) : '—'}
+                </div>
+              </div>
+            ) : null}
 
             {modal.modo === 'ver' ? (
               <div className="border-t border-slate-100 pt-4">

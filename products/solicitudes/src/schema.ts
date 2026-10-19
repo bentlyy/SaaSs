@@ -38,12 +38,15 @@ export const requests = sqliteTable(
     description: text('description'),
     /** Quien pidio, en texto libre: no se exige que exista en ningun catalogo. */
     requesterName: text('requester_name').notNull(),
+    /** Area o cliente al que pertenece quien pidio. Texto libre, opcional. */
+    requesterArea: text('requester_area'),
     requesterEmail: text('requester_email'),
     /** A quien se le asigna, en texto libre: no es un usuario del Core. */
     responsibleName: text('responsible_name'),
     /** Prioridad con la que entra: baja, media, alta, urgente. */
     priority: text('priority').notNull().default('medium'),
-    status: text('status').notNull().default('open'),
+    /** recibida, asignada, en proceso, completada o cancelada. */
+    status: text('status').notNull().default('received'),
     /** "Para cuando": fecha YYYY-MM-DD, no un instante. */
     dueAt: text('due_at'),
     /** La resolucion que se registro al cerrar. */

@@ -1,6 +1,6 @@
 /** Formas de la API de solicitudes (`products/solicitudes/src/routes.ts`). */
 
-export type Estado = 'open' | 'in_progress' | 'resolved' | 'closed' | 'cancelled';
+export type Estado = 'received' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
 
 export type Prioridad = 'low' | 'medium' | 'high' | 'urgent';
 
@@ -12,6 +12,8 @@ export interface Solicitud {
   title: string;
   description: string | null;
   requesterName: string;
+  /** Área o cliente al que pertenece quien pidió. */
+  requesterArea: string | null;
   requesterEmail: string | null;
   responsibleName: string | null;
   priority: Prioridad;
@@ -28,7 +30,7 @@ export interface Resumen {
   total: number;
   abiertas: number;
   vencidas: number;
-  resueltas: number;
+  completadas: number;
   alta: number;
 }
 

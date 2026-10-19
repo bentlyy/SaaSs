@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { Router } from 'express';
 import { z } from 'zod';
-import { and, desc, eq, like, ne, or, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, like, ne, or, sql } from 'drizzle-orm';
 import {
   AppError,
   asyncHandler,
@@ -56,27 +56,26 @@ const id = z.string().trim().min(1).max(64);
 /**
  * Los estados de una solicitud, en el orden en que se avanza.
  *
- * `closed` y `cancelled` son terminales: se marca `closed_at` y cuentan como
- * solicitudes cerradas. `resolved` es el estado en que se entrego la solucion
- * pero el hilo puede reabrirse, y por eso no cierra.
+ * `completed` y `cancelled` son terminales: se marca `closed_at` y cuentan como
+ * solicitudes cerradas. El resto sigue pendiente de algo.
  */
-const ESTADOS = ['open', 'in_progress', 'resolved', 'closed', 'cancelled'] as const;
+const ESTADOS = ['received', 'assigned', 'in_progress', 'completed', 'cancelled'] as const;
 type Estado = (typeof ESTADOS)[number];
 
 /** Los estados en los que una solicitud sigue pendiente de algo. */
-const ABIERTOS: Estado[] = ['open', 'in_progress'];
+const ABIERTOS: Estado[] = ['received', 'assigned', 'in_progress'];
 
 /** Los estados que cierran: marcan `closed_at` y no cuentan como abiertas. */
-const TERMINALES: Estado[] = ['closed', 'cancelled'];
+const TERMINALES: Estado[] = ['completed', 'cancelled'];
 
 const PRIORIDADES = ['low', 'medium', 'high', 'urgent'] as const;
 type Prioridad = (typeof PRIORIDADES)[number];
 
 export const ETIQUETAS_ESTADO: Record<Estado, string> = {
-  open: 'Abierta',
-  in_progress: 'En curso',
-  resolved: 'Resuelta',
-  closed: 'Cerrada',
+  received: 'Recibida',
+  assigned: 'Asignada',
+  in_progress: 'En proceso',
+  completed: 'Completada',
   cancelled: 'Cancelada',
 };
 
@@ -116,10 +115,11 @@ const solicitudSchema = z.object({
   title: texto,
   description: textoLargo.nullable().optional(),
   requesterName: texto,
+  requesterArea: z.string().trim().max(150).nullable().optional(),
   requesterEmail: z.union([email, z.literal(''), z.null()]).nullable().optional(),
   responsibleName: z.string().trim().max(150).nullable().optional(),
   priority: z.enum(PRIORIDADES).default('medium'),
-  status: z.enum(ESTADOS).default('open'),
+  status: z.enum(ESTADOS).default('received'),
   dueAt: fechaLimite,
   resolution: textoLargo.nullable().optional(),
 });
@@ -241,6 +241,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
             title: body.title,
             description: body.description ?? null,
             requesterName: body.requesterName,
+            requesterArea: body.requesterArea ?? null,
             requesterEmail: body.requesterEmail ?? null,
             responsibleName: body.responsibleName ?? null,
             priority: body.priority,
@@ -282,6 +283,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
           title: body.title,
           description: body.description ?? null,
           requesterName: body.requesterName,
+          requesterArea: body.requesterArea ?? null,
           requesterEmail: body.requesterEmail ?? null,
           responsibleName: body.responsibleName ?? null,
           priority: body.priority,
@@ -332,16 +334,14 @@ export function buildRoutes(ctx: ProductContext): Router[] {
 
       const abiertas = todas.filter((r) => ABIERTOS.includes(r.status as Estado));
       const vencidas = abiertas.filter((r) => r.dueAt !== null && r.dueAt < hoy);
-      const resueltas = todas.filter((r) =>
-        (['resolved', 'closed', 'cancelled'] as Estado[]).includes(r.status as Estado),
-      );
+      const completadas = todas.filter((r) => r.status === 'completed');
       const alta = abiertas.filter((r) => r.priority === 'high' || r.priority === 'urgent');
 
       res.json({
         total: todas.length,
         abiertas: abiertas.length,
         vencidas: vencidas.length,
-        resueltas: resueltas.length,
+        completadas: completadas.length,
         alta: alta.length,
       });
     }),
@@ -350,7 +350,8 @@ export function buildRoutes(ctx: ProductContext): Router[] {
   // ──────────────────────────────────────────────────────────────── solicitudes
 
   /**
-   * Listado con los filtros de la pantalla: estado, prioridad y busqueda.
+   * Listado con los filtros de la pantalla: estado, responsable, prioridad y
+   * busqueda.
    *
    * Los nombres de solicitante y responsable van en la fila, sin resolver
    * ninguna referencia: son textos libres, asi que la lista es una consulta y
@@ -366,6 +367,9 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       }
       if (typeof req.query.priority === 'string' && req.query.priority) {
         cond.push(eq(requests.priority, req.query.priority));
+      }
+      if (typeof req.query.responsible === 'string' && req.query.responsible) {
+        cond.push(eq(requests.responsibleName, req.query.responsible));
       }
       const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
       if (q) {
@@ -390,6 +394,27 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         .all();
 
       res.json({ requests: filas, total: filas.length });
+    }),
+  );
+
+  /**
+   * Los responsables que existen en la organizacion, para el filtro de la
+   * pantalla. Se calculan con un DISTINCT y no leyendo la lista entera: el
+   * filtro no depende de cuantas solicitudes haya.
+   */
+  router.get(
+    '/api/responsables',
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const filas = db
+        .selectDistinct({ nombre: requests.responsibleName })
+        .from(requests)
+        .where(and(eq(requests.organizationId, org), isNotNull(requests.responsibleName)))
+        .orderBy(requests.responsibleName)
+        .all();
+      res.json({
+        responsables: filas.map((f) => f.nombre).filter((n): n is string => !!n && n.trim() !== ''),
+      });
     }),
   );
 

@@ -182,6 +182,7 @@ describe('solicitudes', () => {
         title: 'No carga el portal',
         description: 'Da error 500 en la vista de reportes',
         requesterName: 'Pablo Ríos',
+        requesterArea: 'Operaciones',
         requesterEmail: 'pablo@alpha.test',
         responsibleName: 'Equipo plataforma',
         dueAt: '2026-10-15',
@@ -191,7 +192,8 @@ describe('solicitudes', () => {
     const r = res.body.request;
     expect(r.number).toBeGreaterThan(0);
     expect(r.priority).toBe('medium');
-    expect(r.status).toBe('open');
+    expect(r.status).toBe('received');
+    expect(r.requesterArea).toBe('Operaciones');
     expect(r.requesterEmail).toBe('pablo@alpha.test');
     expect(r.closedAt).toBeNull();
   });
@@ -246,10 +248,10 @@ describe('solicitudes', () => {
     expect(detalle.body.request.requesterName).toBe('Ana Torres');
     expect(detalle.body.request.status).toBe('in_progress');
 
-    // El historial creció: la creación (open) más el cambio a en curso.
+    // El historial creció: la creación (received) más el cambio a en curso.
     expect(detalle.body.history).toHaveLength(2);
     const cambio = detalle.body.history[1];
-    expect(cambio.oldStatus).toBe('open');
+    expect(cambio.oldStatus).toBe('received');
     expect(cambio.newStatus).toBe('in_progress');
     expect(cambio.changedBy).toBe('Persona de Prueba');
   });
@@ -271,22 +273,34 @@ describe('solicitudes', () => {
 
     const cerrada = await comoAdmin(TEST_ORG_A)
       .patch(`/api/requests/${idSol}`)
-      .send({ status: 'closed' });
+      .send({ status: 'completed' });
     expect(cerrada.body.request.closedAt).toBeTruthy();
 
     const reabierta = await comoAdmin(TEST_ORG_A)
       .patch(`/api/requests/${idSol}`)
-      .send({ status: 'open' });
+      .send({ status: 'received' });
     expect(reabierta.body.request.closedAt).toBeNull();
     expect(reabierta.body.request.resolution).toBe('Se reinició el equipo');
   });
 
-  it('el listado filtra por estado, prioridad y búsqueda', async () => {
-    await nuevaSolicitud(TEST_ORG_A, { priority: 'urgent', title: 'Sincroniza backups' });
+  it('el listado filtra por estado, responsable, prioridad y búsqueda', async () => {
+    await nuevaSolicitud(TEST_ORG_A, {
+      priority: 'urgent',
+      title: 'Sincroniza backups',
+      responsibleName: 'Equipo de guardia',
+    });
 
-    const porEstado = await comoAdmin(TEST_ORG_A).get('/api/requests?status=resolved');
-    // Ninguna resolvió el estado resolved, asi que no aparece ninguna.
-    expect(porEstado.body.requests.some((r: any) => r.priority === 'urgent')).toBe(false);
+    const porEstado = await comoAdmin(TEST_ORG_A).get('/api/requests?status=completed');
+    // Ninguna está completada todavía, asi que no aparece ninguna.
+    expect(porEstado.body.requests.length).toBe(0);
+
+    const porResponsable = await comoAdmin(TEST_ORG_A).get(
+      `/api/requests?responsible=${encodeURIComponent('Equipo de guardia')}`,
+    );
+    expect(porResponsable.body.requests.length).toBeGreaterThan(0);
+    expect(
+      porResponsable.body.requests.every((r: any) => r.responsibleName === 'Equipo de guardia'),
+    ).toBe(true);
 
     const porPrioridad = await comoAdmin(TEST_ORG_A).get('/api/requests?priority=urgent');
     expect(porPrioridad.body.requests.length).toBeGreaterThan(0);
@@ -294,6 +308,17 @@ describe('solicitudes', () => {
 
     const porBusqueda = await comoAdmin(TEST_ORG_A).get('/api/requests?q=backups');
     expect(porBusqueda.body.requests.length).toBeGreaterThan(0);
+  });
+
+  it('lista los responsables distintos para el filtro, sin repetir', async () => {
+    await nuevaSolicitud(TEST_ORG_A, { responsibleName: 'Mesa de ayuda' });
+    await nuevaSolicitud(TEST_ORG_A, { responsibleName: 'Mesa de ayuda' });
+
+    const res = await comoAdmin(TEST_ORG_A).get('/api/responsables');
+    expect(res.status).toBe(200);
+    expect(res.body.responsables).toContain('Mesa de ayuda');
+    // DISTINCT: el mismo nombre dos veces no se repite en el filtro.
+    expect(new Set(res.body.responsables).size).toBe(res.body.responsables.length);
   });
 
   it('borra la solicitud con su hilo y su historial', async () => {
@@ -310,16 +335,16 @@ describe('solicitudes', () => {
     expect((quedan as { n: number }).n).toBe(0);
   });
 
-  it('el resumen cuenta abiertas, vencidas, resueltas y de prioridad alta', async () => {
+  it('el resumen cuenta abiertas, vencidas, completadas y de prioridad alta', async () => {
     await nuevaSolicitud(TEST_ORG_A, { priority: 'urgent', dueAt: '2001-01-01' });
     await nuevaSolicitud(TEST_ORG_A).then((id) =>
-      comoAdmin(TEST_ORG_A).patch(`/api/requests/${id}`).send({ status: 'closed' }),
+      comoAdmin(TEST_ORG_A).patch(`/api/requests/${id}`).send({ status: 'completed' }),
     );
 
     const res = await comoAdmin(TEST_ORG_A).get('/api/resumen');
     expect(res.body.abiertas).toBeGreaterThanOrEqual(1);
     expect(res.body.vencidas).toBeGreaterThanOrEqual(1);
-    expect(res.body.resueltas).toBeGreaterThanOrEqual(1);
+    expect(res.body.completadas).toBeGreaterThanOrEqual(1);
     expect(res.body.alta).toBeGreaterThanOrEqual(1);
   });
 });
