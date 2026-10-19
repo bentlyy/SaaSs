@@ -21,6 +21,25 @@ export function aMinutos(hora: string): number {
 }
 
 /**
+ * Suma días a una fecha `AAAA-MM-DD`, en UTC.
+ *
+ * Se aritmetiza sobre medianoche UTC a propósito: la fecha es un rótulo de
+ * calendario, no un instante, y pasarla por la zona del navegador haría que el
+ * mismo día cambiara de nombre según dónde esté abierto el taller.
+ */
+export function sumarDias(fecha: string, dias: number): string {
+  const d = new Date(`${fecha}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + dias);
+  return d.toISOString().slice(0, 10);
+}
+
+/** El lunes de la semana de `fecha`. La semana de la agenda arranca el lunes. */
+export function inicioDeSemana(fecha: string): string {
+  const dow = new Date(`${fecha}T00:00:00.000Z`).getUTCDay();
+  return sumarDias(fecha, dow === 0 ? -6 : 1 - dow);
+}
+
+/**
  * ISO -> valor de `<input type="datetime-local">`, que no entiende la "Z".
  *
  * Es el mismo truco del legacy: se pinta la hora tal cual viene del servidor y

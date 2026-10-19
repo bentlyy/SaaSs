@@ -24,8 +24,16 @@ import {
   useAviso,
   type MapaEstados,
 } from '@amg/ui';
-import { aDatetimeLocal } from '../horas';
+import { aDatetimeLocal, inicioDeSemana, sumarDias } from '../horas';
 import type { Cliente, Espacio, EstadoReserva, Extra, Franja, Reserva, Resumen } from '../tipos';
+import { VistaSemanal } from './agenda/VistaSemanal';
+
+type Vista = 'dia' | 'semana';
+
+const VISTAS: Array<{ id: Vista; texto: string }> = [
+  { id: 'dia', texto: 'Día' },
+  { id: 'semana', texto: 'Semana' },
+];
 
 /**
  * La agenda del día: tarjetas, reservas y las franjas libres del espacio.
@@ -76,15 +84,26 @@ interface FormReserva {
   notas: string;
 }
 
-/** El total se estima en pantalla para dar una idea; el que vale es el del servidor. */
+/**
+ * Espejo en pantalla de `precioDe` del servidor: da una idea del total mientras
+ * se arma la reserva. El número que vale es el que devuelve el servidor al
+ * guardar; esto no decide nada.
+ */
+function precioDeEspacio(e: Espacio, iniMs: number, finMs: number): number {
+  const minutos = Math.max(0, (finMs - iniMs) / 60_000);
+  if (e.pricingMode === 'day') return e.pricePerDayCents;
+  if (e.pricingMode === 'block') return Math.ceil(minutos / (e.blockMinutes || 60)) * e.pricePerBlockCents;
+  return Math.round((minutos / 60) * e.pricePerHourCents);
+}
+
 function estimarTotal(form: FormReserva, espacios: Espacio[], extras: Extra[]): number {
   const espacio = espacios.find((e) => e.id === form.spaceId);
   const extra = extras.find((x) => x.id === form.extraId);
   if (!espacio) return 0;
   const ini = new Date(form.inicio).getTime();
   const fin = new Date(form.fin).getTime();
-  const horas = Number.isNaN(ini) || Number.isNaN(fin) ? 0 : (fin - ini) / 3_600_000;
-  return Math.round(horas * espacio.pricePerHourCents) + (extra?.priceCents ?? 0);
+  const base = Number.isNaN(ini) || Number.isNaN(fin) ? 0 : precioDeEspacio(espacio, ini, fin);
+  return base + (extra?.priceCents ?? 0);
 }
 
 export function AgendaPage() {
@@ -96,6 +115,7 @@ export function AgendaPage() {
   const [clientes, setClientes] = useState<Cliente[] | null>(null);
   const [extras, setExtras] = useState<Extra[] | null>(null);
 
+  const [vista, setVista] = useState<Vista>('dia');
   const [dia, setDia] = useState(() => new Date().toISOString().slice(0, 10));
   const [espacioSel, setEspacioSel] = useState('');
   const [estadoSel, setEstadoSel] = useState('');
@@ -121,9 +141,14 @@ export function AgendaPage() {
   }
 
   async function cargarAgenda() {
-    const base = new Date(`${dia}T00:00:00.000Z`);
+    // En "semana" el rango arranca el lunes; en "día", ese mismo día. Las dos
+    // vistas piden al mismo /api/agenda: no hay endpoint nuevo, solo un rango
+    // más ancho.
+    const inicio = vista === 'semana' ? inicioDeSemana(dia) : dia;
+    const dias = vista === 'semana' ? 7 : 1;
+    const base = new Date(`${inicio}T00:00:00.000Z`);
     const desde = base.toISOString();
-    const hasta = new Date(base.getTime() + 86_400_000).toISOString();
+    const hasta = new Date(base.getTime() + dias * 86_400_000).toISOString();
     const espacio = espacioSel ? `&spaceId=${espacioSel}` : '';
     const [a, r, d] = await Promise.all([
       api.get<{ bookings: Reserva[] }>(`/agenda?from=${desde}&to=${hasta}${espacio}`),
@@ -151,7 +176,7 @@ export function AgendaPage() {
       avisar((e as Error).message, true);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dia, espacioSel]);
+  }, [dia, espacioSel, vista]);
 
   async function cambiarEstado(r: Reserva, estado: EstadoReserva) {
     try {
@@ -174,6 +199,21 @@ export function AgendaPage() {
       customerId: '',
       inicio: aDatetimeLocal(s.startAt),
       fin: aDatetimeLocal(s.endAt),
+      extraId: '',
+      notas: '',
+    });
+  }
+
+  /** Clic en un hueco vacío de la semana: abre la reserva con esa hora puesta. */
+  function abrirEnHora(fecha: string, hora: string) {
+    setErrorForm(null);
+    const ini = new Date(`${fecha}T${hora}:00.000Z`);
+    const fin = new Date(ini.getTime() + 3_600_000);
+    setForm({
+      spaceId: espacioSel,
+      customerId: '',
+      inicio: ini.toISOString().slice(0, 16),
+      fin: fin.toISOString().slice(0, 16),
       extraId: '',
       notas: '',
     });
@@ -226,12 +266,45 @@ export function AgendaPage() {
 
   const visibles = (reservas ?? []).filter((r) => !estadoSel || r.status === estadoSel);
 
+  const lunes = inicioDeSemana(dia);
+  const finSemana = sumarDias(lunes, 6);
+  const etiquetaSemana = `${lunes.slice(8, 10)}/${lunes.slice(5, 7)} – ${finSemana.slice(8, 10)}/${finSemana.slice(5, 7)}`;
+
   return (
     <>
       <PageHeader
         titulo="Agenda"
-        subtitulo="Las reservas del día y las franjas libres para cerrar una nueva."
-        acciones={<BotonPrimario onClick={abrirNueva}>Nueva reserva</BotonPrimario>}
+        subtitulo="Las reservas del día, la semana completa y las franjas libres para cerrar una nueva."
+        acciones={
+          <>
+            <div className="inline-flex overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm">
+              {VISTAS.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => setVista(v.id)}
+                  className={`px-3 py-2 text-sm font-medium transition-colors ${
+                    vista === v.id ? 'bg-brand-600 text-white' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {v.texto}
+                </button>
+              ))}
+            </div>
+            {vista === 'semana' ? (
+              <div className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-1 shadow-sm">
+                <BotonChico type="button" onClick={() => setDia((d) => sumarDias(d, -7))} aria-label="Semana anterior">
+                  ‹
+                </BotonChico>
+                <span className="min-w-28 text-center text-sm font-medium text-slate-700">{etiquetaSemana}</span>
+                <BotonChico type="button" onClick={() => setDia((d) => sumarDias(d, 7))} aria-label="Semana siguiente">
+                  ›
+                </BotonChico>
+              </div>
+            ) : null}
+            <BotonPrimario onClick={abrirNueva}>Nueva reserva</BotonPrimario>
+          </>
+        }
       />
 
       {resumen === null ? (
@@ -269,6 +342,8 @@ export function AgendaPage() {
         </div>
       </Tarjeta>
 
+      {vista === 'dia' ? (
+        <>
       <Tarjeta titulo="Reservas del día" className="mt-6">
         {reservas === null ? (
           <EsqueletoTabla columnas={['Hora', 'Espacio', 'Cliente', 'Estado', 'Total', 'Acciones']} />
@@ -338,6 +413,22 @@ export function AgendaPage() {
           </div>
         )}
       </Tarjeta>
+        </>
+      ) : (
+        <Tarjeta titulo="Agenda semanal" nota="El color de cada ficha es el del espacio" className="mt-6">
+          {reservas === null ? (
+            <EsqueletoTabla columnas={['Hora', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']} />
+          ) : (
+            <VistaSemanal
+              reservas={visibles}
+              lunes={lunes}
+              espacios={espacios ?? []}
+              estados={ESTADOS}
+              abrirEnHora={abrirEnHora}
+            />
+          )}
+        </Tarjeta>
+      )}
 
       {form ? (
         <Modal titulo="Nueva reserva" onCerrar={() => setForm(null)}>

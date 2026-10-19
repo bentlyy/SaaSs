@@ -209,6 +209,14 @@ describe('espacios, clientes y extras', () => {
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     expect(res.body.priceCents).toBe(5000);
   });
+
+  it('guarda la descripción del espacio, que es lo que lo distingue', async () => {
+    const res = await comoAdmin(TEST_ORG_A)
+      .post('/api/spaces')
+      .send({ name: 'Sala con pizarra', description: 'Pizarra, proyector y 12 sillas' });
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(res.body.description).toBe('Pizarra, proyector y 12 sillas');
+  });
 });
 
 describe('aislamiento entre organizaciones', () => {
@@ -475,6 +483,54 @@ describe('choques de horario', () => {
     // 2 horas a 30000, más 5000 del extra. El total queda guardado en la fila, no
     // se calcula al vuelo: si mañana suben la tarifa, esta reserva no cambia.
     expect(res.body.booking.totalCents).toBe(65000);
+  });
+});
+
+describe('modos de precio del espacio', () => {
+  it('cobra por bloque, redondeando hacia arriba', async () => {
+    const espacio = await nuevoEspacio(TEST_ORG_A, {
+      name: 'Cancha por Bloque',
+      pricingMode: 'block',
+      pricePerBlockCents: 20_000,
+      blockMinutes: 60,
+    });
+    const cliente = await nuevoCliente(TEST_ORG_A, 'Cliente de Bloque');
+
+    // 70 minutos en bloques de 60 son dos bloques, no uno y medio: se cobra el
+    // bloque entero aunque sobre tiempo.
+    const res = await comoMiembro(TEST_ORG_A)
+      .post('/api/bookings')
+      .send({
+        spaceId: espacio,
+        customerId: cliente,
+        startAt: '2026-11-03T14:00:00.000Z',
+        endAt: '2026-11-03T15:10:00.000Z',
+      });
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(res.body.booking.totalCents).toBe(40_000);
+  });
+
+  it('cobra una tarifa plana por jornada, sin importar las horas', async () => {
+    const espacio = await nuevoEspacio(TEST_ORG_A, {
+      name: 'Salón por Jornada',
+      pricingMode: 'day',
+      pricePerDayCents: 120_000,
+    });
+    const cliente = await nuevoCliente(TEST_ORG_A, 'Cliente de Jornada');
+
+    const crear = (inicio: string, fin: string) =>
+      comoMiembro(TEST_ORG_A)
+        .post('/api/bookings')
+        .send({ spaceId: espacio, customerId: cliente, startAt: inicio, endAt: fin });
+
+    // Una reserva de 2 horas y otra de 6 cobran lo mismo: el modo es jornada,
+    // no hora. Días distintos para que no se pisen.
+    const corta = await crear('2026-11-04T14:00:00.000Z', '2026-11-04T16:00:00.000Z');
+    const larga = await crear('2026-11-05T14:00:00.000Z', '2026-11-05T20:00:00.000Z');
+    expect(corta.status, JSON.stringify(corta.body)).toBe(201);
+    expect(larga.status, JSON.stringify(larga.body)).toBe(201);
+    expect(corta.body.booking.totalCents).toBe(120_000);
+    expect(larga.body.booking.totalCents).toBe(120_000);
   });
 });
 

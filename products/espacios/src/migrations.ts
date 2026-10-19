@@ -12,6 +12,12 @@ import { hasTable, type Migration } from '@amg/product-runtime';
  * La version 2 agrega los horarios de disponibilidad por espacio y los
  * bloqueos puntuales. Ambas tablas son aditivas: las bases que ya tienen datos
  * solo ganan dos tablas nuevas, sin tocar una fila existente.
+ *
+ * La version 3 agrega la descripcion y los modos de precio (bloque y jornada)
+ * al espacio. Todas son columnas con valor por defecto, asi que una base con
+ * espacios ya cargados solo gana columnas: ninguna fila pide un dato que no
+ * tenga. El DDL nuevo ya las crea, por eso la migracion solo actua sobre una
+ * base vieja.
  */
 export const MIGRACIONES: Migration[] = [
   {
@@ -45,6 +51,24 @@ export const MIGRACIONES: Migration[] = [
           created_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_espacios_blocks_org ON blocks(organization_id, space_id, start_at);
+      `);
+    },
+  },
+  {
+    version: 3,
+    name: 'descripción y modos de precio del espacio',
+    up(sqlite: Database.Database) {
+      // Base nueva: el DDL que corre despues crea las columnas con la forma
+      // actual. SQLite no admite `ADD COLUMN IF NOT EXISTS`, asi que el guardia
+      // es la version: esta migracion corre una sola vez.
+      if (!hasTable(sqlite, 'spaces')) return;
+
+      sqlite.exec(`
+        ALTER TABLE spaces ADD COLUMN description TEXT;
+        ALTER TABLE spaces ADD COLUMN pricing_mode TEXT NOT NULL DEFAULT 'hour';
+        ALTER TABLE spaces ADD COLUMN price_per_block_cents INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE spaces ADD COLUMN block_minutes INTEGER NOT NULL DEFAULT 60;
+        ALTER TABLE spaces ADD COLUMN price_per_day_cents INTEGER NOT NULL DEFAULT 0;
       `);
     },
   },

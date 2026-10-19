@@ -3,13 +3,21 @@
 /** Estados de una reserva, tal como los guarda el servidor. */
 export type EstadoReserva = 'confirmed' | 'pending' | 'done' | 'cancelled' | 'no_show';
 
+/** Cómo cobra un espacio: por hora, por bloque de minutos o por jornada. */
+export type ModoPrecio = 'hour' | 'block' | 'day';
+
 export interface Espacio {
   id: string;
   organizationId: string;
   name: string;
+  description: string | null;
   type: string;
   capacity: number;
+  pricingMode: ModoPrecio;
   pricePerHourCents: number;
+  pricePerBlockCents: number;
+  blockMinutes: number;
+  pricePerDayCents: number;
   color: string | null;
   active: boolean;
   createdAt: string;

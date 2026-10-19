@@ -64,6 +64,41 @@ const OCUPAN = sql`${bookings.status} NOT IN ('cancelled','no_show')`;
 
 const estados = ['confirmed', 'pending', 'done', 'cancelled', 'no_show'] as const;
 
+/** Cómo cobra un espacio: por hora, por bloque o por jornada. */
+export const modosPrecio = ['hour', 'block', 'day'] as const;
+
+interface Tarifable {
+  pricingMode: string;
+  pricePerHourCents: number;
+  pricePerBlockCents: number;
+  blockMinutes: number;
+  pricePerDayCents: number;
+}
+
+/**
+ * Precio base de una reserva según el modo del espacio, sin los extras.
+ *
+ * Se centraliza acá porque el total de la reserva y el precio que se muestra en
+ * cada franja libre tienen que salir de la MISMA cuenta: si divergieran, la
+ * agenda mostraría un valor y la reserva guardaría otro.
+ */
+export function precioDe(space: Tarifable, inicioMs: number, finMs: number): number {
+  const minutos = Math.max(0, (finMs - inicioMs) / 60_000);
+  switch (space.pricingMode) {
+    case 'day':
+      // Jornada completa: una tarifa plana, sin importar cuántas horas se usen.
+      return space.pricePerDayCents;
+    case 'block': {
+      // Se cobra el bloque entero aunque sobre tiempo: 70 minutos en bloques de
+      // 60 son dos bloques, no uno y medio.
+      const bloque = space.blockMinutes > 0 ? space.blockMinutes : 60;
+      return Math.ceil(minutos / bloque) * space.pricePerBlockCents;
+    }
+    default:
+      return Math.round((minutos / 60) * space.pricePerHourCents);
+  }
+}
+
 /** Preferencia de la organización, o el valor por defecto si nunca guardó. */
 export function leerPreferencias(
   db: ProductDb['db'],
@@ -157,21 +192,20 @@ export function buildRoutes(ctx: ProductContext): Router[] {
   }
 
   /**
-   * Total de la reserva: horas por tarifa, más los extras.
+   * Total de la reserva: precio base según el modo del espacio, más los extras.
    *
-   * Se redondea al centavo una sola vez, al final. Si se redondearan las horas
-   * antes de multiplicar, una reserva de 90 minutos a $35.000 cobraría $52.500
-   * en vez de $52.500 exactos, y con tarifas rareras la diferencia crece.
+   * El redondeo de la tarifa por hora se hace una sola vez, dentro de `precioDe`.
+   * Si se redondearan las horas antes de multiplicar, una reserva de 90 minutos
+   * a $35.000 cobraría distinto según el orden de las operaciones.
    */
   function calcularTotal(
     org: string,
-    space: { pricePerHourCents: number },
+    space: Tarifable,
     inicio: string,
     fin: string,
     lineas: Array<{ addonId: string; priceCents: number }>,
   ) {
-    const horas = (Date.parse(fin) - Date.parse(inicio)) / 3_600_000;
-    const base = Math.round(horas * space.pricePerHourCents);
+    const base = precioDe(space, Date.parse(inicio), Date.parse(fin));
     let extras = 0;
     for (const linea of lineas) {
       // El extra se valida contra esta organización: sin esto, un cliente podría
@@ -297,7 +331,9 @@ export function buildRoutes(ctx: ProductContext): Router[] {
           libres.push({
             startAt: new Date(t).toISOString(),
             endAt: new Date(f).toISOString(),
-            totalCents: Math.round(fila.pricePerHourCents * (salto / 60)),
+            // El precio que muestra la franja sale de la misma cuenta que el
+            // total guardado: la agenda no puede prometer un número y cobrar otro.
+            totalCents: precioDe(fila, t, f),
           });
         }
       }
@@ -1022,9 +1058,14 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       archive: true,
       fields: {
         name: { schema: texto },
+        description: { schema: z.string().trim().max(2000).nullable().optional() },
         type: { schema: z.string().trim().min(1).max(40).default('sala') },
         capacity: { schema: z.coerce.number().int().min(1).max(10_000).default(1) },
+        pricingMode: { schema: z.enum(modosPrecio).default('hour') },
         pricePerHourCents: { schema: z.coerce.number().int().min(0).max(100_000_000).default(0) },
+        pricePerBlockCents: { schema: z.coerce.number().int().min(0).max(100_000_000).default(0) },
+        blockMinutes: { schema: z.coerce.number().int().min(15).max(1440).default(60) },
+        pricePerDayCents: { schema: z.coerce.number().int().min(0).max(100_000_000).default(0) },
         color: { schema: z.string().trim().max(9).nullable().optional() },
         active: { schema: booleano.default(true) },
         archivedAt: { readonly: true },

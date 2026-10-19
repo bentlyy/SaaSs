@@ -17,7 +17,7 @@ runtime, con una sola imagen Docker y una SQLite por producto, en un solo VPS.
 │   ├── citas/               ← agenda por profesional y servicio, con horarios y bloqueos
 │   ├── crm/                 ← ficha del cliente y seguimientos
 │   ├── cotizaciones/        ← presupuestos con líneas, folio y estados
-│   ├── espacios/            ← reservas de salas/canchas con disponibilidad y bloques
+│   ├── espacios/            ← reservas de salas/canchas: agenda día/semana, bloques y tarifas por hora, bloque o jornada
 │   ├── inventario/          ← artículos y movimientos trazables
 │   ├── pagos/               ← cobros a clientes de la empresa
 │   ├── solicitudes/         ← mesa de ayuda: peticiones, comentarios, adjuntos e historial

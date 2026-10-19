@@ -43,6 +43,15 @@ export const customers = sqliteTable(
  * diferencia importa en la migración: el legacy de deportes no guardaba ninguna
  * línea con el precio pactado, así que no hay contra qué verificar la tarifa, y
  * el valor se copia tal cual y se reporta.
+ *
+ * El espacio se cobra de TRES formas, y `pricing_mode` elige cuál:
+ *
+ *   - `hour`: por hora, tantas horas como dure la reserva.
+ *   - `block`: por bloque de `block_minutes` minutos, redondeando hacia arriba.
+ *   - `day`: una tarifa plana por jornada, sin importar cuántas horas se usen.
+ *
+ * Se guardan las tres tarifas aunque solo una esté activa: cambiar de modo no
+ * tiene que obligar a volver a escribir el precio de los otros dos.
  */
 export const spaces = sqliteTable(
   'spaces',
@@ -50,10 +59,18 @@ export const spaces = sqliteTable(
     id: text('id').primaryKey(),
     organizationId: text('organization_id').notNull(),
     name: text('name').notNull(),
+    /** Qué características tiene el espacio, para mostrarlo en la agenda. */
+    description: text('description'),
     /** Etiqueta libre: "futbol", "sala", "cabina". El legacy usaba un catálogo corto. */
     type: text('type').notNull().default('sala'),
     capacity: integer('capacity').notNull().default(1),
+    /** Cómo se calcula el total: `hour`, `block` o `day`. */
+    pricingMode: text('pricing_mode').notNull().default('hour'),
     pricePerHourCents: integer('price_per_hour_cents').notNull().default(0),
+    pricePerBlockCents: integer('price_per_block_cents').notNull().default(0),
+    /** Minutos que dura un bloque cuando `pricing_mode` es `block`. */
+    blockMinutes: integer('block_minutes').notNull().default(60),
+    pricePerDayCents: integer('price_per_day_cents').notNull().default(0),
     color: text('color').notNull().default('#0891b2'),
     active: integer('active', { mode: 'boolean' }).notNull().default(true),
     createdAt: text('created_at').notNull(),
