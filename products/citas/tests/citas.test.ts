@@ -641,39 +641,93 @@ describe('las preferencias', () => {
     const org = TEST_ORG_B;
     const primera = await comoAdmin(org)
       .put('/api/settings')
-      .send({ timezone: 'America/Santiago', currency: '$', reminderHours: 6, emailEnabled: true });
+      .send({ timezone: 'America/Santiago', currency: '$' });
     expect(primera.status).toBe(200);
 
     const segunda = await comoAdmin(org)
       .put('/api/settings')
-      .send({ timezone: 'America/Mexico_City', currency: '$', reminderHours: 24, emailEnabled: false });
+      .send({ timezone: 'America/Mexico_City', currency: '$' });
     expect(segunda.status).toBe(200);
 
     const leidas = await comoAdmin(org).get('/api/settings');
     expect(leidas.body.settings.timezone).toBe('America/Mexico_City');
-    expect(leidas.body.settings.reminderHours).toBe(24);
   });
 
   it('un miembro no cambia las preferencias de la empresa', async () => {
     const res = await comoMiembro(TEST_ORG_B)
       .put('/api/settings')
-      .send({ timezone: 'Europe/Lisbon', currency: '$', reminderHours: 1, emailEnabled: true });
+      .send({ timezone: 'Europe/Lisbon', currency: '$' });
     expect(res.status).toBe(403);
   });
 });
 
-describe('los recordatorios', () => {
-  it('rechaza reintentar un aviso que ya salió', async () => {
+describe('los avisos', () => {
+  it('la bitácora de recordatorios fue retirada: la ruta ya no existe', async () => {
+    const res = await comoAdmin(TEST_ORG_A).get('/api/reminders?limit=10');
+    expect(res.status).toBe(404);
+  });
+
+  it('el detalle de cita ya no trae la clave `reminders`', async () => {
     const cat = await catalogo(TEST_ORG_A);
     const cita = await nuevaCita(TEST_ORG_A, {
       staffId: cat.profesional,
-      startAt: '2026-10-15T10:00:00.000Z',
-      endAt: '2026-10-15T10:30:00.000Z',
+      startAt: '2026-10-15T11:00:00.000Z',
+      endAt: '2026-10-15T11:30:00.000Z',
     });
-    // Sin endpoint de envío, el aviso se crea por la migración. Acá se prueba el
-    // caso contrario: que la API no diga "reintentado" sobre algo que ya salió.
-    const res = await comoAdmin(TEST_ORG_B).post('/api/reminders/inexistente/retry');
-    expect(res.status).toBe(404);
     expect(cita.status).toBe(201);
+
+    const detalle = await comoAdmin(TEST_ORG_A).get(`/api/appointments/${cita.body.id}`);
+    expect(detalle.status).toBe(200);
+    expect(detalle.body).not.toHaveProperty('reminders');
+  });
+});
+
+describe('los servicios de un profesional', () => {
+  it('el PUT reemplaza la lista entera y el GET la devuelve', async () => {
+    const org = TEST_ORG_A;
+    const a = await comoAdmin(org).post('/api/services').send({ name: 'Corte', durationMin: 30, priceCents: 10000 });
+    const b = await comoAdmin(org).post('/api/services').send({ name: 'Barba', durationMin: 15, priceCents: 5000 });
+    const per = await comoAdmin(org).post('/api/staff').send({ name: 'Nico', color: '#123456' });
+    expect(per.status).toBe(201);
+    const idPro = per.body.id;
+
+    // Al crearlo todavía no tiene servicios: lista vacía.
+    const vacio = await comoAdmin(org).get(`/api/staff/${idPro}/servicios`);
+    expect(vacio.status).toBe(200);
+    expect(vacio.body.serviceIds).toEqual([]);
+
+    const puesto = await comoMiembro(org)
+      .put(`/api/staff/${idPro}/servicios`)
+      .send({ serviceIds: [a.body.id, b.body.id] });
+    expect(puesto.status, JSON.stringify(puesto.body)).toBe(200);
+    expect(puesto.body.serviceIds.sort()).toEqual([a.body.id, b.body.id].sort());
+
+    // Un segundo PUT con solo uno REEMPLAZA la lista: no acumula.
+    const reducido = await comoMiembro(org)
+      .put(`/api/staff/${idPro}/servicios`)
+      .send({ serviceIds: [b.body.id] });
+    expect(reducido.status).toBe(200);
+
+    const leidos = await comoAdmin(org).get(`/api/staff/${idPro}/servicios`);
+    expect(leidos.body.serviceIds).toEqual([b.body.id]);
+  });
+
+  it('rechaza servicios que no son de la organización', async () => {
+    const otro = await comoAdmin(TEST_ORG_B).post('/api/services').send({ name: 'Ajeno', durationMin: 30 });
+    const per = await comoAdmin(TEST_ORG_A).post('/api/staff').send({ name: 'Lea', color: '#654321' });
+
+    const res = await comoMiembro(TEST_ORG_A)
+      .put(`/api/staff/${per.body.id}/servicios`)
+      .send({ serviceIds: [otro.body.id] });
+    expect(res.status).toBe(400);
+
+    const leidos = await comoAdmin(TEST_ORG_A).get(`/api/staff/${per.body.id}/servicios`);
+    expect(leidos.body.serviceIds).toEqual([]);
+  });
+
+  it('un profesional de otra organización da 404', async () => {
+    const per = await comoAdmin(TEST_ORG_B).post('/api/staff').send({ name: 'Ajeno', color: '#000000' });
+    const res = await comoAdmin(TEST_ORG_A).get(`/api/staff/${per.body.id}/servicios`);
+    expect(res.status).toBe(404);
   });
 });

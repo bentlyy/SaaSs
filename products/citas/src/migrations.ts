@@ -12,6 +12,12 @@ import { hasTable, type Migration } from '@amg/product-runtime';
  * La version 2 agrega los horarios de atencion por profesional y los bloqueos
  * puntuales. Ambas tablas son aditivas: las bases que ya tienen datos solo
  * ganan dos tablas nuevas, sin tocar una fila existente.
+ *
+ * La version 3 quita la infraestructura de avisos (tabla `reminders` y las
+ * columnas de anticipacion/correo en `settings`): era una bitacora sin
+ * ningun envio real detras, y solo agregaba superficie que confundia.
+ * SQLite (>= 3.35) permite borrar columnas con ALTER TABLE; el DDL nuevo ya
+ * no las crea.
  */
 export const MIGRACIONES: Migration[] = [
   {
@@ -45,6 +51,20 @@ export const MIGRACIONES: Migration[] = [
           created_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_citas_blocks_org ON blocks(organization_id, staff_id, start_at);
+      `);
+    },
+  },
+  {
+    version: 3,
+    name: 'quitar avisos muertos',
+    up(sqlite: Database.Database) {
+      // Base nueva: el DDL actual ya no crea ni la tabla ni las columnas.
+      if (!hasTable(sqlite, 'settings')) return;
+
+      sqlite.exec(`
+        DROP TABLE IF EXISTS reminders;
+        ALTER TABLE settings DROP COLUMN reminder_hours;
+        ALTER TABLE settings DROP COLUMN email_enabled;
       `);
     },
   },

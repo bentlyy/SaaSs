@@ -16,7 +16,7 @@ import {
   api,
   useAviso,
 } from '@amg/ui';
-import type { Profesional } from '../tipos';
+import type { Profesional, Servicio } from '../tipos';
 
 type Modal_ = { modo: 'nuevo' | 'editar'; profesional?: Profesional } | null;
 
@@ -50,6 +50,8 @@ export function ProfesionalesPage() {
   const [modal, setModal] = useState<Modal_>(null);
   const [campos, setCampos] = useState<Record<string, string>>({});
   const [activo, setActivo] = useState(true);
+  const [catalogoServicios, setCatalogoServicios] = useState<Servicio[]>([]);
+  const [serviciosMarcados, setServiciosMarcados] = useState<string[]>([]);
   const [errorModal, setErrorModal] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -69,18 +71,41 @@ export function ProfesionalesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // El catálogo de servicios se pide UNA vez al abrir el modal: la lista no
+  // cambia mientras se edita, y volver a pedirla en cada render sería ruido.
+  async function cargarCatalogoServicios() {
+    if (catalogoServicios.length > 0) return;
+    const lista = await api.get<{ items: Servicio[] }>('/services?limit=200');
+    setCatalogoServicios(lista.items ?? []);
+  }
+
   function abrirNuevo() {
     setErrorModal(null);
     setCampos({ name: '', phone: '', color: '#c2571a' });
     setActivo(true);
+    setServiciosMarcados([]);
     setModal({ modo: 'nuevo' });
+    // Un profesional sin servicios asignados no puede recibir citas: la
+    // disponibilidad responde 400 hasta que se le asigne al menos uno.
+    cargarCatalogoServicios().catch((e) => {
+      if ((e as { vencida?: boolean }).vencida) return;
+      avisar((e as Error).message, true);
+    });
   }
 
-  function abrirEdicion(p: Profesional) {
+  async function abrirEdicion(p: Profesional) {
     setErrorModal(null);
     setCampos({ name: p.name, phone: p.phone ?? '', color: p.color ?? '#c2571a' });
     setActivo(p.active);
     setModal({ modo: 'editar', profesional: p });
+    try {
+      await cargarCatalogoServicios();
+      const r = await api.get<{ serviceIds: string[] }>(`/staff/${p.id}/servicios`);
+      setServiciosMarcados(r.serviceIds ?? []);
+    } catch (e) {
+      if ((e as { vencida?: boolean }).vencida) return;
+      avisar((e as Error).message, true);
+    }
   }
 
   async function borrar(p: Profesional) {
@@ -107,8 +132,16 @@ export function ProfesionalesPage() {
       };
       // El correo no se edita acá: para uno nuevo va vacío; al editar, sería
       // pisar lo que haya con un null.
-      if (modal.modo === 'nuevo') await api.post('/staff', { ...datos, email: null });
-      else await api.patch(`/staff/${modal.profesional!.id}`, datos);
+      let idProfesional: string;
+      if (modal.modo === 'nuevo') {
+        const creado = await api.post<Profesional>('/staff', { ...datos, email: null });
+        idProfesional = creado.id;
+      } else {
+        idProfesional = modal.profesional!.id;
+        await api.patch(`/staff/${idProfesional}`, datos);
+      }
+      // El PUT reemplaza la lista entera: "estos son los servicios que hace".
+      await api.put(`/staff/${idProfesional}/servicios`, { serviceIds: serviciosMarcados });
       setModal(null);
       await cargar();
       avisar(modal.modo === 'nuevo' ? 'Profesional creado' : 'Profesional actualizado');
@@ -179,6 +212,31 @@ export function ProfesionalesPage() {
             </div>
             <div className="flex items-end">
               <Casilla etiqueta="Profesional activo" marcada={activo} onCambio={setActivo} />
+            </div>
+            <div>
+              <p className="mb-1 text-sm font-medium text-slate-700">
+                Servicios que hace <span className="text-xs font-normal text-slate-400">(al menos uno para poder agendarle citas)</span>
+              </p>
+              {catalogoServicios.length === 0 ? (
+                <p className="text-sm text-slate-400">
+                  Todavía no hay servicios cargados. Creá uno en la página de Servicios.
+                </p>
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {catalogoServicios.map((s) => (
+                    <Casilla
+                      key={s.id}
+                      etiqueta={s.name}
+                      marcada={serviciosMarcados.includes(s.id)}
+                      onCambio={(marcado) =>
+                        setServiciosMarcados((m) =>
+                          marcado ? [...m, s.id] : m.filter((x) => x !== s.id),
+                        )
+                      }
+                    />
+                  ))}
+                </div>
+              )}
             </div>
             <NotaError mensaje={errorModal} />
             <div className="flex justify-end gap-2 pt-2">

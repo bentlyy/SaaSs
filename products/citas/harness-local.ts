@@ -83,8 +83,6 @@ async function sembrar(): Promise<{ resumen: any; citas: any[] }> {
   await pedir('PUT', '/api/settings', {
     timezone: ZONA,
     currency: '$',
-    reminderHours: 12,
-    emailEnabled: false,
   });
 
   const clientes = await Promise.all(

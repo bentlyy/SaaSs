@@ -19,7 +19,6 @@ import {
   availability,
   blocks,
   customers,
-  reminders,
   services,
   settings,
   staff,
@@ -87,8 +86,6 @@ const citaSchema = z
 export const defaultSettings = () => ({
   timezone: 'America/Santiago',
   currency: '$',
-  reminderHours: 12,
-  emailEnabled: false,
 });
 
 export function buildRoutes(ctx: ProductContext): Router[] {
@@ -828,11 +825,6 @@ const ahora = nowIso();
         .from(appointmentServices)
         .where(and(eq(appointmentServices.organizationId, org), eq(appointmentServices.appointmentId, idCita)))
         .all();
-      const avisos = db
-        .select()
-        .from(reminders)
-        .where(and(eq(reminders.organizationId, org), eq(reminders.appointmentId, idCita)))
-        .all();
 
       const cliente = cita.customerId
         ? db.select().from(customers).where(eq(customers.id, cita.customerId)).get()
@@ -841,7 +833,7 @@ const ahora = nowIso();
         ? db.select().from(staff).where(eq(staff.id, cita.staffId)).get()
         : undefined;
 
-      res.json({ appointment: cita, services: lineas, reminders: avisos, customer: cliente, staff: profesional });
+      res.json({ appointment: cita, services: lineas, customer: cliente, staff: profesional });
     }),
   );
 
@@ -860,7 +852,7 @@ const ahora = nowIso();
   router.post('/api/appointments', requireRole('member'), guardarCita);
   router.patch('/api/appointments/:id', requireRole('member'), guardarCita);
 
-  // ─────────────────────────────────────────────────────── líneas y avisos
+  // ────────────────────────────────────────────────────────────────── líneas
 
   router.get(
     '/api/appointments/:id/servicios',
@@ -873,57 +865,6 @@ const ahora = nowIso();
         .where(and(eq(appointmentServices.organizationId, org), eq(appointmentServices.appointmentId, idCita)))
         .all();
       res.json({ services: lineas, totalCents: lineas.reduce((s, l) => s + l.priceCents, 0) });
-    }),
-  );
-
-  /**
-   * Avisos ya enviados.
-   *
-   * Es una bitácora de INTENTOS: un aviso fallido y su reintento son dos filas de
-   * la misma cita, y por eso la tabla no tiene índice único. Lo que evita el
-   * correo duplicado es no mandar cuando el último intento de esa cita y canal ya
-   * salió bien, y eso lo decide el que despacha, no un índice.
-   */
-  router.get(
-    '/api/reminders',
-    asyncHandler(async (req, res) => {
-      const org = orgId(req);
-      const cond = [eq(reminders.organizationId, org)];
-      if (typeof req.query.appointmentId === 'string' && req.query.appointmentId) {
-        cond.push(eq(reminders.appointmentId, req.query.appointmentId));
-      }
-      const limite = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
-      const filas = db
-        .select()
-        .from(reminders)
-        .where(and(...cond))
-        .orderBy(sql`${reminders.sentAt} DESC NULLS LAST, ${reminders.createdAt} DESC`)
-        .limit(limite)
-        .all();
-      res.json({ reminders: filas });
-    }),
-  );
-
-  /** Un aviso se puede volver a marcar como enviado: reintento. */
-  router.post(
-    '/api/reminders/:id/retry',
-    requireRole('admin'),
-    asyncHandler(async (req, res) => {
-      const org = orgId(req);
-      const idAviso = id.parse(req.params.id);
-      const aviso = db
-        .select()
-        .from(reminders)
-        .where(and(eq(reminders.id, idAviso), eq(reminders.organizationId, org)))
-        .get();
-      if (!aviso) throw new AppError(404, 'Ese aviso no existe');
-      if (aviso.status === 'sent') throw new AppError(409, 'Ese aviso ya se envió: no hay nada que reintentar');
-
-      db.update(reminders)
-        .set({ status: 'sent', sentAt: nowIso(), error: null })
-        .where(eq(reminders.id, idAviso))
-        .run();
-      res.json({ reminder: db.select().from(reminders).where(eq(reminders.id, idAviso)).get() });
     }),
   );
 
@@ -947,8 +888,6 @@ const ahora = nowIso();
         .object({
           timezone: zonaHoraria,
           currency: z.string().trim().min(1).max(5),
-          reminderHours: z.coerce.number().int().min(0).max(720),
-          emailEnabled: booleano,
         })
         .parse(req.body);
 
@@ -969,9 +908,9 @@ const ahora = nowIso();
   /**
    * Catálogo de clientes, servicios y profesionales.
    *
-   * `crudRouter` se monta en `/`, así que el prefijo va en el `use`. Las citas y
-   * los avisos NO usan el CRUD genérico: la cita valida solapamiento y calcula
-   * su total, y eso no se puede expresar declarando campos.
+   * `crudRouter` se monta en `/`, así que el prefijo va en el `use`. Las citas
+   * NO usan el CRUD genérico: validan solapamiento y calculan su total, y eso
+   * no se puede expresar declarando campos.
    */
   router.use(
     '/api/customers',
@@ -1012,6 +951,78 @@ const ahora = nowIso();
         createdAt: { readonly: true },
         updatedAt: { readonly: true },
       },
+    }),
+  );
+
+  /**
+   * Qué servicios hace cada profesional.
+   *
+   * El cruce no entra en `crudRouter`: la operación que la interfaz necesita es
+   * "reemplazar la lista completa" (PUT con todo marcado), no un alta/baja por
+   * fila. Estas rutas van ANTES del mount de `/api/staff` porque Express
+   * evalúa en orden de registro, y el subrouter genérico se comería el
+   * `/staff/:id/servicios`.
+   *
+   * Sin al menos un servicio asignado, `/api/availability` responde 400: no hay
+   * duración posible que ofrecer.
+   */
+  router.get(
+    '/api/staff/:id/servicios',
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const idPro = id.parse(req.params.id);
+      const pro = db
+        .select({ id: staff.id })
+        .from(staff)
+        .where(and(eq(staff.id, idPro), eq(staff.organizationId, org)))
+        .get();
+      if (!pro) throw new AppError(404, 'Ese profesional no existe');
+      const serviceIds = db
+        .select({ serviceId: staffServices.serviceId })
+        .from(staffServices)
+        .where(and(eq(staffServices.organizationId, org), eq(staffServices.staffId, idPro)))
+        .all()
+        .map((r) => r.serviceId);
+      res.json({ serviceIds });
+    }),
+  );
+
+  router.put(
+    '/api/staff/:id/servicios',
+    requireRole('member'),
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const idPro = id.parse(req.params.id);
+      const pro = db
+        .select({ id: staff.id })
+        .from(staff)
+        .where(and(eq(staff.id, idPro), eq(staff.organizationId, org)))
+        .get();
+      if (!pro) throw new AppError(404, 'Ese profesional no existe');
+
+      const ids = z.array(id).max(200).parse(req.body?.serviceIds ?? []);
+      const unicos = [...new Set(ids)];
+      if (unicos.length) {
+        const validos = db
+          .select({ id: services.id })
+          .from(services)
+          .where(and(eq(services.organizationId, org), inArray(services.id, unicos)))
+          .all();
+        if (validos.length !== unicos.length) throw new AppError(400, 'Algún servicio no es de tu organización');
+      }
+
+      // Se reemplaza la lista entera: es la respuesta a "marqué estos servicios",
+      // y borrar los viejos e insertar los nuevos en el mismo request deja el
+      // cruce siempre consistente con lo que eligió quien edita.
+      db.delete(staffServices)
+        .where(and(eq(staffServices.organizationId, org), eq(staffServices.staffId, idPro)))
+        .run();
+      for (const serviceId of unicos) {
+        db.insert(staffServices)
+          .values({ id: createId('citaprs'), organizationId: org, staffId: idPro, serviceId })
+          .run();
+      }
+      res.json({ serviceIds: unicos });
     }),
   );
 

@@ -14,7 +14,7 @@ runtime, con una sola imagen Docker y una SQLite por producto, en un solo VPS.
 ├── products/
 │   ├── activos/             ← patrimonio con historial de movimientos
 │   ├── checklists/          ← plantillas de inspección y su ejecución con snapshot
-│   ├── citas/               ← agenda por profesional y servicio, con bloqueos y avisos
+│   ├── citas/               ← agenda por profesional y servicio, con horarios y bloqueos
 │   ├── crm/                 ← ficha del cliente y seguimientos
 │   ├── cotizaciones/        ← presupuestos con líneas, folio y estados
 │   ├── espacios/            ← reservas de salas/canchas con disponibilidad y bloques

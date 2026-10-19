@@ -1,7 +1,7 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 /**
- * Citas: clientes, servicios, profesionales, agenda y avisos.
+ * Citas: clientes, servicios, profesionales y agenda.
  *
  * Lo que entra y lo que no: este producto tiene su propia lista de clientes
  * porque una peluquería y una clínica guardan datos distintos de su gente, y no
@@ -161,25 +161,6 @@ export const appointmentServices = sqliteTable('appointment_services', {
 });
 
 /**
- * Avisos ya enviados.
- *
- * No es el que manda los avisos: es el registro de los que ya salieron, para
- * no reenviar y para poder responder "¿le llegó?". Por eso guarda a quién y
- * cuándo, y por eso una cita la puede tener ninguno (todavía no llegó la hora).
- */
-export const reminders = sqliteTable('reminders', {
-  id: text('id').primaryKey(),
-  organizationId: text('organization_id').notNull(),
-  appointmentId: text('appointment_id').references(() => appointments.id, { onDelete: 'cascade' }),
-  channel: text('channel').notNull().default('email'),
-  to: text('to'),
-  status: text('status').notNull().default('sent'),
-  sentAt: text('sent_at'),
-  error: text('error'),
-  createdAt: text('created_at').notNull(),
-});
-
-/**
  * Preferencias de la agenda de UNA organización.
  *
  * El timezone va acá y no en el Core a propósito: es lo que define cómo se leen
@@ -191,9 +172,6 @@ export const settings = sqliteTable('settings', {
   organizationId: text('organization_id').notNull(),
   timezone: text('timezone').notNull().default('America/Santiago'),
   currency: text('currency').notNull().default('$'),
-  /** Horas de anticipación para avisar. El legacy lo traía por tenant. */
-  reminderHours: integer('reminder_hours').notNull().default(12),
-  emailEnabled: integer('email_enabled', { mode: 'boolean' }).notNull().default(false),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at'),
 });

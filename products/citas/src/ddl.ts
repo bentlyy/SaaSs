@@ -1,5 +1,5 @@
 /**
- * DDL de citas. Siete tablas de negocio y una de auditoría de la migración.
+ * DDL de citas. Nueve tablas de negocio.
  *
  * Cada `organization_id` lleva su índice: sin él, el filtro por organización
  * —obligatorio en todas las consultas— se vuelve un barrido de tabla completa.
@@ -122,34 +122,11 @@ CREATE TABLE IF NOT EXISTS appointment_services (
 CREATE INDEX IF NOT EXISTS idx_citas_appt_serv_org ON appointment_services(organization_id, appointment_id);
 CREATE INDEX IF NOT EXISTS idx_citas_appt_serv_service ON appointment_services(service_id);
 
-CREATE TABLE IF NOT EXISTS reminders (
-  id TEXT PRIMARY KEY,
-  organization_id TEXT NOT NULL,
-  appointment_id TEXT REFERENCES appointments(id) ON DELETE CASCADE,
-  channel TEXT NOT NULL DEFAULT 'email',
-  "to" TEXT,
-  status TEXT NOT NULL DEFAULT 'sent',
-  sent_at TEXT,
-  error TEXT,
-  created_at TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_citas_reminders_org ON reminders(organization_id, sent_at);
--- Índice NO único, y a propósito.
---
--- Esta tabla es un BITÁCORA de intentos, no un registro de avisos: el legacy
--- guardaba un intento fallido y el reintento como dos filas de la misma cita y el
--- mismo canal, y con índice único el segundo intento no entraría. Un índice
--- único acá no protegería contra el correo duplicado (eso lo decide quién
--- envía, mirando el último intento), solo perdería historial.
-CREATE INDEX IF NOT EXISTS idx_citas_reminders_appt ON reminders(appointment_id, channel);
-
 CREATE TABLE IF NOT EXISTS settings (
   id TEXT PRIMARY KEY,
   organization_id TEXT NOT NULL,
   timezone TEXT NOT NULL DEFAULT 'America/Santiago',
   currency TEXT NOT NULL DEFAULT '$',
-  reminder_hours INTEGER NOT NULL DEFAULT 12,
-  email_enabled INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT
 );

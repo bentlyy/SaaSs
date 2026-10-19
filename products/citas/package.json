@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Citas sobre el runtime de AMG: agenda, clientes, servicios, profesionales y avisos de recordatorio. Sin usuarios ni contrasenas propias.",
+  "description": "Citas sobre el runtime de AMG: agenda, clientes, servicios y profesionales. Sin usuarios ni contrasenas propias.",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",

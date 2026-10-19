@@ -62,19 +62,6 @@ export interface Bloqueo {
   reason: string | null;
 }
 
-export type EstadoAviso = 'sent' | 'failed' | 'pending';
-
-export interface Recordatorio {
-  id: string;
-  appointmentId: string | null;
-  channel: string;
-  to: string | null;
-  status: EstadoAviso;
-  error: string | null;
-  sentAt: string | null;
-  createdAt: string;
-}
-
 export interface LineaServicio {
   id: string;
   appointmentId: string;
@@ -85,7 +72,6 @@ export interface LineaServicio {
 export interface DetalleCita {
   appointment: Cita;
   services: LineaServicio[];
-  reminders: Recordatorio[];
   customer: Cliente | null;
   staff: Profesional | null;
 }
@@ -94,6 +80,4 @@ export interface DetalleCita {
 export interface AjustesCitas {
   timezone: string;
   currency: string;
-  reminderHours: number;
-  emailEnabled: boolean;
 }

@@ -83,7 +83,7 @@ async function profesional(orgId: string): Promise<string> {
 async function zona(orgId: string, timezone: string): Promise<void> {
   const res = await comoAdmin(orgId)
     .put('/api/settings')
-    .send({ timezone, currency: '$', reminderHours: 12, emailEnabled: false });
+    .send({ timezone, currency: '$' });
   expect(res.status, JSON.stringify(res.body)).toBe(200);
 }
 
@@ -192,15 +192,10 @@ describe('el contrato de las listas', () => {
     }
   });
 
-  it('/api/agenda y /api/reminders usan su clave propia', async () => {
+  it('/api/agenda usa su clave propia', async () => {
     const org = `${ORG}_agenda2`;
-    for (const [ruta, clave] of [
-      ['/api/agenda', 'appointments'],
-      ['/api/reminders?limit=10', 'reminders'],
-    ] as const) {
-      const res = await comoAdmin(org).get(ruta);
-      expect(res.status).toBe(200);
-      expect(Array.isArray(res.body[clave]), `${ruta} sin ${clave}`).toBe(true);
-    }
+    const res = await comoAdmin(org).get('/api/agenda');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.appointments)).toBe(true);
   });
 });

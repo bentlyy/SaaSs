@@ -106,3 +106,59 @@ export function partesDeDateTime(valor: string): [string, string] {
   const [fecha, hora = '00:00'] = String(valor).split('T');
   return [fecha, hora.slice(0, 5)];
 }
+
+// ──────────────────────────────────────── rangos de la vista (fechas locales)
+
+/**
+ * Fechas "YYYY-MM-DD" del taller: la vista semanal/mensual navega por FECHAS
+ * locales, no por instantes. Recién al cargar la agenda la fecha se convierte
+ * a un rango UTC con `inicioDelDia`/`finDelDia`.
+ */
+
+/** "2026-10-07" + n días -> "2026-10-08". */
+export function sumarDias(fecha: string, n: number): string {
+  const [a, m, d] = fecha.split('-').map(Number);
+  const dt = new Date(Date.UTC(a, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + n);
+  return dt.toISOString().slice(0, 10);
+}
+
+/** El lunes de la semana que contiene `fecha` (0 = domingo como JS). */
+export function inicioDeLaSemana(fecha: string): string {
+  const [a, m, d] = fecha.split('-').map(Number);
+  const dow = new Date(Date.UTC(a, m - 1, d)).getUTCDay();
+  return sumarDias(fecha, -((dow + 6) % 7));
+}
+
+/** El primer día del mes que contiene `fecha`. */
+export function inicioDelMes(fecha: string): string {
+  return `${fecha.slice(0, 7)}-01`;
+}
+
+/** Cuántos días tiene el mes de `fecha`. */
+export function diasDelMes(fecha: string): number {
+  const [a, m] = fecha.split('-').map(Number);
+  return new Date(Date.UTC(a, m, 0)).getUTCDate();
+}
+
+/** El primer día del mes siguiente. */
+export function mesSiguiente(fecha: string): string {
+  const [a, m] = fecha.split('-').map(Number);
+  return m === 12 ? `${a + 1}-01-01` : `${a}-${String(m + 1).padStart(2, '0')}-01`;
+}
+
+/** El primer día del mes anterior. */
+export function mesAnterior(fecha: string): string {
+  const [a, m] = fecha.split('-').map(Number);
+  return m === 1 ? `${a - 1}-12-01` : `${a}-${String(m - 1).padStart(2, '0')}-01`;
+}
+
+/** "Octubre", en minúscula según el locale, para el título del mes. */
+export function nombreDelMes(fecha: string): string {
+  const [a, m] = fecha.split('-').map(Number);
+  const nombre = new Date(Date.UTC(a, m - 1, 1)).toLocaleDateString('es-CL', {
+    month: 'long',
+    timeZone: 'UTC',
+  });
+  return nombre.charAt(0).toUpperCase() + nombre.slice(1);
+}

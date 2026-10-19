@@ -23,7 +23,6 @@ export function ConfiguracionPage() {
   const { aviso, avisar, limpiarAviso } = useAviso();
 
   const [campos, setCampos] = useState<Record<string, string>>({});
-  const [email, setEmail] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -35,9 +34,7 @@ export function ConfiguracionPage() {
     setCampos({
       timezone: String(s?.timezone ?? ''),
       currency: String(s?.currency ?? ''),
-      reminderHours: String(s?.reminderHours ?? 12),
     });
-    setEmail(Boolean(s?.emailEnabled));
   }, [settings]);
 
   async function guardar(ev: FormEvent) {
@@ -48,8 +45,6 @@ export function ConfiguracionPage() {
       await api.put('/settings', {
         timezone: campos.timezone,
         currency: campos.currency,
-        reminderHours: Number(campos.reminderHours || 0),
-        emailEnabled: email,
       });
       await recargarSettings();
       avisar('Ajustes guardados');
@@ -73,18 +68,6 @@ export function ConfiguracionPage() {
           <div className="grid gap-3 sm:grid-cols-2">
             <Campo etiqueta="Zona horaria" name="timezone" maxLength={60} required value={campos.timezone ?? ''} onChange={alCambiar} />
             <Campo etiqueta="Símbolo de moneda" name="currency" maxLength={5} required value={campos.currency ?? ''} onChange={alCambiar} />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Campo etiqueta="Avisar con cuántas horas de anticipación" name="reminderHours" type="number" min={0} max={720} required value={campos.reminderHours ?? ''} onChange={alCambiar} />
-            <label className="flex cursor-pointer items-center gap-2 pt-6 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={email}
-                onChange={(e) => setEmail(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 accent-brand-600"
-              />
-              Enviar avisos por correo
-            </label>
           </div>
           <NotaError mensaje={error} />
           <div className="flex justify-end pt-1">

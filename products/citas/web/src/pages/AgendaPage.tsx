@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 import {
   Aviso,
   BotonChico,
@@ -8,14 +8,12 @@ import {
   Campo,
   EsqueletoKpis,
   Etiqueta,
-  FilaVacia,
   Kpis,
   Modal,
   NotaError,
   PageHeader,
   Select,
   Spinner,
-  Tabla,
   Tarjeta,
   api,
   dinero,
@@ -25,8 +23,28 @@ import {
   useApp,
   type MapaEstados,
 } from '@amg/ui';
-import { finDelDia, fechaEnZona, hoyEnZona, horaEnZona, inicioDelDia, instanteEnZona, zonaSegura } from '../horas';
+import {
+  aMinutos,
+  diasDelMes,
+  fechaEnZona,
+  finDelDia,
+  hoyEnZona,
+  horaEnZona,
+  inicioDeLaSemana,
+  inicioDelDia,
+  inicioDelMes,
+  instanteEnZona,
+  mesAnterior,
+  mesSiguiente,
+  minutosAHora,
+  nombreDelMes,
+  sumarDias,
+  zonaSegura,
+} from '../horas';
 import type { Cita, Cliente, DetalleCita, EstadoCita, Profesional, Resumen, Servicio } from '../tipos';
+import { VistaDiaria } from './agenda/VistaDiaria';
+import { VistaSemanal } from './agenda/VistaSemanal';
+import { VistaMensual } from './agenda/VistaMensual';
 
 /** Los estados de una cita y su tono: la forma la pone el módulo compartido. */
 const ESTADOS: MapaEstados = {
@@ -37,10 +55,23 @@ const ESTADOS: MapaEstados = {
   no_show: { texto: 'No asistió', tono: 'malo' },
 };
 
+type Vista = 'dia' | 'semana' | 'mes';
 type ModalCita = { modo: 'nueva' } | { modo: 'reprogramar'; cita: Cita } | null;
 
+const VISTAS: Array<{ id: Vista; texto: string }> = [
+  { id: 'dia', texto: 'Día' },
+  { id: 'semana', texto: 'Semana' },
+  { id: 'mes', texto: 'Mes' },
+];
+
 /**
- * La agenda del día.
+ * La agenda: día, semana y mes sobre el mismo endpoint.
+ *
+ * `fechaDia` es el áncora de las tres vistas: en "día" es el día mostrado, en
+ * "semana" cualquier día de la semana visible, en "mes" cualquier día del mes.
+ * Según la vista se calcula el rango a pedir y la etiqueta de navegación, y
+ * `/api/agenda?from&to` ya acepta cualquier franja, así que no hay endpoints
+ * nuevos.
  *
  * El rango se manda en UTC armado desde la zona del taller, no desde la del
  * navegador: un taller en Mexico City abierto desde Santiago no puede ver las
@@ -55,6 +86,7 @@ export function AgendaPage() {
   const moneda = String(settings?.currency ?? '$');
   const hoy = hoyEnZona(z);
 
+  const [vista, setVista] = useState<Vista>('dia');
   const [fechaDia, setFechaDia] = useState(hoy);
   const [buscar, setBuscar] = useState('');
   const [resumen, setResumen] = useState<Resumen | null>(null);
@@ -85,16 +117,37 @@ export function AgendaPage() {
     [avisar],
   );
 
+  // El rango visible, como instantes UTC, según la vista.
+  const lunes = inicioDeLaSemana(fechaDia);
+  const primerDiaMes = inicioDelMes(fechaDia);
+  const rango = useMemo(() => {
+    if (vista === 'semana') {
+      return {
+        desde: inicioDelDia(lunes, z).toISOString(),
+        hasta: finDelDia(sumarDias(lunes, 6), z).toISOString(),
+      };
+    }
+    if (vista === 'mes') {
+      const ultimo = sumarDias(primerDiaMes, diasDelMes(fechaDia) - 1);
+      return {
+        desde: inicioDelDia(primerDiaMes, z).toISOString(),
+        hasta: finDelDia(ultimo, z).toISOString(),
+      };
+    }
+    return {
+      desde: inicioDelDia(fechaDia, z).toISOString(),
+      hasta: finDelDia(fechaDia, z).toISOString(),
+    };
+  }, [vista, fechaDia, lunes, primerDiaMes, z]);
+
   const cargarResumenAgenda = useCallback(async () => {
-    const desde = inicioDelDia(fechaDia, z).toISOString();
-    const hasta = finDelDia(fechaDia, z).toISOString();
     const [r, a] = await Promise.all([
       api.get<Resumen>('/resumen'),
-      api.get<{ appointments: Cita[] }>(`/agenda?from=${desde}&to=${hasta}`),
+      api.get<{ appointments: Cita[] }>(`/agenda?from=${rango.desde}&to=${rango.hasta}`),
     ]);
     setResumen(r);
     setCitas(a.appointments ?? []);
-  }, [fechaDia, z]);
+  }, [rango]);
 
   const cargarCatalogos = useCallback(async () => {
     const [c, s, p] = await Promise.all([
@@ -118,15 +171,24 @@ export function AgendaPage() {
     void cargar();
   }, [cargarResumenAgenda, cargarCatalogos, atajar]);
 
-  function abrirNueva() {
+  /** La hora de fin que dicta la duración del servicio, si se puede calcular. */
+  function conFin(hora: string, serviceId: string, finActual: string): string {
+    const s = servicios.find((x) => x.id === serviceId);
+    if (!s) return finActual;
+    const total = aMinutos(hora) + s.durationMin;
+    return total < 24 * 60 ? minutosAHora(total) : finActual;
+  }
+
+  function abrirNueva(prefill?: { fecha?: string; hora?: string }) {
     setErrorModal(null);
+    const horaIni = prefill?.hora ?? '10:00';
     setCampos({
       customerId: '',
       staffId: '',
       serviceId: '',
-      fecha: hoy,
-      hora: '10:00',
-      horaFin: '10:30',
+      fecha: prefill?.fecha ?? fechaDia,
+      hora: horaIni,
+      horaFin: minutosAHora(aMinutos(horaIni) + 30),
       priceCents: '0',
       status: 'confirmed',
       notes: '',
@@ -142,6 +204,12 @@ export function AgendaPage() {
       horaFin: horaEnZona(cita.endAt, z),
     });
     setModal({ modo: 'reprogramar', cita });
+  }
+
+  function mover(delta: number) {
+    if (vista === 'semana') setFechaDia((f) => sumarDias(f, delta * 7));
+    else if (vista === 'mes') setFechaDia((f) => (delta > 0 ? mesSiguiente(f) : mesAnterior(f)));
+    else setFechaDia((f) => sumarDias(f, delta));
   }
 
   async function verDetalle(citaId: string) {
@@ -184,7 +252,9 @@ export function AgendaPage() {
             ? [{ serviceId: servicio, priceCents: Number(campos.priceCents || 0) }]
             : [],
         });
+        // Al agendar, la vista salta al día de la cita para verla colocada.
         setFechaDia(campos.fecha);
+        setVista('dia');
         avisar('Cita agendada');
       } else {
         await api.patch(`/appointments/${modal.cita.id}`, cuerpo);
@@ -210,6 +280,19 @@ export function AgendaPage() {
         )
       : citas;
 
+  const etiquetaRango = useMemo(() => {
+    if (vista === 'semana') {
+      const fin = sumarDias(lunes, 6);
+      const [, m1, d1] = lunes.split('-').map(Number);
+      const [, m2, d2] = fin.split('-').map(Number);
+      return `${d1}/${m1} – ${d2}/${m2}`;
+    }
+    if (vista === 'mes') return `${nombreDelMes(fechaDia)} ${fechaDia.slice(0, 4)}`;
+    return '';
+  }, [vista, lunes, fechaDia]);
+
+  const tituloTarjeta = vista === 'dia' ? 'Citas del día' : vista === 'semana' ? 'Agenda semanal' : 'Agenda mensual';
+
   const detalleEst = detalle ? estadoDe(detalle.appointment.status, ESTADOS) : null;
   const nombreServicios = detalle
     ? detalle.services
@@ -224,17 +307,43 @@ export function AgendaPage() {
     <>
       <PageHeader
         titulo="Agenda"
-        subtitulo="Las citas del día en la zona del taller."
+        subtitulo="Las citas de tu taller, en su zona horaria."
         acciones={
           <>
-            <input
-              type="date"
-              value={fechaDia}
-              onChange={(e) => setFechaDia(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:w-44"
-            />
+            <div className="inline-flex overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm">
+              {VISTAS.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => setVista(v.id)}
+                  className={`px-3 py-2 text-sm font-medium transition-colors ${
+                    vista === v.id ? 'bg-brand-600 text-white' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {v.texto}
+                </button>
+              ))}
+            </div>
+            {vista === 'dia' ? (
+              <input
+                type="date"
+                value={fechaDia}
+                onChange={(e) => setFechaDia(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:w-44"
+              />
+            ) : (
+              <div className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-1 shadow-sm">
+                <BotonChico type="button" onClick={() => mover(-1)} aria-label="Anterior">
+                  ‹
+                </BotonChico>
+                <span className="min-w-28 text-center text-sm font-medium text-slate-700">{etiquetaRango}</span>
+                <BotonChico type="button" onClick={() => mover(1)} aria-label="Siguiente">
+                  ›
+                </BotonChico>
+              </div>
+            )}
             <Buscador valor={buscar} onChange={setBuscar} placeholder="Cliente o profesional" />
-            <BotonPrimario onClick={abrirNueva}>Nueva cita</BotonPrimario>
+            <BotonPrimario onClick={() => abrirNueva()}>Nueva cita</BotonPrimario>
           </>
         }
       />
@@ -251,49 +360,41 @@ export function AgendaPage() {
         />
       )}
 
-      <Tarjeta titulo="Citas del día" className="mt-6">
+      <Tarjeta titulo={tituloTarjeta} className="mt-6">
         {!filtradas ? (
           <Spinner />
+        ) : vista === 'dia' ? (
+          <VistaDiaria
+            citas={filtradas}
+            z={z}
+            moneda={moneda}
+            estados={ESTADOS}
+            buscar={q}
+            verDetalle={verDetalle}
+            abrirReprogramar={abrirReprogramar}
+            cambiarEstado={cambiarEstado}
+          />
+        ) : vista === 'semana' ? (
+          <VistaSemanal
+            citas={filtradas}
+            lunes={lunes}
+            z={z}
+            estados={ESTADOS}
+            profesionales={profesionales}
+            verDetalle={verDetalle}
+            abrirEnHora={(fecha, hora) => abrirNueva({ fecha, hora })}
+          />
         ) : (
-          <Tabla columnas={['Hora', 'Cliente', 'Profesional', 'Estado', { titulo: 'Total', num: true }, '']}>
-            {filtradas.length === 0 ? (
-              <FilaVacia
-                columnas={6}
-                texto={q ? 'Nadie coincide con la búsqueda' : 'No hay citas para este día.'}
-              />
-            ) : (
-              filtradas.map((c) => {
-                const e = estadoDe(c.status, ESTADOS);
-                return (
-                  <tr key={c.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-medium text-slate-800">{horaEnZona(c.startAt, z)}</td>
-                    <td className="px-4 py-3 text-slate-600">{c.customerName ?? 'Sin cliente'}</td>
-                    <td className="px-4 py-3 text-slate-600">{c.staffName ?? 'Sin profesional'}</td>
-                    <td className="px-4 py-3">
-                      <Etiqueta texto={e.texto} tono={e.tono} />
-                    </td>
-                    <td className="px-4 py-3 text-right text-slate-600">{dinero(c.totalCents, moneda)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end gap-1">
-                        <BotonChico onClick={() => verDetalle(c.id)}>Ver</BotonChico>
-                        <BotonChico onClick={() => abrirReprogramar(c)}>Reprogramar</BotonChico>
-                        {c.status !== 'done' ? (
-                          <BotonChico onClick={() => cambiarEstado(c, 'done', 'Cita realizada')}>
-                            Completar
-                          </BotonChico>
-                        ) : null}
-                        {c.status !== 'cancelled' && c.status !== 'no_show' ? (
-                          <BotonChico peligro onClick={() => cambiarEstado(c, 'cancelled', 'Cita cancelada')}>
-                            Cancelar
-                          </BotonChico>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </Tabla>
+          <VistaMensual
+            citas={filtradas}
+            ancla={fechaDia}
+            z={z}
+            profesionales={profesionales}
+            elegirDia={(fecha) => {
+              setFechaDia(fecha);
+              setVista('dia');
+            }}
+          />
         )}
       </Tarjeta>
 
@@ -329,7 +430,16 @@ export function AgendaPage() {
 
             <div className="grid gap-3 md:grid-cols-3">
               <Campo etiqueta="Fecha" name="fecha" type="date" required value={campos.fecha ?? ''} onChange={alCambiar} />
-              <Campo etiqueta="Desde" name="hora" type="time" required value={campos.hora ?? ''} onChange={alCambiar} />
+              <Campo
+                etiqueta="Desde"
+                name="hora"
+                type="time"
+                required
+                value={campos.hora ?? ''}
+                onChange={(e) =>
+                  setCampos((c) => ({ ...c, hora: e.target.value, horaFin: conFin(e.target.value, c.serviceId ?? '', c.horaFin ?? e.target.value) }))
+                }
+              />
               <Campo etiqueta="Hasta" name="horaFin" type="time" required value={campos.horaFin ?? ''} onChange={alCambiar} />
             </div>
 
@@ -340,9 +450,18 @@ export function AgendaPage() {
                     etiqueta="Servicio"
                     value={campos.serviceId ?? ''}
                     onChange={(e) => {
-                      poner('serviceId', e.target.value);
-                      const s = servicios.find((x) => x.id === e.target.value);
-                      poner('priceCents', s ? String(s.priceCents) : '0');
+                      const serviceId = e.target.value;
+                      setCampos((c) => {
+                        const s = servicios.find((x) => x.id === serviceId);
+                        return {
+                          ...c,
+                          serviceId,
+                          priceCents: s ? String(s.priceCents) : '0',
+                          // Elegir el servicio ajusta la hora de fin sola: la
+                          // duración ya está cargada, no hace falta escribirla.
+                          horaFin: conFin(c.hora ?? '10:00', serviceId, c.horaFin ?? ''),
+                        };
+                      });
                     }}
                   >
                     <option value="">— sin servicio —</option>

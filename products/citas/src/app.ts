@@ -4,7 +4,7 @@ import type { ProductDefinition } from '@amg/product-runtime';
 import { DDL } from './ddl.js';
 import { MIGRACIONES } from './migrations.js';
 import { buildRoutes } from './routes.js';
-import { appointmentServices, appointments, availability, blocks, customers, reminders, services, settings, staff, staffServices } from './schema.js';
+import { appointmentServices, appointments, availability, blocks, customers, services, settings, staff, staffServices } from './schema.js';
 
 const aqui = fileURLToPath(new URL('.', import.meta.url));
 
@@ -31,7 +31,6 @@ export const definicion: ProductDefinition = {
     blocks,
     appointments,
     appointmentServices,
-    reminders,
     settings,
   },
   ddl: DDL,
