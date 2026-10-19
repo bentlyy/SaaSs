@@ -87,7 +87,7 @@ services:
       PRODUCT: '@amg/espacios'
       PORT: "3000"
       DB_PATH: /app/data/espacios.sqlite
-      DB_SCHEMA_VERSION: "2"
+      DB_SCHEMA_VERSION: "3"
       APP_NAME: Espacios
       APP_URL: https://espacios.amgdeveloper.cl
       CORE_URL: https://desarrollo.amgdeveloper.cl
@@ -110,7 +110,7 @@ services:
       PRODUCT: '@amg/solicitudes'
       PORT: "3000"
       DB_PATH: /app/data/solicitudes.sqlite
-      DB_SCHEMA_VERSION: "1"
+      DB_SCHEMA_VERSION: "2"
       APP_NAME: Solicitudes y Ordenes
       APP_URL: https://solicitudes.amgdeveloper.cl
       CORE_URL: https://desarrollo.amgdeveloper.cl
@@ -158,7 +158,7 @@ services:
       PRODUCT: '@amg/citas'
       PORT: "3000"
       DB_PATH: /app/data/citas.sqlite
-      DB_SCHEMA_VERSION: "2"
+      DB_SCHEMA_VERSION: "3"
       APP_NAME: Citas
       APP_URL: https://citas.amgdeveloper.cl
       CORE_URL: https://desarrollo.amgdeveloper.cl

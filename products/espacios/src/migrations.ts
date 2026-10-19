@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import { hasTable, type Migration } from '@amg/product-runtime';
+import { hasTable, tableColumns, type Migration } from '@amg/product-runtime';
 
 /**
  * Migraciones de espacios.
@@ -59,17 +59,24 @@ export const MIGRACIONES: Migration[] = [
     name: 'descripción y modos de precio del espacio',
     up(sqlite: Database.Database) {
       // Base nueva: el DDL que corre despues crea las columnas con la forma
-      // actual. SQLite no admite `ADD COLUMN IF NOT EXISTS`, asi que el guardia
-      // es la version: esta migracion corre una sola vez.
+      // actual. SQLite no admite `ADD COLUMN IF NOT EXISTS`, asi que cada
+      // columna se agrega solo si falta: una base que ya las tiene (porque el
+      // DDL nuevo la creo) no vuelve a pedirlas.
       if (!hasTable(sqlite, 'spaces')) return;
 
-      sqlite.exec(`
-        ALTER TABLE spaces ADD COLUMN description TEXT;
-        ALTER TABLE spaces ADD COLUMN pricing_mode TEXT NOT NULL DEFAULT 'hour';
-        ALTER TABLE spaces ADD COLUMN price_per_block_cents INTEGER NOT NULL DEFAULT 0;
-        ALTER TABLE spaces ADD COLUMN block_minutes INTEGER NOT NULL DEFAULT 60;
-        ALTER TABLE spaces ADD COLUMN price_per_day_cents INTEGER NOT NULL DEFAULT 0;
-      `);
+      const existentes = tableColumns(sqlite, 'spaces');
+      const faltantes: Array<[string, string]> = [
+        ['description', 'TEXT'],
+        ['pricing_mode', "TEXT NOT NULL DEFAULT 'hour'"],
+        ['price_per_block_cents', 'INTEGER NOT NULL DEFAULT 0'],
+        ['block_minutes', 'INTEGER NOT NULL DEFAULT 60'],
+        ['price_per_day_cents', 'INTEGER NOT NULL DEFAULT 0'],
+      ];
+      for (const [nombre, tipo] of faltantes) {
+        if (!existentes.includes(nombre)) {
+          sqlite.exec(`ALTER TABLE spaces ADD COLUMN ${nombre} ${tipo};`);
+        }
+      }
     },
   },
 ];

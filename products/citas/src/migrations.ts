@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import { hasTable, type Migration } from '@amg/product-runtime';
+import { hasTable, tableColumns, type Migration } from '@amg/product-runtime';
 
 /**
  * Migraciones de citas.
@@ -61,11 +61,17 @@ export const MIGRACIONES: Migration[] = [
       // Base nueva: el DDL actual ya no crea ni la tabla ni las columnas.
       if (!hasTable(sqlite, 'settings')) return;
 
-      sqlite.exec(`
-        DROP TABLE IF EXISTS reminders;
-        ALTER TABLE settings DROP COLUMN reminder_hours;
-        ALTER TABLE settings DROP COLUMN email_enabled;
-      `);
+      sqlite.exec(`DROP TABLE IF EXISTS reminders;`);
+
+      // SQLite no tiene `DROP COLUMN IF EXISTS`: cada columna se borra solo si
+      // todavia esta, para que una base ya limpia no falle al migrar.
+      const columnas = tableColumns(sqlite, 'settings');
+      if (columnas.includes('reminder_hours')) {
+        sqlite.exec(`ALTER TABLE settings DROP COLUMN reminder_hours;`);
+      }
+      if (columnas.includes('email_enabled')) {
+        sqlite.exec(`ALTER TABLE settings DROP COLUMN email_enabled;`);
+      }
     },
   },
 ];
