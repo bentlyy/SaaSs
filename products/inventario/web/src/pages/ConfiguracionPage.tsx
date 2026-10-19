@@ -28,6 +28,7 @@ export function ConfiguracionPage() {
   const puedeSembrar = !!admin && !!ajustes?.seedAvailable;
 
   const [campos, setCampos] = useState({ defaultUnit: '', defaultMinQuantity: '', currency: '' });
+  const [permitirNegativo, setPermitirNegativo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -40,6 +41,7 @@ export function ConfiguracionPage() {
       defaultMinQuantity: String(ajustes.defaultMinQuantity ?? 0),
       currency: ajustes.currency ?? '$',
     });
+    setPermitirNegativo(!!ajustes.allowNegativeStock);
   }, [ajustes]);
 
   const alCambiar = (ev: ChangeEvent<HTMLInputElement>) =>
@@ -54,6 +56,7 @@ export function ConfiguracionPage() {
         defaultUnit: campos.defaultUnit,
         defaultMinQuantity: Number(campos.defaultMinQuantity),
         currency: campos.currency,
+        allowNegativeStock: permitirNegativo,
       });
       await recargarSettings();
       avisar('Cambios guardados');
@@ -109,6 +112,22 @@ export function ConfiguracionPage() {
           />
 
           <NotaError mensaje={error} />
+
+          <label className="flex items-start gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={permitirNegativo}
+              onChange={(e) => setPermitirNegativo(e.target.checked)}
+            />
+            <span>
+              Permitir stock negativo
+              <span className="mt-0.5 block text-xs text-slate-400">
+                Por defecto una salida que dejaría el stock en negativo se rechaza. Activalo si el stock del sistema va
+                por detrás del real y lo regularizás después.
+              </span>
+            </span>
+          </label>
 
           <div className="flex flex-wrap justify-end gap-2 pt-2">
             {puedeSembrar ? (

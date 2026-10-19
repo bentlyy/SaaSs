@@ -419,6 +419,176 @@ describe('baja de artículos', () => {
   });
 });
 
+describe('códigos de barras y categorías', () => {
+  it('crea una categoría y la asigna a un artículo', async () => {
+    const cat = await comoAdmin(TEST_ORG_A).post('/api/categories').send({ name: 'Filtros' });
+    expect(cat.status, JSON.stringify(cat.body)).toBe(201);
+
+    const art = await nuevoArticulo(TEST_ORG_A, { name: 'Con categoría', categoryId: cat.body.id, barcode: '900000001' });
+    expect(art).toMatchObject({ name: 'Con categoría' });
+
+    const leido = await comoMiembro(TEST_ORG_A).get(`/api/items/${art.id}`);
+    expect(leido.body.categoryId).toBe(cat.body.id);
+    expect(leido.body.barcode).toBe('900000001');
+  });
+
+  it('la lista filtra por categoría y busca por código de barras', async () => {
+    const cat = await comoAdmin(TEST_ORG_A).post('/api/categories').send({ name: 'Solo esta' });
+    await nuevoArticulo(TEST_ORG_A, { name: 'Pertenece', categoryId: cat.body.id, barcode: '900000002' });
+    await nuevoArticulo(TEST_ORG_A, { name: 'No pertenece' });
+
+    const filtrado = await comoMiembro(TEST_ORG_A).get(`/api/items?categoryId=${cat.body.id}`);
+    expect(filtrado.body.items.map((i: { name: string }) => i.name)).toEqual(['Pertenece']);
+
+    // El escáner apunta a la búsqueda: escribir el código de barras tiene que
+    // traer el artículo, como si se hubiera tecleado el nombre.
+    const porCodigo = await comoMiembro(TEST_ORG_A).get('/api/items?q=900000002');
+    expect(porCodigo.body.items.map((i: { name: string }) => i.name)).toContain('Pertenece');
+  });
+
+  it('un código de barras repetido da 400, no un 500', async () => {
+    await nuevoArticulo(TEST_ORG_A, { name: 'Primero con código', barcode: '900000010' });
+    const repetido = await comoAdmin(TEST_ORG_A).post('/api/items').send({ name: 'Segundo', barcode: '900000010' });
+    expect(repetido.status).toBe(400);
+    expect(repetido.body.error).toMatch(/código de barras/i);
+  });
+
+  it('dos organizaciones pueden usar el mismo código', async () => {
+    await nuevoArticulo(TEST_ORG_A, { name: 'De Alpha', barcode: '900000020' });
+    const enB = await nuevoArticulo(TEST_ORG_B, { name: 'De Beta', barcode: '900000020' });
+    expect(enB).toMatchObject({ name: 'De Beta' });
+  });
+
+  it('quitarlo de la categoría lo deja sin categoría, no lo borra', async () => {
+    const cat = await comoAdmin(TEST_ORG_A).post('/api/categories').send({ name: 'Efímera' });
+    const art = await nuevoArticulo(TEST_ORG_A, { name: 'Queda huérfano', categoryId: cat.body.id });
+
+    const baja = await comoAdmin(TEST_ORG_A).delete(`/api/categories/${cat.body.id}`);
+    expect(baja.status).toBe(200);
+
+    const leido = await comoMiembro(TEST_ORG_A).get(`/api/items/${art.id}`);
+    expect(leido.status).toBe(200);
+    expect(leido.body.categoryId).toBeNull();
+  });
+});
+
+describe('escáner', () => {
+  it('busca un artículo por código de barras o por SKU', async () => {
+    const porBarcode = await nuevoArticulo(TEST_ORG_A, { name: 'Escaneable', barcode: '770000001', sku: 'INT-001' });
+
+    const barcode = await comoMiembro(TEST_ORG_A).get('/api/scan/lookup?code=770000001');
+    expect(barcode.body.found).toBe(true);
+    expect(barcode.body.item.id).toBe(porBarcode.id);
+
+    const sku = await comoMiembro(TEST_ORG_A).get('/api/scan/lookup?code=INT-001');
+    expect(sku.body.found).toBe(true);
+    expect(sku.body.item.id).toBe(porBarcode.id);
+
+    // Un código sin artículo no es un error: es la señal de "producto
+    // desconocido", que abre el alta rápida o la incidencia.
+    const desconocido = await comoMiembro(TEST_ORG_A).get('/api/scan/lookup?code=000000000');
+    expect(desconocido.status).toBe(200);
+    expect(desconocido.body.found).toBe(false);
+    expect(desconocido.body.item).toBeNull();
+  });
+
+  it('el lookup no cruza organizaciones', async () => {
+    await nuevoArticulo(TEST_ORG_A, { name: 'Solo Alpha', barcode: '770000002' });
+    const enB = await comoMiembro(TEST_ORG_B).get('/api/scan/lookup?code=770000002');
+    expect(enB.body.found).toBe(false);
+  });
+
+  it('confirmar una entrada suma y deja un movimiento por artículo', async () => {
+    const art = await nuevoArticulo(TEST_ORG_A, { name: 'Entra por escáner', barcode: '880000001', minQuantity: 0 });
+
+    const res = await comoAdmin(TEST_ORG_A)
+      .post('/api/scan/commit')
+      .send({ mode: 'in', reason: 'Compra', lines: [{ itemId: art.id, quantity: 5 }] });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(res.body.movimientos).toBe(1);
+
+    const estado = await comoMiembro(TEST_ORG_A).get(`/api/items/${art.id}`);
+    expect(estado.body.quantity).toBe(5);
+
+    const historial = await comoMiembro(TEST_ORG_A).get(`/api/movements?itemId=${art.id}`);
+    expect(historial.body.movements[0]).toMatchObject({ delta: 5, reason: 'Entrada: Compra' });
+  });
+
+  it('confirmar una salida sin stock no cambia nada', async () => {
+    const art = await nuevoArticulo(TEST_ORG_A, { name: 'Sale por escáner', barcode: '880000002', minQuantity: 0 });
+    await comoAdmin(TEST_ORG_A).post(`/api/items/${art.id}/movements`).send({ delta: 3, reason: 'Stock inicial' });
+
+    const res = await comoAdmin(TEST_ORG_A)
+      .post('/api/scan/commit')
+      .send({ mode: 'out', lines: [{ itemId: art.id, quantity: 10 }] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/stock suficiente/i);
+
+    const estado = await comoMiembro(TEST_ORG_A).get(`/api/items/${art.id}`);
+    expect(estado.body.quantity).toBe(3);
+  });
+
+  it('confirmar un ajuste deja el stock exactamente en lo contado', async () => {
+    const art = await nuevoArticulo(TEST_ORG_A, { name: 'Ajuste por escáner', barcode: '880000003', minQuantity: 0 });
+    await comoAdmin(TEST_ORG_A).post(`/api/items/${art.id}/movements`).send({ delta: 20, reason: 'Carga' });
+
+    const res = await comoAdmin(TEST_ORG_A)
+      .post('/api/scan/commit')
+      .send({ mode: 'adjust', reason: 'Inventario físico', lines: [{ itemId: art.id, quantity: 17 }] });
+
+    expect(res.status).toBe(201);
+    const estado = await comoMiembro(TEST_ORG_A).get(`/api/items/${art.id}`);
+    expect(estado.body.quantity).toBe(17);
+  });
+
+  it('un member no puede confirmar: mover stock es de admin', async () => {
+    const art = await nuevoArticulo(TEST_ORG_A, { name: 'No la mueve member', barcode: '880000004' });
+    const res = await comoMiembro(TEST_ORG_A)
+      .post('/api/scan/commit')
+      .send({ mode: 'in', lines: [{ itemId: art.id, quantity: 1 }] });
+    expect(res.status).toBe(403);
+  });
+
+  it('permite stock negativo solo si la organización lo autoriza', async () => {
+    const art = await nuevoArticulo(TEST_ORG_A, { name: 'Puede quedar negativo', barcode: '880000005', minQuantity: 0 });
+
+    // Por defecto, la salida se rechaza.
+    const rechazada = await comoAdmin(TEST_ORG_A)
+      .post('/api/scan/commit')
+      .send({ mode: 'out', lines: [{ itemId: art.id, quantity: 2 }] });
+    expect(rechazada.status).toBe(400);
+
+    // Con la organización lo autoriza, se permite y queda en negativo.
+    await comoAdmin(TEST_ORG_A)
+      .put('/api/settings')
+      .send({ defaultUnit: 'unidad', defaultMinQuantity: 0, currency: '$', allowNegativeStock: true });
+
+    const permitida = await comoAdmin(TEST_ORG_A)
+      .post('/api/scan/commit')
+      .send({ mode: 'out', lines: [{ itemId: art.id, quantity: 2 }] });
+    expect(permitida.status).toBe(201);
+    expect((await comoMiembro(TEST_ORG_A).get(`/api/items/${art.id}`)).body.quantity).toBe(-2);
+  });
+});
+
+describe('incidencias de escaneo', () => {
+  it('registra, lista y borra un código ignorado, por organización', async () => {
+    const creado = await comoMiembro(TEST_ORG_A).post('/api/scan-incidents').send({ barcode: '999000001', note: 'Sin producto' });
+    expect(creado.status, JSON.stringify(creado.body)).toBe(201);
+
+    const enA = await comoMiembro(TEST_ORG_A).get('/api/scan-incidents');
+    expect(enA.body.incidents.map((i: { barcode: string }) => i.barcode)).toContain('999000001');
+
+    const enB = await comoMiembro(TEST_ORG_B).get('/api/scan-incidents');
+    expect(enB.body.incidents.map((i: { barcode: string }) => i.barcode)).not.toContain('999000001');
+
+    expect((await comoMiembro(TEST_ORG_B).delete(`/api/scan-incidents/${creado.body.id}`)).status).toBe(404);
+    expect((await comoMiembro(TEST_ORG_A).delete(`/api/scan-incidents/${creado.body.id}`)).status).toBe(200);
+  });
+});
+
 describe('sin rastro de autenticación propia', () => {
   it('no expone login, registro ni recuperación de contraseña', async () => {
     for (const ruta of ['/api/auth/login', '/api/auth/register', '/api/auth/recuperar']) {
@@ -432,6 +602,6 @@ describe('sin rastro de autenticación propia', () => {
     // Allowlist estricta a propósito: si aparece una tabla nueva hay que
     // pensarlo. El producto no tiene usuarios, organizaciones, sesiones ni
     // clientes: eso vive en el Core.
-    expect(tablas.sort()).toEqual(['amg_migrations', 'items', 'movements', 'settings']);
+    expect(tablas.sort()).toEqual(['amg_migrations', 'categories', 'items', 'movements', 'scan_incidents', 'settings']);
   });
 });

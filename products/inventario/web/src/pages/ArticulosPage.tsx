@@ -12,6 +12,7 @@ import {
   Modal,
   NotaError,
   PageHeader,
+  Select,
   Spinner,
   Tabla,
   Tarjeta,
@@ -21,7 +22,7 @@ import {
   useApp,
   useAviso,
 } from '@amg/ui';
-import type { AjustesInventario, Articulo, Resumen } from '../tipos';
+import type { AjustesInventario, Articulo, Categoria, Resumen } from '../tipos';
 
 type Modal_ = { modo: 'nuevo' | 'editar' | 'mover'; articulo?: Articulo } | null;
 
@@ -41,6 +42,8 @@ export function ArticulosPage() {
   const simbolo = ajustes?.currency ?? '$';
 
   const [q, setQ] = useState('');
+  const [categoriaFiltro, setCategoriaFiltro] = useState('');
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [resumen, setResumen] = useState<Resumen | null>(null);
   const [articulos, setArticulos] = useState<Articulo[] | null>(null);
   const [modal, setModal] = useState<Modal_>(null);
@@ -48,10 +51,19 @@ export function ArticulosPage() {
   const [errorModal, setErrorModal] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
-  async function cargar(busqueda: string) {
+  useEffect(() => {
+    api
+      .get<{ items: Categoria[] }>('/categories?limit=500')
+      .then((r) => setCategorias(r.items))
+      .catch(() => setCategorias([]));
+  }, []);
+
+  async function cargar(busqueda: string, categoria: string) {
+    const qs = new URLSearchParams({ q: busqueda });
+    if (categoria) qs.set('categoryId', categoria);
     const [r, items] = await Promise.all([
       api.get<Resumen>('/resumen'),
-      api.get<{ items: Articulo[] }>(`/items?q=${encodeURIComponent(busqueda)}`),
+      api.get<{ items: Articulo[] }>(`/items?${qs.toString()}`),
     ]);
     setResumen(r);
     setArticulos(items.items);
@@ -59,14 +71,16 @@ export function ArticulosPage() {
 
   useEffect(() => {
     const t = setTimeout(() => {
-      cargar(q).catch((e) => {
+      cargar(q, categoriaFiltro).catch((e) => {
         if (e.vencida) return;
         avisar(e.message, true);
       });
     }, q ? 250 : 0);
     return () => clearTimeout(t);
-    // El disparo es el texto de búsqueda: `cargar` solo usa api y no cambia.
-  }, [q]);
+    // El disparo es la búsqueda y el filtro: `cargar` solo usa api y no cambia.
+  }, [q, categoriaFiltro]);
+
+  const nombreCategoria = (id: string | null) => categorias.find((c) => c.id === id)?.name ?? '—';
 
   const alCambiar = (ev: ChangeEvent<HTMLInputElement>) =>
     setCampos((c) => ({ ...c, [ev.target.name]: ev.target.value }));
@@ -76,6 +90,8 @@ export function ArticulosPage() {
     setCampos({
       name: '',
       sku: '',
+      barcode: '',
+      categoryId: '',
       minQuantity: String(ajustes?.defaultMinQuantity ?? 0),
       unit: ajustes?.defaultUnit ?? 'unidad',
       priceCents: '0',
@@ -88,6 +104,8 @@ export function ArticulosPage() {
     setCampos({
       name: a.name,
       sku: a.sku ?? '',
+      barcode: a.barcode ?? '',
+      categoryId: a.categoryId ?? '',
       minQuantity: String(a.minQuantity),
       unit: a.unit,
       priceCents: String(a.priceCents),
@@ -116,6 +134,8 @@ export function ArticulosPage() {
         const datos = {
           name: campos.name,
           sku: campos.sku,
+          barcode: campos.barcode,
+          categoryId: campos.categoryId,
           minQuantity: Number(campos.minQuantity),
           unit: campos.unit,
           priceCents: Number(campos.priceCents),
@@ -124,7 +144,7 @@ export function ArticulosPage() {
         else await api.patch(`/items/${modal.articulo!.id}`, datos);
       }
       setModal(null);
-      await cargar(q);
+      await cargar(q, categoriaFiltro);
     } catch (e) {
       setErrorModal(e instanceof Error ? e.message : 'No se pudo guardar');
     } finally {
@@ -136,7 +156,7 @@ export function ArticulosPage() {
     if (!confirm(`¿Dar de baja ${a.name}? Se conserva el historial.`)) return;
     try {
       await api.delete(`/items/${a.id}`);
-      await cargar(q);
+      await cargar(q, categoriaFiltro);
     } catch (e) {
       avisar(e instanceof Error ? e.message : 'No se pudo dar de baja', true);
     }
@@ -170,7 +190,19 @@ export function ArticulosPage() {
         subtitulo="Catálogo del almacén"
         acciones={
           <>
-            <Buscador valor={q} onChange={setQ} placeholder="Buscar por nombre o SKU" />
+            <select
+              value={categoriaFiltro}
+              onChange={(e) => setCategoriaFiltro(e.target.value)}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+            >
+              <option value="">Todas las categorías</option>
+              {categorias.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <Buscador valor={q} onChange={setQ} placeholder="Buscar por nombre, SKU o código" />
             <BotonPrimario onClick={abrirNuevo}>Nuevo artículo</BotonPrimario>
           </>
         }
@@ -186,6 +218,8 @@ export function ArticulosPage() {
             columnas={[
               'Nombre',
               'SKU',
+              'Código de barras',
+              'Categoría',
               { titulo: 'Stock', num: true },
               'Unidad',
               { titulo: 'Precio', num: true },
@@ -193,7 +227,7 @@ export function ArticulosPage() {
             ]}
           >
             {articulos.length === 0 ? (
-              <FilaVacia columnas={6} texto="Todavía no hay artículos. Creá el primero." />
+              <FilaVacia columnas={8} texto="Todavía no hay artículos. Creá el primero." />
             ) : (
               articulos.map((a) => {
                 const bajo = a.quantity <= a.minQuantity;
@@ -201,6 +235,8 @@ export function ArticulosPage() {
                   <tr key={a.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 font-medium text-slate-800">{a.name}</td>
                     <td className="px-4 py-3 text-slate-500">{a.sku || '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-500">{a.barcode || '—'}</td>
+                    <td className="px-4 py-3 text-slate-500">{nombreCategoria(a.categoryId)}</td>
                     <td className="px-4 py-3 text-right">
                       {numero(a.quantity)}
                       {bajo ? <small className="ml-1 text-slate-400">(mín {numero(a.minQuantity)})</small> : null}
@@ -263,7 +299,27 @@ export function ArticulosPage() {
             ) : (
               <>
                 <Campo etiqueta="Nombre" name="name" required value={campos.name ?? ''} onChange={alCambiar} autoFocus />
-                <Campo etiqueta="SKU" name="sku" value={campos.sku ?? ''} onChange={alCambiar} />
+                <div className="grid grid-cols-2 gap-3">
+                  <Campo etiqueta="SKU" name="sku" value={campos.sku ?? ''} onChange={alCambiar} />
+                  <Campo
+                    etiqueta="Código de barras"
+                    name="barcode"
+                    value={campos.barcode ?? ''}
+                    onChange={alCambiar}
+                  />
+                </div>
+                <Select
+                  etiqueta="Categoría"
+                  value={campos.categoryId ?? ''}
+                  onChange={(e) => setCampos((c) => ({ ...c, categoryId: e.target.value }))}
+                >
+                  <option value="">Sin categoría</option>
+                  {categorias.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
                 <Campo
                   etiqueta="Stock mínimo"
                   name="minQuantity"

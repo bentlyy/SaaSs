@@ -135,7 +135,7 @@ services:
       PRODUCT: '@amg/inventario'
       PORT: "3000"
       DB_PATH: /app/data/inventario.sqlite
-      DB_SCHEMA_VERSION: "1"
+      DB_SCHEMA_VERSION: "2"
       APP_NAME: Inventario
       APP_URL: https://inventario.amgdeveloper.cl
       CORE_URL: https://desarrollo.amgdeveloper.cl
