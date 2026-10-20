@@ -180,7 +180,7 @@ services:
       PRODUCT: '@amg/cotizaciones'
       PORT: "3000"
       DB_PATH: /app/data/cotizaciones.sqlite
-      DB_SCHEMA_VERSION: "1"
+      DB_SCHEMA_VERSION: "2"
       APP_NAME: Cotizaciones
       APP_URL: https://cotizaciones.amgdeveloper.cl
       CORE_URL: https://desarrollo.amgdeveloper.cl
@@ -227,7 +227,7 @@ services:
       PRODUCT: '@amg/activos'
       PORT: "3000"
       DB_PATH: /app/data/activos.sqlite
-      DB_SCHEMA_VERSION: "1"
+      DB_SCHEMA_VERSION: "2"
       APP_NAME: Activos
       APP_URL: https://activos.amgdeveloper.cl
       CORE_URL: https://desarrollo.amgdeveloper.cl
