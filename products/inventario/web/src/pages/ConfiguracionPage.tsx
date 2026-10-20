@@ -6,12 +6,14 @@ import {
   Campo,
   NotaError,
   PageHeader,
+  Select,
   Tarjeta,
   api,
   useApp,
   useAviso,
 } from '@amg/ui';
 import type { AjustesInventario } from '../tipos';
+import { MONEDAS, monedaDe } from '../lib/moneda';
 
 /**
  * Ajustes del almacén.
@@ -39,7 +41,7 @@ export function ConfiguracionPage() {
     setCampos({
       defaultUnit: ajustes.defaultUnit ?? '',
       defaultMinQuantity: String(ajustes.defaultMinQuantity ?? 0),
-      currency: ajustes.currency ?? '$',
+      currency: monedaDe(ajustes.currency).code,
     });
     setPermitirNegativo(!!ajustes.allowNegativeStock);
   }, [ajustes]);
@@ -102,14 +104,22 @@ export function ConfiguracionPage() {
             value={campos.defaultMinQuantity}
             onChange={alCambiar}
           />
-          <Campo
-            etiqueta="Símbolo de moneda"
-            name="currency"
-            maxLength={5}
-            required
-            value={campos.currency}
-            onChange={alCambiar}
-          />
+          <div>
+            <Select
+              etiqueta="Moneda"
+              value={campos.currency}
+              onChange={(e) => setCampos((c) => ({ ...c, currency: e.target.value }))}
+            >
+              {MONEDAS.map((m) => (
+                <option key={m.code} value={m.code}>
+                  {m.nombre} ({m.code}) · {m.simbolo}
+                </option>
+              ))}
+            </Select>
+            <p className="mt-1 text-xs text-slate-400">
+              El símbolo de la moneda acompaña a los precios en el catálogo y en los totales.
+            </p>
+          </div>
 
           <NotaError mensaje={error} />
 

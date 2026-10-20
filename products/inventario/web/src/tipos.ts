@@ -39,6 +39,7 @@ export interface Movimiento {
 export interface AjustesInventario {
   defaultUnit: string;
   defaultMinQuantity: number;
+  /** Código ISO de la moneda (CLP, USD, …); las orgs viejas tienen el símbolo. */
   currency: string;
   allowNegativeStock?: boolean;
   configured?: boolean;

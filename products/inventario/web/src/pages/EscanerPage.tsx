@@ -28,6 +28,8 @@ import type {
   ModoEscaneo,
   ResultadoEscaneo,
 } from '../tipos';
+import { mensajeDeCamara } from '../lib/camara';
+import { aCentavos, monedaDe } from '../lib/moneda';
 
 /**
  * Escáner móvil de códigos de barras.
@@ -59,31 +61,12 @@ interface LineaCarrito {
   quantity: number;
 }
 
-function mensajeDeCamara(e: unknown): string {
-  const nombre = (e as { name?: string })?.name ?? '';
-  if (nombre === 'NotAllowedError' || nombre === 'PermissionDeniedError') {
-    return 'Permiso de cámara denegado. Habilitalo en el navegador para este sitio y volvé a intentar.';
-  }
-  if (nombre === 'NotFoundError' || nombre === 'DevicesNotFoundError') {
-    return 'No se encontró ninguna cámara en este dispositivo.';
-  }
-  if (nombre === 'NotReadableError' || nombre === 'TrackStartError') {
-    return 'La cámara está siendo usada por otra aplicación.';
-  }
-  if (nombre === 'OverconstrainedError') {
-    return 'La cámara no soporta la configuración pedida (se intentó la trasera).';
-  }
-  if (e instanceof Error && e.message === 'sin-soporte') {
-    return 'Este navegador no expone la cámara. Probá con Chrome o Safari actualizados.';
-  }
-  return 'No se pudo iniciar la cámara. Revisá los permisos del navegador.';
-}
-
 export function EscanerPage() {
   const { cuenta, settings } = useApp();
   const { aviso, avisar, limpiarAviso } = useAviso();
 
   const ajustes = settings as AjustesInventario | null;
+  const simbolo = monedaDe(ajustes?.currency).simbolo;
   const admin = cuenta?.rol === 'admin' || cuenta?.rol === 'owner';
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -161,7 +144,7 @@ export function EscanerPage() {
             categoryId: '',
             stockInicial: '0',
             minQuantity: String(ajustes?.defaultMinQuantity ?? 0),
-            priceCents: '0',
+            precio: '0',
           });
           setErrorNuevo(null);
           setRegistrarIncidencia(true);
@@ -258,7 +241,7 @@ export function EscanerPage() {
         unit: nuevo.unit || 'unidad',
         categoryId: nuevo.categoryId || undefined,
         minQuantity: Number(nuevo.minQuantity || 0),
-        priceCents: Number(nuevo.priceCents || 0),
+        priceCents: aCentavos(nuevo.precio || 0),
       });
       const stock = Number(nuevo.stockInicial || 0);
       if (stock > 0) {
@@ -539,11 +522,13 @@ export function EscanerPage() {
                     onChange={(e) => setNuevo((c) => ({ ...c, minQuantity: e.target.value }))}
                   />
                   <Campo
-                    etiqueta="Costo (cent.)"
+                    etiqueta={`Precio (${simbolo})`}
                     type="number"
+                    inputMode="decimal"
+                    step="0.01"
                     min={0}
-                    value={nuevo.priceCents ?? '0'}
-                    onChange={(e) => setNuevo((c) => ({ ...c, priceCents: e.target.value }))}
+                    value={nuevo.precio ?? '0'}
+                    onChange={(e) => setNuevo((c) => ({ ...c, precio: e.target.value }))}
                   />
                 </div>
 

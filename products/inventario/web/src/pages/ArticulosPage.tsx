@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import {
   Aviso,
   BotonChico,
@@ -23,6 +23,8 @@ import {
   useAviso,
 } from '@amg/ui';
 import type { AjustesInventario, Articulo, Categoria, Resumen } from '../tipos';
+import { EscanerCodigoModal } from '../components/EscanerCodigoModal';
+import { aCentavos, desdeCentavos, monedaDe } from '../lib/moneda';
 
 type Modal_ = { modo: 'nuevo' | 'editar' | 'mover'; articulo?: Articulo } | null;
 
@@ -39,7 +41,7 @@ export function ArticulosPage() {
 
   const ajustes = (settings ?? null) as AjustesInventario | null;
   const admin = cuenta?.rol === 'admin' || cuenta?.rol === 'owner';
-  const simbolo = ajustes?.currency ?? '$';
+  const simbolo = monedaDe(ajustes?.currency).simbolo;
 
   const [q, setQ] = useState('');
   const [categoriaFiltro, setCategoriaFiltro] = useState('');
@@ -50,6 +52,7 @@ export function ArticulosPage() {
   const [campos, setCampos] = useState<Record<string, string>>({});
   const [errorModal, setErrorModal] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [escaner, setEscaner] = useState(false);
 
   useEffect(() => {
     api
@@ -85,6 +88,11 @@ export function ArticulosPage() {
   const alCambiar = (ev: ChangeEvent<HTMLInputElement>) =>
     setCampos((c) => ({ ...c, [ev.target.name]: ev.target.value }));
 
+  const aplicarCodigo = useCallback((codigo: string) => {
+    setCampos((c) => ({ ...c, barcode: codigo }));
+    setEscaner(false);
+  }, []);
+
   function abrirNuevo() {
     setErrorModal(null);
     setCampos({
@@ -94,7 +102,7 @@ export function ArticulosPage() {
       categoryId: '',
       minQuantity: String(ajustes?.defaultMinQuantity ?? 0),
       unit: ajustes?.defaultUnit ?? 'unidad',
-      priceCents: '0',
+      precio: '0',
     });
     setModal({ modo: 'nuevo' });
   }
@@ -108,7 +116,7 @@ export function ArticulosPage() {
       categoryId: a.categoryId ?? '',
       minQuantity: String(a.minQuantity),
       unit: a.unit,
-      priceCents: String(a.priceCents),
+      precio: desdeCentavos(a.priceCents),
     });
     setModal({ modo: 'editar', articulo: a });
   }
@@ -138,7 +146,7 @@ export function ArticulosPage() {
           categoryId: campos.categoryId,
           minQuantity: Number(campos.minQuantity),
           unit: campos.unit,
-          priceCents: Number(campos.priceCents),
+          priceCents: aCentavos(campos.precio),
         };
         if (modal.modo === 'nuevo') await api.post('/items', datos);
         else await api.patch(`/items/${modal.articulo!.id}`, datos);
@@ -166,7 +174,7 @@ export function ArticulosPage() {
     ? [
         { etiqueta: 'Artículos', valor: numero(resumen.items) },
         { etiqueta: 'Unidades', valor: numero(resumen.unidades) },
-        { etiqueta: 'Valor de stock', valor: dinero(resumen.valorCents, simbolo) },
+        { etiqueta: 'Valor de stock', valor: dinero(resumen.valorCents, { simbolo, maximumFractionDigits: 2 }) },
         { etiqueta: 'Movimientos', valor: numero(resumen.movimientos) },
         ...(resumen.stockBajo > 0
           ? [
@@ -242,7 +250,9 @@ export function ArticulosPage() {
                       {bajo ? <small className="ml-1 text-slate-400">(mín {numero(a.minQuantity)})</small> : null}
                     </td>
                     <td className="px-4 py-3 text-slate-500">{a.unit}</td>
-                    <td className="px-4 py-3 text-right">{dinero(a.priceCents, simbolo)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                      {dinero(a.priceCents, { simbolo, maximumFractionDigits: 2 })}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
                         <BotonChico onClick={() => abrirEdicion(a)}>Editar</BotonChico>
@@ -273,7 +283,10 @@ export function ArticulosPage() {
                 ? `Editar ${modal.articulo!.name}`
                 : `Mover stock de ${modal.articulo!.name}`
           }
-          onCerrar={() => setModal(null)}
+          onCerrar={() => {
+            setEscaner(false);
+            setModal(null);
+          }}
         >
           <form onSubmit={guardar} className="space-y-3">
             {modal.modo === 'mover' ? (
@@ -301,42 +314,57 @@ export function ArticulosPage() {
                 <Campo etiqueta="Nombre" name="name" required value={campos.name ?? ''} onChange={alCambiar} autoFocus />
                 <div className="grid grid-cols-2 gap-3">
                   <Campo etiqueta="SKU" name="sku" value={campos.sku ?? ''} onChange={alCambiar} />
+                  <Select
+                    etiqueta="Categoría"
+                    value={campos.categoryId ?? ''}
+                    onChange={(e) => setCampos((c) => ({ ...c, categoryId: e.target.value }))}
+                  >
+                    <option value="">Sin categoría</option>
+                    {categorias.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div>
+                  <span className="mb-1 block text-sm font-medium text-slate-700">Código de barras</span>
+                  <div className="flex gap-2">
+                    <input
+                      name="barcode"
+                      value={campos.barcode ?? ''}
+                      onChange={alCambiar}
+                      placeholder="Escribilo a mano o escanealo"
+                      autoComplete="off"
+                      className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                    />
+                    <BotonSecundario type="button" onClick={() => setEscaner(true)}>
+                      Escanear
+                    </BotonSecundario>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-400">Usá la cámara o escribí el código a mano.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
                   <Campo
-                    etiqueta="Código de barras"
-                    name="barcode"
-                    value={campos.barcode ?? ''}
+                    etiqueta="Stock mínimo"
+                    name="minQuantity"
+                    type="number"
+                    min={0}
+                    required
+                    value={campos.minQuantity ?? ''}
                     onChange={alCambiar}
                   />
+                  <Campo etiqueta="Unidad" name="unit" required value={campos.unit ?? ''} onChange={alCambiar} />
                 </div>
-                <Select
-                  etiqueta="Categoría"
-                  value={campos.categoryId ?? ''}
-                  onChange={(e) => setCampos((c) => ({ ...c, categoryId: e.target.value }))}
-                >
-                  <option value="">Sin categoría</option>
-                  {categorias.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
                 <Campo
-                  etiqueta="Stock mínimo"
-                  name="minQuantity"
+                  etiqueta={`Precio (${simbolo})`}
+                  name="precio"
                   type="number"
+                  inputMode="decimal"
+                  step="0.01"
                   min={0}
                   required
-                  value={campos.minQuantity ?? ''}
-                  onChange={alCambiar}
-                />
-                <Campo etiqueta="Unidad" name="unit" required value={campos.unit ?? ''} onChange={alCambiar} />
-                <Campo
-                  etiqueta="Precio en centavos"
-                  name="priceCents"
-                  type="number"
-                  min={0}
-                  required
-                  value={campos.priceCents ?? ''}
+                  value={campos.precio ?? ''}
                   onChange={alCambiar}
                 />
               </>
@@ -354,6 +382,10 @@ export function ArticulosPage() {
             </div>
           </form>
         </Modal>
+      ) : null}
+
+      {escaner ? (
+        <EscanerCodigoModal onCodigo={aplicarCodigo} onCerrar={() => setEscaner(false)} />
       ) : null}
 
       <Aviso mensaje={aviso?.mensaje ?? null} tono={aviso?.tono} onLimpiar={limpiarAviso} />
