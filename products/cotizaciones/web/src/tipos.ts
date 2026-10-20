@@ -17,12 +17,14 @@ export interface Cotizacion {
   customerName: string;
   customerId: string | null;
   customerEmail: string | null;
+  customerPhone: string | null;
   title: string | null;
   status: Estado;
   issueDate: string | null;
   validUntil: string | null;
   taxRateBp: number;
   subtotalCents: number;
+  discountCents: number;
   taxCents: number;
   totalCents: number;
   sentAt: string | null;
@@ -35,6 +37,11 @@ export interface Cotizacion {
 export interface AjustesCotizaciones {
   currency: string;
   timezone: string;
+  businessName: string | null;
+  businessTaxId: string | null;
+  businessAddress: string | null;
+  businessPhone: string | null;
+  businessEmail: string | null;
   defaultTaxRateBp: number;
   validityDays: number;
   nextNumber?: number;

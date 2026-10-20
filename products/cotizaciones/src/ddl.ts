@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS quotes (
   -- Referencia suelta al producto \`clientes\`: es otra base de datos.
   customer_id TEXT,
   customer_email TEXT,
+  -- Telefono congelado con la cotizacion: se lee sin abrir el producto crm.
+  customer_phone TEXT,
   title TEXT,
   status TEXT NOT NULL DEFAULT 'draft',
   issue_date TEXT,
@@ -42,6 +44,8 @@ CREATE TABLE IF NOT EXISTS quotes (
   -- Los tres importes se MATERIALIZAN al escribir: una cotizacion aceptada tiene
   -- que seguir valiendo lo que valio el dia que se acepto.
   subtotal_cents INTEGER NOT NULL DEFAULT 0,
+  -- Descuento comercial sobre el subtotal, en centavos.
+  discount_cents INTEGER NOT NULL DEFAULT 0,
   tax_cents INTEGER NOT NULL DEFAULT 0,
   total_cents INTEGER NOT NULL DEFAULT 0,
   notes TEXT,
@@ -78,6 +82,12 @@ CREATE TABLE IF NOT EXISTS settings (
   organization_id TEXT NOT NULL,
   currency TEXT NOT NULL DEFAULT '$',
   timezone TEXT NOT NULL DEFAULT 'America/Santiago',
+  -- Identidad comercial que sale en el PDF de la cotizacion.
+  business_name TEXT,
+  business_tax_id TEXT,
+  business_address TEXT,
+  business_phone TEXT,
+  business_email TEXT,
   default_tax_rate_bp INTEGER NOT NULL DEFAULT 0,
   validity_days INTEGER NOT NULL DEFAULT 30,
   created_at TEXT NOT NULL,

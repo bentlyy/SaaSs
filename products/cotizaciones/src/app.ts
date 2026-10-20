@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ProductDefinition } from '@amg/product-runtime';
 import { DDL } from './ddl.js';
+import { MIGRACIONES } from './migrations.js';
 import { buildRoutes } from './routes.js';
 import { quoteLines, quotes, settings } from './schema.js';
 
@@ -28,6 +29,7 @@ export const definicion: ProductDefinition = {
     settings,
   },
   ddl: DDL,
+  migrations: MIGRACIONES,
   routes: buildRoutes,
   // El HTML tambi�n pide sesi�n: sin identidad no se sirve ni el shell.
   staticDir: join(aqui, '..', 'web', 'dist'),

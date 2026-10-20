@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { and, eq, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, lt, ne, sql } from 'drizzle-orm';
 import {
   AppError,
   asyncHandler,
   createId,
   crudRouter,
+  diaEnZona,
+  identity,
   nowIso,
   orgId,
   requireRole,
@@ -14,6 +16,7 @@ import {
   zonaHoraria,
 } from '@amg/product-runtime';
 import { quoteLines, quotes, settings } from './schema.js';
+import { enviarPdfCotizacion, type PdfIdentidad } from './pdf.js';
 
 /**
  * API de cotizaciones.
@@ -46,6 +49,7 @@ import { quoteLines, quotes, settings } from './schema.js';
 
 const texto = z.string().trim().min(1).max(150);
 const email = z.string().trim().email('Correo invalido').max(200);
+const telefono = z.string().trim().max(40);
 const id = z.string().trim().min(1).max(64);
 
 /** Importes en centavos: enteros, con un techo de 100 millones ($1.000.000). */
@@ -137,12 +141,15 @@ const quoteSchema = z.object({
   /** Referencia suelta al producto `crm`. No se valida: es otra base. */
   customerId: id.nullable().optional(),
   customerEmail: z.union([email, z.literal(''), z.null()]).nullable().optional(),
+  customerPhone: z.union([telefono, z.literal(''), z.null()]).nullable().optional(),
   title: z.string().trim().max(200).nullable().optional(),
   status: z.enum(ESTADOS).default('draft'),
   issueDate: fecha,
   validUntil: fecha,
   /** Puntos basicos: 1600 = 16%. 10000 = 100%, que es el tope. */
   taxRateBp: z.coerce.number().int().min(0).max(10_000).default(0),
+  /** Descuento comercial sobre el subtotal, en centavos. */
+  discountCents: centavos.default(0),
   notes: z.string().trim().max(2000).nullable().optional(),
   lines: z.array(lineaSchema).default([]),
 });
@@ -155,9 +162,52 @@ export function leerPreferencias(db: ProductDb['db'], org: string) {
   return {
     currency: fila?.currency ?? '$',
     timezone: fila?.timezone ?? 'America/Santiago',
+    businessName: fila?.businessName ?? null,
+    businessTaxId: fila?.businessTaxId ?? null,
+    businessAddress: fila?.businessAddress ?? null,
+    businessPhone: fila?.businessPhone ?? null,
+    businessEmail: fila?.businessEmail ?? null,
     defaultTaxRateBp: fila?.defaultTaxRateBp ?? 0,
     validityDays: fila?.validityDays ?? 30,
   };
+}
+
+/** El dia de HOY en la zona de la organizacion, como "AAAA-MM-DD". */
+function hoyEnZona(db: ProductDb['db'], org: string): string {
+  const { timezone } = leerPreferencias(db, org);
+  return diaEnZona(timezone, nowIso());
+}
+
+/** Suma dias a una fecha "AAAA-MM-DD" sin pasar por la zona del servidor. */
+function sumarDias(fecha: string, dias: number): string {
+  const base = new Date(`${fecha}T00:00:00Z`);
+  base.setUTCDate(base.getUTCDate() + dias);
+  return base.toISOString().slice(0, 10);
+}
+
+/**
+ * Pasa a `expired` las cotizaciones cuya vigencia ya termino.
+ *
+ * Se hace al leer y no con un cron: la unica verdad sobre "esta vencida" es la
+ * fecha de hoy, y un proceso en segundo plano podria estar caido justo el dia
+ * que alguien abre el listado. Es idempotente y no toca las aceptadas ni las
+ * rechazadas, que son acuerdos cerrados.
+ */
+function expirarVencidas(db: ProductDb['db'], org: string): number {
+  const hoy = hoyEnZona(db, org);
+  const resultado = db
+    .update(quotes)
+    .set({ status: 'expired', updatedAt: nowIso() })
+    .where(
+      and(
+        eq(quotes.organizationId, org),
+        inArray(quotes.status, ['draft', 'sent']),
+        isNotNull(quotes.validUntil),
+        lt(quotes.validUntil, hoy),
+      ),
+    )
+    .run();
+  return resultado.changes;
 }
 
 /**
@@ -222,6 +272,24 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       .all();
   }
 
+  /**
+   * Antes de leer cualquier cotizacion, las vencidas pasan a `expired`.
+   *
+   * Va como middleware y no en cada handler porque el listado lo sirve el
+   * `crudRouter`: si no fuera asi, la tabla mostraria "Enviada" una cotizacion
+   * que ya no se puede aceptar. Es solo para GET: un POST/PATCH no necesita
+   * pagar la actualizacion.
+   */
+  router.use('/api/quotes', (req, _res, next) => {
+    if (req.method !== 'GET') return next();
+    try {
+      expirarVencidas(db, orgId(req));
+      next();
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // ─────────────────────────────────────────────────────────────────── tablero
 
   /**
@@ -242,6 +310,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
     '/api/dashboard',
     asyncHandler(async (req, res) => {
       const org = orgId(req);
+      expirarVencidas(db, org);
       const todas = db.select().from(quotes).where(eq(quotes.organizationId, org)).all();
 
       const porEstado = Object.fromEntries(ESTADOS.map((e) => [e, 0])) as Record<Estado, number>;
@@ -292,6 +361,38 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       const idQuote = id.parse(req.params.id);
       leerQuote(org, idQuote);
       res.json({ lines: leerLineas(org, idQuote) });
+    }),
+  );
+
+  /**
+   * La cotizacion como PDF, con la identidad comercial de la organizacion.
+   *
+   * Es una descarga y no una vista: el archivo se llama `cotizacion-<folio>.pdf`
+   * y no se cachea, porque una cotizacion editada no puede seguir bajando con
+   * los importes viejos.
+   */
+  router.get(
+    '/api/quotes/:id/pdf',
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const idQuote = id.parse(req.params.id);
+      const cot = leerQuote(org, idQuote);
+      const lineas = leerLineas(org, idQuote);
+      const pref = leerPreferencias(db, org);
+      const identidad: PdfIdentidad = {
+        businessName: pref.businessName,
+        businessTaxId: pref.businessTaxId,
+        businessAddress: pref.businessAddress,
+        businessPhone: pref.businessPhone,
+        businessEmail: pref.businessEmail,
+      };
+      enviarPdfCotizacion(res, {
+        cot,
+        lineas,
+        identidad,
+        currency: pref.currency,
+        organizacion: identity(req).organizationName,
+      });
     }),
   );
 
@@ -374,9 +475,15 @@ export function buildRoutes(ctx: ProductContext): Router[] {
   ) {
     const lineas = lineasConTotal(body.lines);
     const subtotal = lineas.reduce((acc, l) => acc + l.lineTotalCents, 0);
-    // El impuesto se calcula sobre el subtotal ya redondeado, que es el numero
-    // que se mostro, y con `Math.round` una sola vez.
-    const tax = Math.round((subtotal * body.taxRateBp) / 10_000);
+    // El descuento no puede dejar un total negativo ni esconder un error de
+    // tipeo: si supera el subtotal, se rechaza en vez de recortarlo en silencio.
+    if (body.discountCents > subtotal) {
+      throw new AppError(400, 'El descuento no puede superar el subtotal de la cotizacion');
+    }
+    // El impuesto se calcula sobre el subtotal MENOS el descuento, que es la
+    // base que se le muestra al cliente, y con `Math.round` una sola vez.
+    const baseImponible = subtotal - body.discountCents;
+    const tax = Math.round((baseImponible * body.taxRateBp) / 10_000);
     const ahora = nowIso();
 
     return db.transaction((tx) => {
@@ -409,13 +516,15 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         customerName: body.customerName,
         customerId: body.customerId ?? null,
         customerEmail: body.customerEmail || null,
+        customerPhone: body.customerPhone || null,
         title: body.title ?? null,
         issueDate: body.issueDate ?? null,
         validUntil: body.validUntil ?? null,
         taxRateBp: body.taxRateBp,
         subtotalCents: subtotal,
+        discountCents: body.discountCents,
         taxCents: tax,
-        totalCents: subtotal + tax,
+        totalCents: baseImponible + tax,
         notes: body.notes ?? null,
         updatedAt: ahora,
       };
@@ -486,6 +595,48 @@ export function buildRoutes(ctx: ProductContext): Router[] {
     }),
   );
 
+  /**
+   * Duplica una cotizacion anterior como BORRADOR nuevo.
+   *
+   * Se copian cliente, lineas, impuesto y descuento; NO se copian el folio, el
+   * estado ni los sellos. El folio lo asigna el servidor y las fechas se
+   * recalculan desde hoy: duplicar una oferta de marzo no puede nacer ya vencida
+   * ni heredar el "enviada" de la anterior.
+   */
+  router.post(
+    '/api/quotes/:id/duplicar',
+    requireRole('member'),
+    asyncHandler(async (req, res) => {
+      const org = orgId(req);
+      const fuente = leerQuote(org, id.parse(req.params.id));
+      const lineas = leerLineas(org, fuente.id);
+      const pref = leerPreferencias(db, org);
+      const hoy = hoyEnZona(db, org);
+
+      const cuerpo = quoteSchema.parse({
+        customerName: fuente.customerName,
+        customerId: fuente.customerId,
+        customerEmail: fuente.customerEmail,
+        customerPhone: fuente.customerPhone,
+        title: fuente.title,
+        status: 'draft',
+        issueDate: hoy,
+        validUntil: sumarDias(hoy, pref.validityDays),
+        taxRateBp: fuente.taxRateBp,
+        discountCents: fuente.discountCents,
+        notes: fuente.notes,
+        lines: lineas.map((l) => ({
+          description: l.description,
+          qty: l.qty,
+          unitPriceCents: l.unitPriceCents,
+        })),
+      });
+
+      const fila = await escribirQuote(org, cuerpo, undefined, 'draft');
+      res.status(201).json({ quote: fila, lines: leerLineas(org, fila.id) });
+    }),
+  );
+
   router.patch(
     '/api/quotes/:id',
     requireRole('member'),
@@ -514,10 +665,12 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         'customerName',
         'customerId',
         'customerEmail',
+        'customerPhone',
         'title',
         'issueDate',
         'validUntil',
         'taxRateBp',
+        'discountCents',
         'notes',
         'lines',
       ]);
@@ -534,10 +687,12 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         customerName: existente.customerName,
         customerId: existente.customerId,
         customerEmail: existente.customerEmail,
+        customerPhone: existente.customerPhone,
         title: existente.title,
         issueDate: existente.issueDate,
         validUntil: existente.validUntil,
         taxRateBp: existente.taxRateBp,
+        discountCents: existente.discountCents,
         notes: existente.notes,
         // Si el cuerpo no trae `lines`, se conservan las que hay. Si trae
         // `lines: []`, se borran todas: sacar la ultima linea tiene que dejar la
@@ -570,26 +725,43 @@ export function buildRoutes(ctx: ProductContext): Router[] {
 
   router.put(
     '/api/settings',
+    requireRole('admin'),
     asyncHandler(async (req, res) => {
       const org = orgId(req);
       const cuerpo = z
         .object({
           currency: z.string().trim().min(1).max(5).default('$'),
           timezone: zonaHoraria.default('America/Santiago'),
+          businessName: z.string().trim().max(150).nullable().default(null),
+          businessTaxId: z.string().trim().max(30).nullable().default(null),
+          businessAddress: z.string().trim().max(300).nullable().default(null),
+          businessPhone: z.string().trim().max(40).nullable().default(null),
+          businessEmail: z.union([email, z.literal('')]).nullable().default(null),
           defaultTaxRateBp: z.coerce.number().int().min(0).max(10_000).default(0),
           validityDays: z.coerce.number().int().min(1).max(3_650).default(30),
         })
         .parse(req.body);
 
+      // Los campos de texto vacios se guardan como NULL: el PDF decide mostrar u
+      // omitir cada linea, y una cadena vacia solo agrega ruido.
+      const limpio = {
+        ...cuerpo,
+        businessName: cuerpo.businessName || null,
+        businessTaxId: cuerpo.businessTaxId || null,
+        businessAddress: cuerpo.businessAddress || null,
+        businessPhone: cuerpo.businessPhone || null,
+        businessEmail: cuerpo.businessEmail || null,
+      };
+
       const yaEsta = db.select().from(settings).where(eq(settings.organizationId, org)).get();
       if (yaEsta) {
         db.update(settings)
-          .set({ ...cuerpo, updatedAt: nowIso() })
+          .set({ ...limpio, updatedAt: nowIso() })
           .where(eq(settings.organizationId, org))
           .run();
       } else {
         db.insert(settings)
-          .values({ id: `cfg_${org}`, organizationId: org, ...cuerpo, createdAt: nowIso() })
+          .values({ id: `cfg_${org}`, organizationId: org, ...limpio, createdAt: nowIso() })
           .run();
       }
       res.json({ settings: leerPreferencias(db, org) });
@@ -625,6 +797,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         customerName: { schema: texto },
         customerId: { schema: id.nullable().optional() },
         customerEmail: { schema: z.union([email, z.literal(''), z.null()]).nullable().optional() },
+        customerPhone: { schema: z.union([telefono, z.literal(''), z.null()]).nullable().optional() },
         title: { schema: z.string().trim().max(200).nullable().optional() },
         issueDate: { schema: fecha },
         validUntil: { schema: fecha },
@@ -636,6 +809,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         status: { readonly: true },
         taxRateBp: { readonly: true },
         subtotalCents: { readonly: true },
+        discountCents: { readonly: true },
         taxCents: { readonly: true },
         totalCents: { readonly: true },
         sentAt: { readonly: true },

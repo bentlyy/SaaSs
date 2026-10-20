@@ -14,11 +14,13 @@
   },
   "dependencies": {
     "@amg/auth-client": "*",
-    "@amg/product-runtime": "*"
+    "@amg/product-runtime": "*",
+    "pdfkit": "^0.15.2"
   },
   "devDependencies": {
     "@amg/platform": "*",
     "@types/node": "^22.10.5",
+    "@types/pdfkit": "^0.17.6",
     "dotenv": "^16.4.7",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",

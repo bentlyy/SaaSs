@@ -76,6 +76,8 @@ export const quotes = sqliteTable(
      */
     customerId: text('customer_id'),
     customerEmail: text('customer_email'),
+    /** Teléfono de contacto congelado con la cotización, igual que el nombre. */
+    customerPhone: text('customer_phone'),
     title: text('title'),
     /** draft | sent | accepted | rejected | expired. */
     status: text('status').notNull().default('draft'),
@@ -84,6 +86,8 @@ export const quotes = sqliteTable(
     /** Puntos basicos: 1600 = 16%. Entero, nunca float. */
     taxRateBp: integer('tax_rate_bp').notNull().default(0),
     subtotalCents: integer('subtotal_cents').notNull().default(0),
+    /** Descuento comercial sobre el subtotal, en centavos. */
+    discountCents: integer('discount_cents').notNull().default(0),
     taxCents: integer('tax_cents').notNull().default(0),
     totalCents: integer('total_cents').notNull().default(0),
     notes: text('notes'),
@@ -161,6 +165,15 @@ export const settings = sqliteTable(
     organizationId: text('organization_id').notNull(),
     currency: text('currency').notNull().default('$'),
     timezone: text('timezone').notNull().default('America/Santiago'),
+    /**
+     * Identidad comercial que sale en el PDF. Es de la organizacion, no del
+     * usuario: la cotizacion la emite la empresa, no quien la escribio.
+     */
+    businessName: text('business_name'),
+    businessTaxId: text('business_tax_id'),
+    businessAddress: text('business_address'),
+    businessPhone: text('business_phone'),
+    businessEmail: text('business_email'),
     /** Tasa de impuesto que se propone al cotizar, en puntos basicos. */
     defaultTaxRateBp: integer('default_tax_rate_bp').notNull().default(0),
     /** Dias de vigencia que se proponen en `valid_until`. */

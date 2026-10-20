@@ -155,7 +155,7 @@ describe('la interfaz', () => {
     const js = await bundle();
     expect(js).not.toMatch(/config-form/);
     expect(js).toContain('Moneda');
-    expect(js).toContain('Impuesto por defecto (bp)');
+    expect(js).toContain('Impuesto por defecto (%)');
     expect(js).toContain('Días de vigencia por defecto');
   });
 
@@ -240,6 +240,46 @@ describe('cotizaciones', () => {
     // El total es la suma de lo que se mostro en cada linea, no un redondeo al
     // final: si no, la suma de las lineas visibles no daria con el pie.
     expect(creada.subtotalCents).toBe(1667 + 3702);
+  });
+
+  it('guarda el telefono del cliente con la cotizacion', async () => {
+    const creada = await nuevaCotizacion(TEST_ORG_A, { customerPhone: '+56 9 1234 5678' });
+    expect(creada.customerPhone).toBe('+56 9 1234 5678');
+  });
+
+  it('el descuento se aplica ANTES del impuesto', async () => {
+    const creada = await nuevaCotizacion(TEST_ORG_A, {
+      lines: [{ description: 'Servicio', qty: 1, unitPriceCents: 50_000 }],
+      discountCents: 10_000,
+      taxRateBp: 1900,
+    });
+    expect(creada.subtotalCents).toBe(50_000);
+    expect(creada.discountCents).toBe(10_000);
+    // 19% de 40.000, no de 50.000: el cliente paga impuesto sobre lo que paga.
+    expect(creada.taxCents).toBe(7_600);
+    expect(creada.totalCents).toBe(47_600);
+  });
+
+  it('rechaza un descuento mayor que el subtotal', async () => {
+    const res = await comoMiembro(TEST_ORG_A)
+      .post('/api/quotes')
+      .send({
+        customerName: 'Descuento imposible',
+        discountCents: 50_001,
+        lines: [{ description: 'Algo', qty: 1, unitPriceCents: 50_000 }],
+      });
+    expect(res.status).toBe(400);
+    expect(String(res.body.error)).toContain('descuento');
+  });
+
+  it('el PDF de una cotizacion se descarga con el folio en el nombre', async () => {
+    const creada = await nuevaCotizacion(TEST_ORG_A, { customerName: 'Cliente PDF' });
+    const res = await comoMiembro(TEST_ORG_A).get(`/api/quotes/${creada.id}/pdf`);
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('application/pdf');
+    expect(res.headers['content-disposition']).toContain(`cotizacion-${creada.number}.pdf`);
+    expect(Buffer.isBuffer(res.body), 'el cuerpo del PDF no es binario').toBe(true);
+    expect(res.body.subarray(0, 4).toString()).toBe('%PDF');
   });
 
   it('acepta `quantity` como sinonimo de `qty` en vez de ignorarlo', async () => {
@@ -506,6 +546,70 @@ describe('estados', () => {
   });
 });
 
+describe('duplicar cotizaciones', () => {
+  it('crea un borrador nuevo con las lineas y el cliente de la original', async () => {
+    const original = await nuevaCotizacion(TEST_ORG_A, {
+      customerName: 'Cliente que vuelve',
+      customerEmail: 'vuelve@example.com',
+      customerPhone: '+56 9 5555 5555',
+      title: 'Oferta original',
+      taxRateBp: 1900,
+      discountCents: 5_000,
+      notes: 'Pagar en 30 dias',
+      lines: [
+        { description: 'Diseno', qty: 1, unitPriceCents: 80_000 },
+        { description: 'Impresion', qty: 2, unitPriceCents: 10_000 },
+      ],
+    });
+
+    const res = await comoMiembro(TEST_ORG_A).post(`/api/quotes/${original.id}/duplicar`);
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    const copia = res.body.quote;
+
+    expect(copia.id).not.toBe(original.id);
+    expect(copia.number).not.toBe(original.number);
+    expect(copia.status).toBe('draft');
+    expect(copia.customerName).toBe(original.customerName);
+    expect(copia.customerEmail).toBe(original.customerEmail);
+    expect(copia.customerPhone).toBe(original.customerPhone);
+    expect(copia.title).toBe(original.title);
+    expect(copia.notes).toBe(original.notes);
+    expect(copia.taxRateBp).toBe(original.taxRateBp);
+    expect(copia.discountCents).toBe(original.discountCents);
+    expect(copia.totalCents).toBe(original.totalCents);
+    expect(res.body.lines.map((l: any) => l.description)).toEqual(['Diseno', 'Impresion']);
+
+    // La original no se toca: duplicar no es mover.
+    const sigue = await comoMiembro(TEST_ORG_A).get(`/api/quotes/${original.id}`);
+    expect(sigue.body.status).toBe(original.status);
+    expect(sigue.body.number).toBe(original.number);
+  });
+});
+
+describe('vencimiento automatico', () => {
+  it('una cotizacion vencida pasa a `expired` al leerla', async () => {
+    const creada = await nuevaCotizacion(TEST_ORG_A, {
+      customerName: 'Vencida sola',
+      validUntil: '2020-01-01',
+    });
+    expect(creada.status).toBe('draft');
+
+    const res = await comoMiembro(TEST_ORG_A).get(`/api/quotes/${creada.id}`);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('expired');
+  });
+
+  it('no toca una cotizacion aceptada aunque la fecha ya paso', async () => {
+    const aceptada = await nuevaCotizacion(TEST_ORG_A, {
+      customerName: 'Acuerdo cerrado',
+      status: 'accepted',
+      validUntil: '2020-01-01',
+    });
+    const res = await comoMiembro(TEST_ORG_A).get(`/api/quotes/${aceptada.id}`);
+    expect(res.body.status).toBe('accepted');
+  });
+});
+
 describe('tablero y ajustes', () => {
   it('agrupa por estado y suma el dinero que si esta sobre la mesa', async () => {
     const creada = await nuevaCotizacion(TEST_ORG_A, { title: 'Cotizacion del tablero' });
@@ -558,6 +662,34 @@ describe('tablero y ajustes', () => {
     expect(leidos.body.settings.currency).toBe('CLP');
 
     // Se deja como estaba, para que los tests que viene no dependan de la moneda.
+    await comoAdmin(TEST_ORG_A)
+      .put('/api/settings')
+      .send({ currency: '$', timezone: 'America/Santiago', defaultTaxRateBp: 0, validityDays: 30 });
+  });
+
+  it('guarda la identidad comercial que sale en el PDF', async () => {
+    const res = await comoAdmin(TEST_ORG_A)
+      .put('/api/settings')
+      .send({
+        currency: 'CLP',
+        timezone: 'America/Santiago',
+        businessName: 'Estudio Norte SpA',
+        businessTaxId: '76.123.456-7',
+        businessAddress: 'Av. Siempre Viva 742',
+        businessPhone: '+56 2 2222 2222',
+        businessEmail: 'hola@estudionorte.cl',
+        defaultTaxRateBp: 1900,
+        validityDays: 15,
+      });
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body.settings.businessName).toBe('Estudio Norte SpA');
+    expect(res.body.settings.businessTaxId).toBe('76.123.456-7');
+    expect(res.body.settings.businessAddress).toBe('Av. Siempre Viva 742');
+    expect(res.body.settings.businessPhone).toBe('+56 2 2222 2222');
+    expect(res.body.settings.businessEmail).toBe('hola@estudionorte.cl');
+
+    // Se deja como estaba, para que los tests que vienen no dependan de la
+    // identidad comercial.
     await comoAdmin(TEST_ORG_A)
       .put('/api/settings')
       .send({ currency: '$', timezone: 'America/Santiago', defaultTaxRateBp: 0, validityDays: 30 });
