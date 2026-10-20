@@ -112,7 +112,8 @@ Las obligatorias en producción son dos, y el proceso **no arranca** si faltan
 El resto tiene defaults sensatos y están documentadas en
 `products/landing/.env.example`. Las que más importan: `CORE_DB_PATH`,
 `CORE_URL`, `CORE_SESSION_DAYS`, `CORE_RETURN_URL_HOSTS`, `CORE_SSO_CODE_TTL`,
-`CORE_SSO_TOKEN_TTL`, `SMTP_*`.
+`CORE_SSO_TOKEN_TTL`, `CORE_SESSION_PRUNE_MINUTES`, `CORE_SESSION_RETENTION_DAYS`,
+`SMTP_*`.
 
 ## Desarrollo
 

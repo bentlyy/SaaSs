@@ -99,6 +99,10 @@ export const platformConfig = {
 
   /** Vida de la sesion central del navegador, en dias. */
   sessionDays: Number(process.env.CORE_SESSION_DAYS ?? 30),
+  /** Cada cuantos minutos se limpian las sesiones vencidas (0 = desactivado). */
+  sessionPruneMinutes: Number(process.env.CORE_SESSION_PRUNE_MINUTES ?? 60),
+  /** Dias que se conservan las sesiones vencidas o revocadas antes de borrarlas. */
+  sessionRetentionDays: Number(process.env.CORE_SESSION_RETENTION_DAYS ?? 30),
   /** Cookie de sesion: nombre. Host-only, nunca con Domain (evita cookies de padre). */
   sessionCookie: process.env.CORE_SESSION_COOKIE ?? 'amg_session',
 

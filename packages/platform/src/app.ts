@@ -27,6 +27,7 @@ import { countOrganizations } from './domain/organizations.js';
 import { countUsers } from './domain/users.js';
 import { ensurePlatformSeed } from './seed.js';
 import { expireDueSubscriptions } from './domain/subscriptions.js';
+import { pruneExpiredSessions } from './domain/sessions.js';
 import { confirmCheckout } from './billing/checkout.js';
 import { obtenerProveedor } from './billing/index.js';
 import { MercadoPagoProvider } from './billing/mercadopago.js';
@@ -57,6 +58,20 @@ export function createPlatformApp(options: PlatformAppOptions = {}): Express {
     if (vencidas > 0) logger.info(`Suscripciones vencidas marcadas al arranque: ${vencidas}`);
   } catch (e) {
     logger.error('No se pudieron marcar las suscripciones vencidas', (e as Error).message);
+  }
+
+  /**
+   * LIMPIEZA DE SESIONES AL ARRANQUE. Marca las vencidas y borra las que ya
+   * estaban muertas hace mas de la retencion. Es idempotente y barata; el
+   * intervalo periodico lo agenda el proceso que sirve la web (landing).
+   */
+  try {
+    const { expired, deleted } = pruneExpiredSessions();
+    if (expired > 0 || deleted > 0) {
+      logger.info(`Sesiones limpiadas al arranque: ${expired} vencidas, ${deleted} eliminadas`);
+    }
+  } catch (e) {
+    logger.error('No se pudieron limpiar las sesiones vencidas', (e as Error).message);
   }
 
   app.disable('x-powered-by');

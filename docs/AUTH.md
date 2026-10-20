@@ -98,6 +98,14 @@ todas (`DELETE /api/auth/sessions`). El Core **verifica que la sesión sea del
 dueño** antes de revocarla: sin ese chequeo, alguien que probara ids podría
 cerrarle las sesiones a otro.
 
+### Limpieza
+
+Al arrancar, el Core marca `expired` las sesiones vencidas y borra las que ya
+estaban muertas (vencidas o revocadas) hace más de `CORE_SESSION_RETENTION_DAYS`
+(30 por defecto): la tabla guarda IP y user agent, así que no se conservan para
+siempre. Durante la ejecución, `landing` repite la limpieza cada
+`CORE_SESSION_PRUNE_MINUTES` (60 por defecto; `0` la desactiva).
+
 ## Autorización
 
 `authRequired` hace dos cosas: verifica la sesión y, si no hay, contesta 401 en la

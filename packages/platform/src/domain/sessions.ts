@@ -1,4 +1,4 @@
-import { and, eq, isNull, lt, sql } from 'drizzle-orm';
+import { and, eq, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import { getCoreDb, createId } from '../db/index.js';
 import { schema } from '../db/schema.js';
 import { platformConfig } from '../config.js';
@@ -206,12 +206,44 @@ export function listActiveSessions(userId: string, currentSessionId?: string): A
     .map((row) => ({ ...row, current: row.id === currentSessionId }));
 }
 
-/** Limpieza periodica: podar lo vencido para que la tabla no crezca para siempre. */
-export function pruneExpiredSessions(): number {
-  const result = getCoreDb()
-    .db.update(schema.sessions)
+export interface SessionPruneResult {
+  /** Sesiones activas que pasaron su fecha de vencimiento. */
+  expired: number;
+  /** Filas ya vencidas o revocadas que superaron la retención y se borraron. */
+  deleted: number;
+}
+
+/**
+ * Limpieza periodica de sesiones.
+ *
+ * Primero marca `expired` las que vencieron, para que dejen de listarse y de
+ * servir aunque nadie las toque. Despues borra las filas que ya estaban muertas
+ * (vencidas o revocadas) hace mas de `retentionDays`: la tabla guarda IP y user
+ * agent, asi que no conviene conservarlas para siempre.
+ */
+export function pruneExpiredSessions(retentionDays = platformConfig.sessionRetentionDays): SessionPruneResult {
+  const { db } = getCoreDb();
+  const now = new Date().toISOString();
+  const cutoff = new Date(Date.now() - retentionDays * 86_400_000).toISOString();
+
+  const expired = db
+    .update(schema.sessions)
     .set({ status: 'expired' })
-    .where(and(lt(schema.sessions.expires_at, new Date().toISOString()), isNull(schema.sessions.revoked_at)))
-    .run();
-  return result.changes;
+    .where(and(eq(schema.sessions.status, 'active'), lt(schema.sessions.expires_at, now)))
+    .run().changes;
+
+  const deleted = db
+    .delete(schema.sessions)
+    .where(
+      and(
+        ne(schema.sessions.status, 'active'),
+        or(
+          and(eq(schema.sessions.status, 'expired'), lt(schema.sessions.expires_at, cutoff)),
+          and(eq(schema.sessions.status, 'revoked'), lt(schema.sessions.revoked_at, cutoff)),
+        ),
+      ),
+    )
+    .run().changes;
+
+  return { expired, deleted };
 }

@@ -3,7 +3,7 @@ import { AppError } from '@amg/core';
 import { register, login, logout, logoutEverywhere, requestPasswordReset, resetPassword, changePassword, verifyEmail, switchOrganization, updateProfile } from '../src/auth/service.js';
 import { getCoreDb } from '../src/db/init.js';
 import { createId } from '../src/db/id.js';
-import { verifySessionToken, listActiveSessions } from '../src/domain/sessions.js';
+import { verifySessionToken, listActiveSessions, createSession, revokeSession, pruneExpiredSessions } from '../src/domain/sessions.js';
 import { findUserByEmail } from '../src/domain/users.js';
 import { createOrganization } from '../src/domain/organizations.js';
 import { createMembership } from '../src/domain/memberships.js';
@@ -161,6 +161,47 @@ describe('sesiones', () => {
       .get();
     expect(fila?.token_hash).toBeTruthy();
     expect(fila?.token_hash).not.toBe(r.token);
+  });
+});
+
+describe('limpieza de sesiones', () => {
+  it('marca las vencidas y borra solo las que superaron la retención', async () => {
+    const r = await nuevoDueño({ email: 'limpieza@ejemplo.cl', org: 'Limpieza', slug: 'limpieza' });
+    const organizationId = r.session.active_organization_id!;
+    const reciente = createSession({ userId: r.user.id, organizationId, ttlDays: -1 }).session;
+    const vieja = createSession({ userId: r.user.id, organizationId, ttlDays: -60 }).session;
+
+    expect(pruneExpiredSessions(30)).toEqual({ expired: 2, deleted: 1 });
+
+    const db = getCoreDb().db;
+    expect(db.select().from(schema.sessions).where(eq(schema.sessions.id, reciente.id)).get()?.status).toBe('expired');
+    expect(db.select().from(schema.sessions).where(eq(schema.sessions.id, vieja.id)).get()).toBeUndefined();
+    expect(db.select().from(schema.sessions).where(eq(schema.sessions.id, r.session.id)).get()?.status).toBe('active');
+  });
+
+  it('borra las revocadas cuando superan la retención', async () => {
+    const r = await nuevoDueño({ email: 'limpieza3@ejemplo.cl', org: 'Limpieza3', slug: 'limpieza3' });
+    const revocada = createSession({
+      userId: r.user.id,
+      organizationId: r.session.active_organization_id!,
+      ttlDays: 30,
+    }).session;
+    revokeSession(revocada.id);
+    getCoreDb()
+      .db.update(schema.sessions)
+      .set({ revoked_at: new Date(Date.now() - 60 * 86_400_000).toISOString() })
+      .where(eq(schema.sessions.id, revocada.id))
+      .run();
+
+    expect(pruneExpiredSessions(30)).toEqual({ expired: 0, deleted: 1 });
+  });
+
+  it('es idempotente: una segunda pasada no encuentra nada', async () => {
+    const r = await nuevoDueño({ email: 'limpieza2@ejemplo.cl', org: 'Limpieza2', slug: 'limpieza2' });
+    createSession({ userId: r.user.id, organizationId: r.session.active_organization_id!, ttlDays: -60 });
+
+    expect(pruneExpiredSessions(30)).toEqual({ expired: 1, deleted: 1 });
+    expect(pruneExpiredSessions(30)).toEqual({ expired: 0, deleted: 0 });
   });
 });
 
