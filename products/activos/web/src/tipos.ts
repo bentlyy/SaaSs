@@ -2,7 +2,7 @@
 
 export type Estado = 'active' | 'repair' | 'retired' | 'lost';
 
-export type TipoMovimiento = 'checkin' | 'checkout' | 'maintenance' | 'loss';
+export type TipoMovimiento = 'checkin' | 'checkout' | 'transfer' | 'maintenance' | 'loss';
 
 export interface Activo {
   id: string;
@@ -16,6 +16,7 @@ export interface Activo {
   location: string | null;
   assignedTo: string | null;
   purchaseDate: string | null;
+  warrantyUntil: string | null;
   costCents: number;
   notes: string | null;
   archivedAt: string | null;
@@ -42,6 +43,8 @@ export interface Tablero {
 export interface Movimiento {
   id: string;
   kind: TipoMovimiento;
+  assignedTo: string | null;
+  location: string | null;
   note: string | null;
   happenedAt: string;
 }

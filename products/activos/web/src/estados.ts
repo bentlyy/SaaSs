@@ -19,25 +19,33 @@ export const ESTADOS: MapaEstados = {
 export const ESTADOS_VALOR: Estado[] = ['active', 'repair', 'retired', 'lost'];
 
 /**
- * Los cuatro hechos que se registran sobre un bien.
+ * Los cinco hechos que se registran sobre un bien.
  *
  * No es un picker de estado: el estado lo decide la API al aplicar el
- * movimiento, en la misma transacción en que lo escribe.
+ * movimiento, en la misma transacci��n en que lo escribe.
  */
 export const MOVIMIENTOS: MapaEstados = {
   checkout: { texto: 'Salio', tono: 'acento' },
   checkin: { texto: 'Volvio', tono: 'ok' },
+  transfer: { texto: 'Se traslado', tono: 'neutro' },
   maintenance: { texto: 'A reparacion', tono: 'aviso' },
   loss: { texto: 'Se perdio', tono: 'malo' },
 };
 
-/** Rótulos del select de "Que pasó", como los puso el legacy. */
+/** R��tulos del select de "Que pas��", como los puso el legacy. */
 export const ETIQUETA_MOVIMIENTO: Record<TipoMovimiento, string> = {
   checkout: 'Salio (checkout)',
   checkin: 'Volvio (checkin)',
+  transfer: 'Se traslado (transfer)',
   maintenance: 'A reparacion (maintenance)',
   loss: 'Se perdio (loss)',
 };
 
-/** El orden del select de movimientos: checkout, checkin, maintenance, loss. */
-export const MOVIMIENTOS_VALOR: TipoMovimiento[] = ['checkout', 'checkin', 'maintenance', 'loss'];
+/** El orden del select de movimientos: checkout, checkin, transfer, maintenance, loss. */
+export const MOVIMIENTOS_VALOR: TipoMovimiento[] = [
+  'checkout',
+  'checkin',
+  'transfer',
+  'maintenance',
+  'loss',
+];

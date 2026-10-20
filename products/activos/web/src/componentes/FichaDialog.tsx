@@ -49,6 +49,7 @@ export function FichaDialog({ activoId, avisar, onCerrar, alMover }: Props) {
   const [ficha, setFicha] = useState<Ficha | null>(null);
   const [tipo, setTipo] = useState<TipoMovimiento>('checkout');
   const [responsable, setResponsable] = useState('');
+  const [destino, setDestino] = useState('');
   const [nota, setNota] = useState('');
   const [registrando, setRegistrando] = useState(false);
 
@@ -70,15 +71,19 @@ export function FichaDialog({ activoId, avisar, onCerrar, alMover }: Props) {
     ev.preventDefault();
     setRegistrando(true);
     try {
-      // El responsable se manda SOLO en un checkout, y vacío se manda `null`
-      // para que la API lo exija con su mensaje en vez de dejar un movimiento
-      // huérfano. No se manda `happenedAt`: un movimiento se registra mientras
-      // pasa, y anotarlo a mano solo abre la puerta al día equivocado.
+      // El responsable viaja en checkout y traslado. En el checkout es
+      // obligatorio y vacío se manda `null` para que la API lo exija con su
+      // mensaje; en el traslado, vacío conserva al responsable actual. El
+      // destino solo tiene sentido al trasladar. No se manda `happenedAt`: un
+      // movimiento se registra mientras pasa, y anotarlo a mano solo abre la
+      // puerta al día equivocado.
       const cuerpo: Record<string, unknown> = { kind: tipo, note: nota || null };
-      if (tipo === 'checkout') cuerpo.assignedTo = responsable || null;
+      if (tipo === 'checkout' || tipo === 'transfer') cuerpo.assignedTo = responsable || null;
+      if (tipo === 'transfer') cuerpo.location = destino || null;
       await api.post(`/assets/${activoId}/movimientos`, cuerpo);
       setNota('');
       setResponsable('');
+      setDestino('');
       await alMover();
       await recargar();
       avisar('Movimiento registrado');
@@ -114,6 +119,7 @@ export function FichaDialog({ activoId, avisar, onCerrar, alMover }: Props) {
             <Dato termino="Serie" valor={a.serial ?? 'Sin serie'} />
             <Dato termino="Ubicacion" valor={a.location ?? 'Sin ubicacion'} />
             {a.purchaseDate ? <Dato termino="Comprado" valor={fechaCorta(a.purchaseDate)} /> : null}
+            {a.warrantyUntil ? <Dato termino="Garantia hasta" valor={fechaCorta(a.warrantyUntil)} /> : null}
             <Dato termino="Costo" valor={monto(a.costCents, simbolo)} />
             {a.notes ? <Dato termino="Notas" valor={a.notes} /> : null}
           </dl>
@@ -128,6 +134,16 @@ export function FichaDialog({ activoId, avisar, onCerrar, alMover }: Props) {
                   <li key={m.id} className="flex items-start justify-between gap-3 py-2">
                     <div className="min-w-0">
                       <span className="text-sm font-medium text-slate-800">{estadoDe(m.kind, MOVIMIENTOS).texto}</span>
+                      {m.assignedTo || m.location ? (
+                        <p className="text-xs text-slate-500">
+                          {[
+                            m.assignedTo ? `Responsable: ${m.assignedTo}` : null,
+                            m.location ? `Ubicacion: ${m.location}` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </p>
+                      ) : null}
                       {m.note ? <p className="text-xs text-slate-500">{m.note}</p> : null}
                     </div>
                     <Etiqueta texto={fecha(m.happenedAt, true, zona)} />
@@ -149,13 +165,28 @@ export function FichaDialog({ activoId, avisar, onCerrar, alMover }: Props) {
                     </option>
                   ))}
                 </Select>
-                {tipo === 'checkout' ? (
+                {tipo === 'checkout' || tipo === 'transfer' ? (
                   <Campo
-                    etiqueta="A quien se entrega (solo en checkout)"
+                    etiqueta={
+                      tipo === 'checkout'
+                        ? 'A quien se entrega'
+                        : 'Nuevo responsable (opcional)'
+                    }
                     name="assignedTo"
                     maxLength={120}
+                    required={tipo === 'checkout'}
                     value={responsable}
                     onChange={(e) => setResponsable(e.target.value)}
+                  />
+                ) : null}
+                {tipo === 'transfer' ? (
+                  <Campo
+                    etiqueta="Destino"
+                    name="location"
+                    maxLength={150}
+                    required
+                    value={destino}
+                    onChange={(e) => setDestino(e.target.value)}
                   />
                 ) : null}
               </div>

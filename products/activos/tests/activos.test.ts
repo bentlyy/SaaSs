@@ -97,6 +97,12 @@ describe('la interfaz', () => {
     expect(js).toContain('next-code');
   });
 
+  it('la UI permite registrar garantia y traslados', async () => {
+    const js = await bundle();
+    expect(js).toContain('Garantia hasta');
+    expect(js).toContain('Se traslado');
+  });
+
   it('el form de ajustes pide moneda y zona horaria', async () => {
     const js = await bundle();
     expect(js).toContain('Moneda');
@@ -238,6 +244,30 @@ describe('los activos', () => {
     expect(choque.status).toBe(409);
   });
 
+  it('guarda la fecha de adquisicion y la garantia, y un PATCH no borra la que no se manda', async () => {
+    const activo = await nuevoActivo(TEST_ORG_A, {
+      code: 'GAR-1',
+      purchaseDate: '2026-01-15',
+      warrantyUntil: '2027-01-15',
+    });
+    expect(activo.purchaseDate).toBe('2026-01-15');
+    expect(activo.warrantyUntil).toBe('2027-01-15');
+
+    const parche = await comoMiembro(TEST_ORG_A)
+      .patch(`/api/assets/${activo.id}`)
+      .send({ warrantyUntil: '2028-01-15' });
+    expect(parche.status).toBe(200);
+    expect(parche.body.purchaseDate).toBe('2026-01-15');
+    expect(parche.body.warrantyUntil).toBe('2028-01-15');
+  });
+
+  it('rechaza una garantia que no es una fecha del calendario', async () => {
+    const res = await comoMiembro(TEST_ORG_A)
+      .post('/api/assets')
+      .send({ code: 'GAR-2', name: 'Garantia rara', category: 'herramienta', warrantyUntil: '2027-9-4' });
+    expect(res.status).toBe(400);
+  });
+
   it('un PATCH parcial no borra lo que no se manda', async () => {
     const activo = await nuevoActivo(TEST_ORG_A, {
       code: 'PAR-1',
@@ -260,9 +290,10 @@ describe('los activos', () => {
       name: 'Generador',
       brand: 'Kohler',
       serial: 'SN-8891',
+      location: 'Bodega norte',
       assignedTo: 'Marcela',
     });
-    for (const termino of ['BUS-1', 'Kohler', 'SN-8891', 'Marcela']) {
+    for (const termino of ['BUS-1', 'Kohler', 'SN-8891', 'Bodega norte', 'Marcela']) {
       const busca = await comoAdmin(TEST_ORG_A).get(`/api/assets?q=${encodeURIComponent(termino)}`);
       expect(busca.body.items.map((a: any) => a.code), `no encontro ${termino}`).toContain('BUS-1');
     }
@@ -327,6 +358,71 @@ describe('los movimientos y la invariante de estado', () => {
     // Volver del taller es volver a estar operativo: por eso un checkin siempre
     // deja el activo activo.
     expect(vuelta.body.asset.status).toBe('active');
+  });
+
+  it('un checkin devuelve el bien, limpia el responsable actual y conserva quien lo tenia en el historial', async () => {
+    const activo = await nuevoActivo(TEST_ORG_A, { code: 'MOV-9', name: 'Radio' });
+    await comoMiembro(TEST_ORG_A)
+      .post(`/api/assets/${activo.id}/movimientos`)
+      .send({ kind: 'checkout', assignedTo: 'Paula' });
+
+    const vuelta = await comoMiembro(TEST_ORG_A)
+      .post(`/api/assets/${activo.id}/movimientos`)
+      .send({ kind: 'checkin', note: 'Volvio a bodega' });
+    expect(vuelta.status).toBe(201);
+    expect(vuelta.body.asset.status).toBe('active');
+    // Si el responsable siguiera escrito, la lista diria que Paula tiene algo
+    // que ya esta en la bodega.
+    expect(vuelta.body.asset.assignedTo).toBeNull();
+
+    const ficha = await comoMiembro(TEST_ORG_A).get(`/api/assets/${activo.id}/ficha`);
+    expect(ficha.body.movements.map((m: any) => m.kind)).toEqual(['checkin', 'checkout']);
+    expect(ficha.body.movements[0].assignedTo).toBe('Paula');
+  });
+
+  it('un traslado exige destino y deja el activo en la ubicacion nueva', async () => {
+    const activo = await nuevoActivo(TEST_ORG_A, {
+      code: 'MOV-10',
+      name: 'Compresor',
+      location: 'Oficina',
+      assignedTo: 'Luis',
+    });
+
+    const sinDestino = await comoMiembro(TEST_ORG_A)
+      .post(`/api/assets/${activo.id}/movimientos`)
+      .send({ kind: 'transfer' });
+    expect(sinDestino.status).toBe(400);
+    expect(String(sinDestino.body.error)).toMatch(/location/);
+
+    const traslado = await comoMiembro(TEST_ORG_A)
+      .post(`/api/assets/${activo.id}/movimientos`)
+      .send({ kind: 'transfer', location: 'Bodega sur' });
+    expect(traslado.status).toBe(201);
+    expect(traslado.body.asset.status).toBe('active');
+    expect(traslado.body.asset.location).toBe('Bodega sur');
+    // Sin responsable nuevo, el bien sigue en manos de la misma persona.
+    expect(traslado.body.asset.assignedTo).toBe('Luis');
+    expect(traslado.body.movement).toMatchObject({
+      kind: 'transfer',
+      location: 'Bodega sur',
+      assignedTo: 'Luis',
+    });
+  });
+
+  it('un traslado puede cambiar de responsable y queda en el historial', async () => {
+    const activo = await nuevoActivo(TEST_ORG_A, { code: 'MOV-11', name: 'Camioneta' });
+    await comoMiembro(TEST_ORG_A)
+      .post(`/api/assets/${activo.id}/movimientos`)
+      .send({ kind: 'transfer', location: 'Sucursal', assignedTo: 'Ana' });
+
+    const ficha = await comoMiembro(TEST_ORG_A).get(`/api/assets/${activo.id}/ficha`);
+    expect(ficha.body.asset.location).toBe('Sucursal');
+    expect(ficha.body.asset.assignedTo).toBe('Ana');
+    expect(ficha.body.movements[0]).toMatchObject({
+      kind: 'transfer',
+      location: 'Sucursal',
+      assignedTo: 'Ana',
+    });
   });
 
   it('retirar un bien dado de baja lo vuelve a poner en uso', async () => {

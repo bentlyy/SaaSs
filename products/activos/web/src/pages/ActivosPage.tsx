@@ -72,7 +72,7 @@ export function ActivosPage() {
     return (activos ?? []).filter((a) => {
       if (filtro && a.status !== filtro) return false;
       if (!busqueda) return true;
-      return [a.code, a.name, a.brand, a.model, a.serial, a.assignedTo].some((v) =>
+      return [a.code, a.name, a.brand, a.model, a.serial, a.location, a.assignedTo].some((v) =>
         String(v ?? '').toLowerCase().includes(busqueda),
       );
     });
@@ -117,7 +117,11 @@ export function ActivosPage() {
 
       <Tarjeta titulo="Activos">
         <div className="grid gap-3 border-b border-slate-100 p-4 sm:grid-cols-2">
-          <Buscador valor={q} onChange={setQ} placeholder="Codigo, nombre, serie, quien lo tiene" />
+          <Buscador
+            valor={q}
+            onChange={setQ}
+            placeholder="Codigo, nombre, serie, ubicacion, quien lo tiene"
+          />
           <Select etiqueta="Estado" value={filtro} onChange={alFiltrar}>
             {OPCION_FILTRO.map((o) => (
               <option key={o.valor} value={o.valor}>

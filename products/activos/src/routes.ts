@@ -68,17 +68,17 @@ const booleano = z.preprocess((v) => {
 }, z.boolean());
 
 /**
- * "Comprado el" es una FECHA, no un instante.
+ * "Comprado el" y "Garantia hasta" son FECHAS, no instantes.
  *
  * Se valida el formato a mano en vez de usar `Date.parse`, porque `Date.parse`
- * acepta "2026-9-4" y "septiembre de 2026" y tambien "42": la fecha de compra de
- * un bien es un dia del calendario, y guardarla con hora inventa precision que
- * nadie tiene y corre el dia al convertir desde un huso al este.
+ * acepta "2026-9-4" y "septiembre de 2026" y tambien "42": las dos son fechas
+ * del calendario, y guardarlas con hora inventa precision que nadie tiene y
+ * corre el dia al convertir desde un huso al este.
  */
 const fecha = z
   .string()
   .trim()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'La fecha de compra va como AAAA-MM-DD')
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'La fecha va como AAAA-MM-DD')
   .refine((v) => !Number.isNaN(Date.parse(`${v}T00:00:00Z`)), 'Fecha invalida')
   .nullable()
   .optional();
@@ -120,30 +120,31 @@ const ESTADOS = ['active', 'repair', 'retired', 'lost'] as const;
 type Estado = (typeof ESTADOS)[number];
 
 /**
- * Los cuatro hechos fisicos que se registran sobre un activo.
+ * Los cinco hechos fisicos que se registran sobre un activo.
  *
- * `maintenance` y `loss` no son "retiros" ni "altas": son hechos que cambian el
- * estado sin cambiar de manos. Dar de baja un bien (`retired`) NO es un hecho
- * fisico sino una decision de negocio sobre el patrimonio, y por eso no es un
- * tipo de movimiento: se registra cambiando el estado, y asi la tabla de
- * historial queda con lo que se le hizo al equipo y no con lo que la empresa
- * resolvio sobre el.
+ * `checkout` entrega, `checkin` devuelve y `transfer` traslada el bien de una
+ * ubicacion a otra. `maintenance` y `loss` no son "retiros" ni "altas": son
+ * hechos que cambian el estado sin cambiar de manos. Dar de baja un bien
+ * (`retired`) NO es un hecho fisico sino una decision de negocio sobre el
+ * patrimonio, y por eso no es un tipo de movimiento: se registra cambiando el
+ * estado, y asi la tabla de historial queda con lo que se le hizo al equipo y
+ * no con lo que la empresa resolvio sobre el.
  */
-const TIPOS_MOVIMIENTO = ['checkin', 'checkout', 'maintenance', 'loss'] as const;
+const TIPOS_MOVIMIENTO = ['checkin', 'checkout', 'transfer', 'maintenance', 'loss'] as const;
 type TipoMovimiento = (typeof TIPOS_MOVIMIENTO)[number];
 
 /**
  * Que estado deja cada tipo de movimiento.
  *
- * `checkout` deja `active` y no `assigned`: el bien sale pero sigue siendo del
- * patrimonio y en uso, lo unico que cambia es quien lo tiene. `checkin` tambien
- * deja `active`, porque un bien que vuelve del taller o de la obra vuelve a
- * estar operativo, y por eso el unico estado que necesita "estar quieto" es
- * `repair`.
+ * `checkout`, `checkin` y `transfer` dejan `active`: el bien sale, vuelve o se
+ * mueve, pero sigue siendo del patrimonio y en uso. `checkin` tambien deja
+ * `active` porque un bien que vuelve del taller o de la obra vuelve a estar
+ * operativo, y por eso el unico estado que necesita "estar quieto" es `repair`.
  */
 const ESTADO_QUE_DEJA: Record<TipoMovimiento, Estado> = {
   checkin: 'active',
   checkout: 'active',
+  transfer: 'active',
   maintenance: 'repair',
   loss: 'lost',
 };
@@ -179,6 +180,7 @@ const activoSchema = z.object({
   location: z.string().trim().max(150).nullable().optional(),
   assignedTo: z.string().trim().max(120).nullable().optional(),
   purchaseDate: fecha,
+  warrantyUntil: fecha,
   costCents: centavos.default(0),
   notes: z.string().trim().max(2000).nullable().optional(),
   archived: booleano.optional(),
@@ -187,6 +189,8 @@ const activoSchema = z.object({
 const movimientoSchema = z.object({
   kind: z.enum(TIPOS_MOVIMIENTO),
   assignedTo: z.string().trim().max(120).nullable().optional(),
+  /** Destino del traslado. En los demas tipos se ignora. */
+  location: z.string().trim().max(150).nullable().optional(),
   note: z.string().trim().max(2000).nullable().optional(),
   /** Si no viene, el movimiento se registra ahora. */
   happenedAt: instante.optional(),
@@ -417,11 +421,15 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       const body = movimientoSchema.parse(req.body);
 
       // Un retiro sin responsable es un "@pendiente" suelto: se sabe que el
-      // equipo se llevo alguien, y no se sabe quien. Se pide antes de tocar la
-      // base, para que un formulario a medio llenar no deje un movimiento
-      // escrito con el estado cambiado.
+      // equipo se llevo alguien, y no se sabe quien. Un traslado sin destino es
+      // igual de inutil: se movio algo, pero no se sabe adonde. Las dos cosas se
+      // piden antes de tocar la base, para que un formulario a medio llenar no
+      // deje un movimiento escrito con el estado cambiado.
       if (body.kind === 'checkout' && !body.assignedTo) {
         throw new AppError(400, 'Un retiro (checkout) necesita saber a quien se entrega: manda assignedTo');
+      }
+      if (body.kind === 'transfer' && !body.location) {
+        throw new AppError(400, 'Un traslado (transfer) necesita un destino: manda location');
       }
 
       const ahora = nowIso();
@@ -433,6 +441,20 @@ export function buildRoutes(ctx: ProductContext): Router[] {
           .get();
         if (!activo) throw new AppError(404, 'Ese activo no existe');
 
+        // Un checkin devuelve el bien y borra el responsable actual: si siguiera
+        // escrito, la lista diria que alguien tiene algo que ya esta en la
+        // bodega. El nombre no se pierde: queda en la foto del movimiento.
+        // Un traslado puede cambiar de responsable, pero si no lo dice conserva
+        // al que lo tenia. `maintenance` y `loss` no cambian de manos.
+        const cambioDeManos = body.kind === 'checkout' || body.kind === 'transfer';
+        const nuevoResponsable =
+          body.kind === 'checkin'
+            ? null
+            : cambioDeManos
+              ? body.assignedTo || activo.assignedTo
+              : activo.assignedTo;
+        const nuevaUbicacion = body.kind === 'transfer' ? body.location! : activo.location;
+
         const movimiento = tx
           .insert(assetMovements)
           .values({
@@ -440,6 +462,11 @@ export function buildRoutes(ctx: ProductContext): Router[] {
             organizationId: org,
             assetId: activoId,
             kind: body.kind,
+            // La foto se toma ANTES de aplicar el cambio: en un checkin dice
+            // quien devolvio el bien, y en un checkout/traslado, quien lo
+            // recibe. Asi el historial se puede leer sin reconstruir estados.
+            assignedTo: body.kind === 'checkin' ? activo.assignedTo : nuevoResponsable,
+            location: nuevaUbicacion,
             note: body.note ?? null,
             // Sin `happenedAt` el movimiento se registra ahora. Un movimiento se
             // escribe mientras pasa, y anotar la hora a mano solo abre la puerta
@@ -452,12 +479,9 @@ export function buildRoutes(ctx: ProductContext): Router[] {
 
         const cambios = {
           status: ESTADO_QUE_DEJA[body.kind],
+          assignedTo: nuevoResponsable,
+          location: nuevaUbicacion,
           updatedAt: ahora,
-          // El responsable SOLO se escribe en un checkout, que es el unico
-          // movimiento que cambia de manos. En un checkin no se borra: la
-          // ultima persona que lo tuvo es informacion, y se reemplaza en el
-          // proximo checkout en vez de desaparecer.
-          ...(body.kind === 'checkout' && body.assignedTo ? { assignedTo: body.assignedTo } : {}),
         };
         const actualizado = tx
           .update(assets)
@@ -524,6 +548,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
             location: body.location ?? null,
             assignedTo: body.assignedTo ?? null,
             purchaseDate: body.purchaseDate ?? null,
+            warrantyUntil: body.warrantyUntil ?? null,
             costCents: body.costCents,
             notes: body.notes ?? null,
             archivedAt: body.archived ? ahora : null,
@@ -561,6 +586,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         location: existente.location,
         assignedTo: existente.assignedTo,
         purchaseDate: existente.purchaseDate,
+        warrantyUntil: existente.warrantyUntil,
         costCents: existente.costCents,
         notes: existente.notes,
         ...req.body,
@@ -596,6 +622,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
             location: body.location ?? null,
             assignedTo: body.assignedTo ?? null,
             purchaseDate: body.purchaseDate ?? null,
+            warrantyUntil: body.warrantyUntil ?? null,
             costCents: body.costCents,
             notes: body.notes ?? null,
             archivedAt: archivado,
@@ -716,11 +743,11 @@ export function buildRoutes(ctx: ProductContext): Router[] {
    * que significa archivar. El `total` sale del mismo filtro, asi que el
    * paginador y las tarjetas cuentan la misma cosa que la tabla muestra.
    *
-   * La busqueda cubre las seis columnas por las que de verdad se busca un bien:
-   * el codigo, el nombre, la marca, el modelo, el numero de serie y quien lo
-   * tiene. Falta la categoria a proposito: nadie busca "todas las herramientas"
-   * escribiendo la palabra herramienta, y la pantalla tiene un filtro de estado
-   * para eso.
+   * La busqueda cubre las siete columnas por las que de verdad se busca un
+   * bien: el codigo, el nombre, la marca, el modelo, el numero de serie, la
+   * ubicacion y quien lo tiene. Falta la categoria a proposito: nadie busca
+   * "todas las herramientas" escribiendo la palabra herramienta, y la pantalla
+   * tiene un filtro de estado para eso.
    */
   router.use(
     '/api/assets',
@@ -728,7 +755,15 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       table: assets,
       idPrefix: 'act',
       label: 'activo',
-      search: [assets.code, assets.name, assets.brand, assets.model, assets.serial, assets.assignedTo],
+      search: [
+        assets.code,
+        assets.name,
+        assets.brand,
+        assets.model,
+        assets.serial,
+        assets.location,
+        assets.assignedTo,
+      ],
       orderBy: assets.code,
       orderDirection: 'asc',
       archive: true,
@@ -743,6 +778,7 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         location: { schema: z.string().trim().max(150).nullable().optional() },
         assignedTo: { schema: z.string().trim().max(120).nullable().optional() },
         purchaseDate: { schema: fecha },
+        warrantyUntil: { schema: fecha },
         costCents: { schema: centavos.default(0) },
         notes: { schema: z.string().trim().max(2000).nullable().optional() },
         archivedAt: { readonly: true },

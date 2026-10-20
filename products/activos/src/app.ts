@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ProductDefinition } from '@amg/product-runtime';
 import { DDL } from './ddl.js';
+import { MIGRACIONES } from './migrations.js';
 import { buildRoutes } from './routes.js';
 import { assetMovements, assets, settings } from './schema.js';
 
@@ -32,6 +33,7 @@ export const definicion: ProductDefinition = {
     settings,
   },
   ddl: DDL,
+  migrations: MIGRACIONES,
   routes: buildRoutes,
   // El HTML tambien pide sesion: sin identidad no se sirve ni el shell. El
   // frontend es una SPA de Vite compilada a web/dist.

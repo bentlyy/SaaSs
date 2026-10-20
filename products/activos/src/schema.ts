@@ -61,9 +61,10 @@ import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqli
  * El `code` es ademas el identificador que ve la gente ("el EQ-004"), asi que
  * va primero en la lista y ordena por el.
  *
- * `purchase_date` es una FECHA (`AAAA-MM-DD`), no un instante: "comprado en
- * marzo" es un dia, y guardarlo con hora inventa precision que nadie tiene y
- * corre un dia al convertir de un huso al este.
+ * `purchase_date` y `warranty_until` son FECHAS (`AAAA-MM-DD`), no instantes:
+ * "comprado en marzo" y "la garantia vence en marzo" son dias, y guardarlos con
+ * hora inventa precision que nadie tiene y corre un dia al convertir de un huso
+ * al este.
  */
 export const assets = sqliteTable(
   'assets',
@@ -94,6 +95,8 @@ export const assets = sqliteTable(
     assignedTo: text('assigned_to'),
     /** `AAAA-MM-DD`. El dia que se compro, no el instante. */
     purchaseDate: text('purchase_date'),
+    /** `AAAA-MM-DD`. Ultimo dia cubierto por la garantia, si tiene una. */
+    warrantyUntil: text('warranty_until'),
     /** Costo de compra en CENTAVOS enteros. Nunca pesos con decimales. */
     costCents: integer('cost_cents').notNull().default(0),
     notes: text('notes'),
@@ -128,9 +131,16 @@ export const assets = sqliteTable(
  * borra de verdad, sus movimientos se van con el, porque consultarlos seria
  * consultar basura.
  *
- * `kind` son cuatro valores cerrados: `checkin`, `checkout`, `maintenance` y
- * `loss`. Cada uno deja el activo en un estado concreto, y esa regla vive en
- * `routes.ts` porque es una invariante de la API, no del almacenamiento.
+ * `kind` son cinco valores cerrados: `checkin`, `checkout`, `transfer`,
+ * `maintenance` y `loss`. Cada uno deja el activo en un estado concreto, y esa
+ * regla vive en `routes.ts` porque es una invariante de la API, no del
+ * almacenamiento.
+ *
+ * `assigned_to` y `location` son la FOTO del responsable y la ubicacion
+ * relevantes al registrar el movimiento. No son una copia de las columnas del
+ * activo: cuando el bien cambia de manos, la ficha necesita poder decir quien lo
+ * tenia antes aunque el activo ya muestre a otra persona. Sin esta foto, el
+ * historial solo diria "salio" y no a quien.
  *
  * El indice esta en `(organization_id, asset_id, happened_at)` porque esa es la
  * consulta de la ficha, del movimiento mas nuevo al mas viejo, y porque sin el
@@ -145,6 +155,10 @@ export const assetMovements = sqliteTable(
       .notNull()
       .references(() => assets.id, { onDelete: 'cascade' }),
     kind: text('kind').notNull(),
+    /** Quien tenia el bien al registrar el hecho; null si no habia responsable. */
+    assignedTo: text('assigned_to'),
+    /** Ubicacion del bien al registrar el hecho; null si no se habia cargado. */
+    location: text('location'),
     note: text('note'),
     /** Instante ISO UTC de cuando ocurrio. */
     happenedAt: text('happened_at').notNull(),

@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS assets (
   location TEXT,
   assigned_to TEXT,
   purchase_date TEXT,
+  warranty_until TEXT,
   cost_cents INTEGER NOT NULL DEFAULT 0,
   notes TEXT,
   archived_at TEXT,
@@ -42,6 +43,8 @@ CREATE TABLE IF NOT EXISTS asset_movements (
   organization_id TEXT NOT NULL,
   asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
   kind TEXT NOT NULL,
+  assigned_to TEXT,
+  location TEXT,
   note TEXT,
   happened_at TEXT NOT NULL,
   created_at TEXT NOT NULL

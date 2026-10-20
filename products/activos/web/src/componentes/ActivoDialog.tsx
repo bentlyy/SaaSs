@@ -24,6 +24,7 @@ const VACIO = {
   location: '',
   assignedTo: '',
   purchaseDate: '',
+  warrantyUntil: '',
   costCents: '0',
   notes: '',
 };
@@ -56,6 +57,7 @@ export function ActivoDialog({ activo, avisar, onCerrar, onGuardado }: Props) {
           location: activo.location ?? '',
           assignedTo: activo.assignedTo ?? '',
           purchaseDate: activo.purchaseDate ?? '',
+          warrantyUntil: activo.warrantyUntil ?? '',
           costCents: String(activo.costCents ?? 0),
           notes: activo.notes ?? '',
         }
@@ -92,6 +94,7 @@ export function ActivoDialog({ activo, avisar, onCerrar, onGuardado }: Props) {
         location: campos.location || null,
         assignedTo: campos.assignedTo || null,
         purchaseDate: campos.purchaseDate || null,
+        warrantyUntil: campos.warrantyUntil || null,
         // El costo va en centavos, que es como lo guarda la API. El número
         // entero se manda tal cual: convertirlo acá sería hacerlo dos veces.
         costCents: Number(campos.costCents || 0),
@@ -174,7 +177,7 @@ export function ActivoDialog({ activo, avisar, onCerrar, onGuardado }: Props) {
           />
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Campo
             etiqueta="Lo tiene"
             name="assignedTo"
@@ -182,7 +185,6 @@ export function ActivoDialog({ activo, avisar, onCerrar, onGuardado }: Props) {
             value={campos.assignedTo}
             onChange={alCambiar}
           />
-          <Campo etiqueta="Comprado el" name="purchaseDate" type="date" value={campos.purchaseDate} onChange={alCambiar} />
           <div>
             <Campo
               etiqueta="Costo (centavos)"
@@ -196,6 +198,26 @@ export function ActivoDialog({ activo, avisar, onCerrar, onGuardado }: Props) {
             <span className="mt-1 block text-xs text-slate-400">
               se ve como {monto(Number(campos.costCents || 0), simbolo)}
             </span>
+          </div>
+          <div>
+            <Campo
+              etiqueta="Comprado el"
+              name="purchaseDate"
+              type="date"
+              value={campos.purchaseDate}
+              onChange={alCambiar}
+            />
+            <span className="mt-1 block text-xs text-slate-400">fecha de adquisicion</span>
+          </div>
+          <div>
+            <Campo
+              etiqueta="Garantia hasta"
+              name="warrantyUntil"
+              type="date"
+              value={campos.warrantyUntil}
+              onChange={alCambiar}
+            />
+            <span className="mt-1 block text-xs text-slate-400">ultimo dia cubierto</span>
           </div>
         </div>
 
