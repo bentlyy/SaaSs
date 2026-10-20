@@ -516,7 +516,7 @@ describe('los abonos', () => {
     // Y el saldo se lee igual desde el endpoint que evita el N+1.
     const saldos = await comoMiembro(TEST_ORG_A).get('/api/charges/saldos');
     const mio = saldos.body.saldos.find((s: any) => s.id === cargo.id);
-    expect(mio).toEqual({ id: cargo.id, pagadoCents: 100_000, saldoCents: 0 });
+    expect(mio).toEqual({ id: cargo.id, pagadoCents: 100_000, saldoCents: 0, vencido: false });
   });
 
   it('un abono que pasa el saldo es 409 y NO escribe nada', async () => {
@@ -550,6 +550,41 @@ describe('los abonos', () => {
     const res = await abonar(TEST_ORG_A, cargo.id, 5_000, { receivedAt: ayer });
     expect(res.status).toBe(201);
     expect(res.body.payment.receivedAt).toBe(ayer);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────── vencimiento
+
+describe('el vencimiento', () => {
+  it('es un hecho derivado: solo vence lo que tiene saldo y fecha pasada', async () => {
+    const base = comoMiembro(TEST_ORG_A);
+    const hoy = hoyEn();
+
+    const vencido = await nuevoCargo(TEST_ORG_A, { dueDate: '2000-01-01' });
+    const venceHoy = await nuevoCargo(TEST_ORG_A, { dueDate: hoy });
+    const sinFecha = await nuevoCargo(TEST_ORG_A);
+    const pagado = await nuevoCargo(TEST_ORG_A, { amountCents: 10_000, dueDate: '2000-01-01' });
+    await abonar(TEST_ORG_A, pagado.id, 10_000);
+    const cancelado = await nuevoCargo(TEST_ORG_A, { dueDate: '2000-01-01' });
+    await base.post(`/api/charges/${cancelado.id}/cancelar`).send({});
+
+    const res = await base.get('/api/charges/saldos');
+    const de = (id: string) => res.body.saldos.find((s: any) => s.id === id);
+
+    expect(de(vencido.id).vencido).toBe(true);
+    // Vence HOY todavia no esta vencido: el dia pactado es el ultimo para pagar.
+    expect(de(venceHoy.id).vencido).toBe(false);
+    expect(de(sinFecha.id).vencido).toBe(false);
+    // Sin saldo no hay nada que cobrar, aunque la fecha haya pasado.
+    expect(de(pagado.id)).toMatchObject({ saldoCents: 0, vencido: false });
+    expect(de(cancelado.id)).toMatchObject({ saldoCents: 0, vencido: false });
+
+    // La ficha y los recientes del tablero dicen lo mismo que el listado.
+    const ficha = await base.get(`/api/charges/${vencido.id}/ficha`);
+    expect(ficha.body.vencido).toBe(true);
+    const tablero = await base.get('/api/dashboard');
+    const reciente = tablero.body.recientes.find((c: any) => c.id === vencido.id);
+    expect(reciente.vencido).toBe(true);
   });
 });
 

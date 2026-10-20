@@ -34,6 +34,7 @@ export interface Abono {
 export interface CargoReciente extends Cargo {
   pagadoCents: number;
   saldoCents: number;
+  vencido: boolean;
 }
 
 export interface Devolucion {
@@ -57,6 +58,7 @@ export interface Ficha {
   /** El cobrado NETO, que es el que decide el saldo. */
   pagadoCents: number;
   saldoCents: number;
+  vencido: boolean;
 }
 
 /** El saldo de un cargo, como lo entrega `/api/charges/saldos`. */
@@ -64,6 +66,7 @@ export interface Saldo {
   id: string;
   pagadoCents: number;
   saldoCents: number;
+  vencido: boolean;
 }
 
 /** Las cifras del tablero. */

@@ -152,6 +152,7 @@ export function FichaCargo({
         <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-2">
             <Etiqueta {...estadoDe(ficha.charge.status, ETIQUETA_ESTADO)} />
+            {ficha.vencido ? <Etiqueta texto="Vencido" tono="malo" /> : null}
             {ficha.charge.dueDate ? <Etiqueta texto={`Vence ${fechaCorta(ficha.charge.dueDate)}`} /> : null}
           </div>
 

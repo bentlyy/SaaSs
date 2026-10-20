@@ -89,6 +89,7 @@ export function TableroPage() {
                   </span>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
+                  {c.vencido ? <Etiqueta texto="Vencido" tono="malo" /> : null}
                   <Etiqueta {...estadoDe(c.status, ETIQUETA_ESTADO)} />
                   <BotonChico onClick={() => setFichaId(c.id)}>Ficha</BotonChico>
                 </div>

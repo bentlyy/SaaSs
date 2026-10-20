@@ -262,6 +262,22 @@ function saldoDe(pagado: number, total: number, estado?: Estado | null): number 
   return total - pagado;
 }
 
+/**
+ * Si un cargo esta vencido a una fecha de referencia.
+ *
+ * Es un hecho DERIVADO, no un estado guardado: un cargo no "pasa a vencido" por
+ * una escritura, vence solo cuando el calendario de la empresa cruza su
+ * `due_date`. Guardarlo obligaria a un proceso que recorriera la cartera cada
+ * noche, y el dia que ese proceso fallara la pantalla mostraria cargos al dia que
+ * ya no lo estan.
+ *
+ * Un saldo en cero nunca vence: pagado o cancelado, no se debe nada. Sin fecha de
+ * vencimiento tampoco se puede afirmar atraso.
+ */
+function estaVencido(cargo: { dueDate: string | null }, saldoCents: number, hoy: string): boolean {
+  return saldoCents > 0 && !!cargo.dueDate && cargo.dueDate < hoy;
+}
+
 /** Desfase de la zona horaria de la empresa, en milisegundos. */
 function desfaseMs(zona: string, cuando: Date): number {
   const partes = new Intl.DateTimeFormat('en-US', {
@@ -533,7 +549,15 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         .slice()
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         .slice(0, 5)
-        .map((c) => ({ ...c, pagadoCents: pagado.get(c.id) ?? 0, saldoCents: saldoDe_(c) }));
+        .map((c) => {
+          const saldoCents = saldoDe_(c);
+          return {
+            ...c,
+            pagadoCents: pagado.get(c.id) ?? 0,
+            saldoCents,
+            vencido: estaVencido(c, saldoCents, hoy),
+          };
+        });
 
       res.json({
         total: todos.length,
@@ -584,18 +608,30 @@ export function buildRoutes(ctx: ProductContext): Router[] {
     '/api/charges/saldos',
     asyncHandler(async (req, res) => {
       const org = orgId(req);
+      const { timezone } = leerPreferencias(db, org);
+      const hoy = hoyEn(timezone);
       const todos = db
-        .select({ id: charges.id, amountCents: charges.amountCents, status: charges.status })
+        .select({
+          id: charges.id,
+          amountCents: charges.amountCents,
+          status: charges.status,
+          dueDate: charges.dueDate,
+        })
         .from(charges)
         .where(eq(charges.organizationId, org))
         .all();
       const pagado = pagadoPorCargo(db, org);
       res.json({
-        saldos: todos.map((c) => ({
-          id: c.id,
-          pagadoCents: pagado.get(c.id) ?? 0,
-          saldoCents: saldoDe(pagado.get(c.id) ?? 0, c.amountCents, c.status),
-        })),
+        saldos: todos.map((c) => {
+          const pagadoCents = pagado.get(c.id) ?? 0;
+          const saldoCents = saldoDe(pagadoCents, c.amountCents, c.status);
+          return {
+            id: c.id,
+            pagadoCents,
+            saldoCents,
+            vencido: estaVencido(c, saldoCents, hoy),
+          };
+        }),
       });
     }),
   );
@@ -641,6 +677,8 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       // exactamente el saldo que el cliente ve en la factura.
       const pagadoCents = pagadoDe(db, org, cargoId);
       const devueltoCents = devoluciones.reduce((acc, d) => acc + d.amountCents, 0);
+      const saldoCents = saldoDe(pagadoCents, cargo.amountCents, cargo.status);
+      const { timezone } = leerPreferencias(db, org);
       res.json({
         charge: cargo,
         payments: abonos,
@@ -650,7 +688,8 @@ export function buildRoutes(ctx: ProductContext): Router[] {
         abonadoCents: abonos.reduce((acc, a) => acc + a.amountCents, 0),
         devueltoCents,
         pagadoCents,
-        saldoCents: saldoDe(pagadoCents, cargo.amountCents, cargo.status),
+        saldoCents,
+        vencido: estaVencido(cargo, saldoCents, hoyEn(timezone)),
       });
     }),
   );

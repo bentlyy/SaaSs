@@ -56,22 +56,27 @@ const CAMPOS_VACIOS = {
 /**
  * Cobros: la lista de cargos con su buscador, su ficha y su alta.
  *
- * La lista se pide completa (500) y el buscador y el filtro de estado trabajan
- * sobre esa lista, como el legacy: el `?q=` del servidor sigue existiendo para
- * otros clientes, pero la pantalla no va a la base en cada tecla.
+ * La lista se pide completa (500) y el buscador y los filtros trabajan sobre esa
+ * lista, como el legacy: el `?q=` del servidor sigue existiendo para otros
+ * clientes, pero la pantalla no va a la base en cada tecla. El filtro de fechas
+ * mira `issuedDate`, igual que el reporte.
  *
  * El saldo no viaja en la lista (no es una columna), así que se pide aparte con
- * `/charges/saldos`, que lo calcula con un solo GROUP BY. Y el total se escribe
- * en CENTAVOS: esta pantalla no multiplica por 100 en ningún lado.
+ * `/charges/saldos`, que lo calcula con un solo GROUP BY. Esa respuesta también
+ * trae el `vencido`, ya resuelto con la zona horaria de la empresa: la pantalla
+ * no compara fechas contra el reloj del navegador. Y el total se escribe en
+ * CENTAVOS: esta pantalla no multiplica por 100 en ningún lado.
  */
 export function CobrosPage() {
   const { settings, cuenta } = useApp();
   const { aviso, avisar, limpiarAviso } = useAviso();
 
   const [cargos, setCargos] = useState<Cargo[] | null>(null);
-  const [saldos, setSaldos] = useState<Record<string, number>>({});
+  const [saldos, setSaldos] = useState<Record<string, Saldo>>({});
   const [q, setQ] = useState('');
   const [filtro, setFiltro] = useState('');
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
   const [modal, setModal] = useState<Modal_>(null);
   const [campos, setCampos] = useState<Record<string, string>>(CAMPOS_VACIOS);
   const [errorModal, setErrorModal] = useState<string | null>(null);
@@ -80,7 +85,8 @@ export function CobrosPage() {
 
   const simbolo = (settings?.currency as string | undefined) ?? '$';
   const monto = (centavos: number) => dinero(centavos, { simbolo });
-  const saldoDe = (id: string) => saldos[id] ?? 0;
+  const saldoDe = (id: string) => saldos[id]?.saldoCents ?? 0;
+  const vencidoDe = (id: string) => saldos[id]?.vencido ?? false;
   const puedeBorrar = cuenta?.rol === 'admin' || cuenta?.rol === 'owner';
 
   async function cargar() {
@@ -89,7 +95,7 @@ export function CobrosPage() {
       api.get<{ saldos: Saldo[] }>('/charges/saldos'),
     ]);
     setCargos(lista.items);
-    setSaldos(Object.fromEntries(s.saldos.map((x) => [x.id, x.saldoCents])));
+    setSaldos(Object.fromEntries(s.saldos.map((x) => [x.id, x])));
   }
 
   useEffect(() => {
@@ -181,7 +187,16 @@ export function CobrosPage() {
   const lista = !cargos
     ? null
     : cargos.filter((c) => {
-        if (filtro && c.status !== filtro) return false;
+        if (filtro === 'vencido') {
+          if (!vencidoDe(c.id)) return false;
+        } else if (filtro && c.status !== filtro) {
+          return false;
+        }
+        // Las fechas se comparan como texto `AAAA-MM-DD`, que ordena igual que el
+        // calendario. Un cargo sin fecha de emisión no se puede ubicar en el
+        // rango, así que queda fuera cuando hay un extremo puesto.
+        if (desde && (!c.issuedDate || c.issuedDate < desde)) return false;
+        if (hasta && (!c.issuedDate || c.issuedDate > hasta)) return false;
         if (!busqueda) return true;
         return [c.number, c.concept, c.customerName, c.customerEmail].some((v) =>
           String(v ?? '').toLowerCase().includes(busqueda),
@@ -202,15 +217,32 @@ export function CobrosPage() {
       />
 
       <Tarjeta className="mt-6">
-        <div className="border-b border-slate-100 p-4">
-          <div className="max-w-xs">
+        <div className="flex flex-wrap items-end gap-3 border-b border-slate-100 p-4">
+          <div className="w-full sm:w-44">
             <Select etiqueta="Estado" value={filtro} onChange={(e) => setFiltro(e.target.value)}>
               <option value="">Todos</option>
               <option value="pending">Pendiente</option>
               <option value="partial">Parcial</option>
               <option value="paid">Pagado</option>
               <option value="canceled">Cancelado</option>
+              <option value="vencido">Vencido</option>
             </Select>
+          </div>
+          <div className="w-full sm:w-40">
+            <Campo
+              etiqueta="Emitido desde"
+              type="date"
+              value={desde}
+              onChange={(e) => setDesde(e.target.value)}
+            />
+          </div>
+          <div className="w-full sm:w-40">
+            <Campo
+              etiqueta="Emitido hasta"
+              type="date"
+              value={hasta}
+              onChange={(e) => setHasta(e.target.value)}
+            />
           </div>
         </div>
 
@@ -244,7 +276,10 @@ export function CobrosPage() {
                       <Etiqueta texto={monto(saldoDe(c.id))} tono={saldoDe(c.id) > 0 ? 'malo' : 'ok'} />
                     </td>
                     <td className="px-4 py-3">
-                      <Etiqueta {...estadoDe(c.status, ETIQUETA_ESTADO)} />
+                      <div className="flex flex-wrap gap-1">
+                        <Etiqueta {...estadoDe(c.status, ETIQUETA_ESTADO)} />
+                        {vencidoDe(c.id) ? <Etiqueta texto="Vencido" tono="malo" /> : null}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
