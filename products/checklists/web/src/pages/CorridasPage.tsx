@@ -200,6 +200,9 @@ export function CorridasPage() {
   const [plantillas, setPlantillas] = useState<Template[]>([]);
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroPlantilla, setFiltroPlantilla] = useState('');
+  const [filtroDesde, setFiltroDesde] = useState('');
+  const [filtroHasta, setFiltroHasta] = useState('');
+  const [filtroResponsable, setFiltroResponsable] = useState('');
   const [busqueda, setBusqueda] = useState('');
 
   const [modalCrear, setModalCrear] = useState(false);
@@ -229,6 +232,9 @@ export function CorridasPage() {
     let url = '/runs?limit=500';
     if (filtroEstado) url += `&status=${encodeURIComponent(filtroEstado)}`;
     if (filtroPlantilla) url += `&template_id=${encodeURIComponent(filtroPlantilla)}`;
+    if (filtroDesde) url += `&from=${encodeURIComponent(filtroDesde)}`;
+    if (filtroHasta) url += `&to=${encodeURIComponent(filtroHasta)}`;
+    if (filtroResponsable) url += `&performed_by=${encodeURIComponent(filtroResponsable)}`;
     if (busqueda) url += `&q=${encodeURIComponent(busqueda)}`;
     const res = await api.get<{ items: Run[] }>(url);
     setCorridas(res.items);
@@ -242,7 +248,7 @@ export function CorridasPage() {
       setCarga(false);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtroEstado, filtroPlantilla]);
+  }, [filtroEstado, filtroPlantilla, filtroDesde, filtroHasta]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -253,7 +259,7 @@ export function CorridasPage() {
     }, 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busqueda]);
+  }, [busqueda, filtroResponsable]);
 
   useEffect(() => {
     cargarPlantillas().catch((e) => {
@@ -476,6 +482,31 @@ export function CorridasPage() {
         <div className="flex flex-wrap items-end gap-3 border-b border-slate-100 px-4 py-3">
           <div className="w-full sm:w-60">
             <Buscador valor={busqueda} onChange={setBusqueda} placeholder="Plantilla o lugar" />
+          </div>
+          <div className="w-full sm:w-44">
+            <Campo
+              etiqueta="Responsable"
+              value={filtroResponsable}
+              onChange={(e) => setFiltroResponsable(e.target.value)}
+              maxLength={150}
+              placeholder="Nombre"
+            />
+          </div>
+          <div className="w-full sm:w-40">
+            <Campo
+              etiqueta="Empezó desde"
+              type="date"
+              value={filtroDesde}
+              onChange={(e) => setFiltroDesde(e.target.value)}
+            />
+          </div>
+          <div className="w-full sm:w-40">
+            <Campo
+              etiqueta="Empezó hasta"
+              type="date"
+              value={filtroHasta}
+              onChange={(e) => setFiltroHasta(e.target.value)}
+            />
           </div>
           <select
             value={filtroEstado}

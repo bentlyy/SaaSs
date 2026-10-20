@@ -691,6 +691,36 @@ describe('las corridas', () => {
     expect(raro.status).toBe(400);
   });
 
+  it('el listado filtra por rango de fechas inclusivo, en la zona de la empresa', async () => {
+    const { plantilla } = await plantillaConItems(TEST_ORG_A, 'Por fecha', ['Uno']);
+    const antes = await corridaDe(plantilla.id, { startedAt: '2026-01-31T15:00:00.000Z' });
+    const dentro = await corridaDe(plantilla.id, { startedAt: '2026-02-10T15:00:00.000Z' });
+    // En Santiago este instante sigue siendo el 28 de febrero, aunque en UTC ya
+    // sea marzo: el filtro es por dia del calendario de la empresa.
+    const borde = await corridaDe(plantilla.id, { startedAt: '2026-03-01T01:00:00.000Z' });
+    const despues = await corridaDe(plantilla.id, { startedAt: '2026-03-10T15:00:00.000Z' });
+
+    const febrero = await comoMiembro(TEST_ORG_A).get(
+      `/api/runs?template_id=${plantilla.id}&from=2026-02-01&to=2026-02-28&limit=500`,
+    );
+    expect(febrero.status).toBe(200);
+    expect(febrero.body.items.map((r: any) => r.id).sort()).toEqual([dentro.run.id, borde.run.id].sort());
+    expect(febrero.body.items.map((r: any) => r.id)).not.toContain(antes.run.id);
+    expect(febrero.body.items.map((r: any) => r.id)).not.toContain(despues.run.id);
+
+    const unDia = await comoMiembro(TEST_ORG_A).get(
+      `/api/runs?template_id=${plantilla.id}&from=2026-02-10&to=2026-02-10&limit=500`,
+    );
+    expect(unDia.body.items.map((r: any) => r.id)).toEqual([dentro.run.id]);
+
+    const inexistente = await comoMiembro(TEST_ORG_A).get('/api/runs?from=2026-02-30');
+    expect(inexistente.status).toBe(400);
+
+    const invertida = await comoMiembro(TEST_ORG_A).get('/api/runs?from=2026-03-01&to=2026-02-01');
+    expect(invertida.status).toBe(400);
+    expect(String(invertida.body.error)).toMatch(/invertido/);
+  });
+
   it('borrar una corrida es de admin, y se lleva sus puntos', async () => {
     const { plantilla } = await plantillaConItems(TEST_ORG_A, 'Corrida de prueba', ['Uno', 'Dos']);
     const { run } = await corridaDe(plantilla.id);
@@ -1384,6 +1414,23 @@ describe('el responsable', () => {
       templateId: plantilla.id,
     });
     expect(conPlantilla.body.run.performedBy).toBe('Otro');
+  });
+
+  it('el listado filtra por responsable, por coincidencia parcial', async () => {
+    const ana = await tp.as({ orgId: TEST_ORG_A, name: 'Ana Filtro' }).post('/api/runs').send({
+      items: [{ label: 'Punto de Ana' }],
+    });
+    const beto = await tp.as({ orgId: TEST_ORG_A, name: 'Beto Filtro' }).post('/api/runs').send({
+      items: [{ label: 'Punto de Beto' }],
+    });
+    expect(ana.status).toBe(201);
+    expect(beto.status).toBe(201);
+
+    const res = await comoMiembro(TEST_ORG_A).get('/api/runs?performed_by=ana%20filtro&limit=500');
+    expect(res.status).toBe(200);
+    const ids = res.body.items.map((r: any) => r.id);
+    expect(ids).toContain(ana.body.run.id);
+    expect(ids).not.toContain(beto.body.run.id);
   });
 });
 

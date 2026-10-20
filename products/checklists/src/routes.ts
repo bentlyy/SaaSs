@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { Router } from 'express';
-import { and, asc, count, desc, eq, inArray, isNull, like, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, isNull, like, lt, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import {
   AppError,
@@ -18,6 +18,7 @@ import {
   type ProductContext,
   type ProductDb,
   enviarAdjunto,
+  inicioDelDiaEnZona,
   nombreSeguro,
   revisarAdjunto,
 } from '@amg/product-runtime';
@@ -79,6 +80,21 @@ import { attachments, runItems, runs, sections, settings, templateItems, templat
 const texto = z.string().trim().min(1).max(150);
 const textoLargo = z.string().trim().max(4000);
 const id = z.string().trim().min(1).max(64);
+
+/**
+ * Un dia del calendario, `YYYY-MM-DD`, tal como lo manda un input date.
+ *
+ * Se valida con la ida y vuelta a ISO y no solo con la forma: `2026-02-30`
+ * parsea a marzo y un filtro silenciosamente corrido un mes es peor que un 400.
+ */
+const diaCalendario = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Usá una fecha con formato AAAA-MM-DD')
+  .refine((v) => {
+    const fecha = new Date(`${v}T12:00:00.000Z`);
+    return !Number.isNaN(fecha.getTime()) && fecha.toISOString().slice(0, 10) === v;
+  }, 'La fecha no existe en el calendario');
 
 /** La conexion que entrega `db.transaction`, para los helpers de este archivo. */
 type Tx = Parameters<Parameters<ProductDb['db']['transaction']>[0]>[0];
@@ -1302,9 +1318,14 @@ export function buildRoutes(ctx: ProductContext): Router[] {
    * El listado de corridas, con su estado, su plantilla y su busqueda.
    *
    * A mano, y no con el `crudRouter`, por lo mismo que el listado de plantillas:
-   * el CRUD solo filtra por `?q=`, y estas son las tres preguntas que la pantalla
-   * hace de verdad ("las que estan abiertas", "las de esta plantilla", "donde
-   * dice bodega").
+   * el CRUD solo filtra por `?q=`, y estas son las preguntas que la pantalla hace
+   * de verdad ("las que estan abiertas", "las de esta plantilla", "donde dice
+   * bodega", "las de esta persona", "las de este dia").
+   *
+   * `from` y `to` son DIAS del calendario de la empresa, no instantes UTC: el
+   * input date no sabe de zonas horarias, y una inspeccion de las 22:00 del 28 en
+   * Santiago pertenece al 28 aunque en UTC ya sea el 29. Se convierten a los
+   * limites del dia en `settings.timezone`, y `to` es INCLUSIVO.
    *
    * Ordena por `started_at` descendente y no por `created_at`: una corrida
    * importada puede empezar antes de existir, y lo que se mira al principio es
@@ -1331,6 +1352,26 @@ export function buildRoutes(ctx: ProductContext): Router[] {
       if (q) {
         const patron = `%${q}%`;
         where.push(or(like(runs.templateName, patron), like(runs.location, patron))!);
+      }
+
+      const responsableCrudo = typeof req.query.performed_by === 'string' ? req.query.performed_by.trim() : '';
+      if (responsableCrudo) where.push(like(runs.performedBy, `%${responsableCrudo}%`));
+
+      const desdeCrudo = typeof req.query.from === 'string' ? req.query.from.trim() : '';
+      const hastaCrudo = typeof req.query.to === 'string' ? req.query.to.trim() : '';
+      const desde = desdeCrudo ? diaCalendario.parse(desdeCrudo) : '';
+      const hasta = hastaCrudo ? diaCalendario.parse(hastaCrudo) : '';
+      if (desde && hasta && desde > hasta) {
+        throw new AppError(400, 'El rango de fechas está invertido: "from" no puede ser posterior a "to"');
+      }
+      if (desde || hasta) {
+        const { timezone } = leerPreferencias(db, org);
+        if (desde) {
+          where.push(gte(runs.startedAt, inicioDelDiaEnZona(timezone, 0, `${desde}T12:00:00.000Z`)));
+        }
+        if (hasta) {
+          where.push(lt(runs.startedAt, inicioDelDiaEnZona(timezone, 1, `${hasta}T12:00:00.000Z`)));
+        }
       }
 
       const limit = Math.min(Number(req.query.limit) || 200, 1000);
