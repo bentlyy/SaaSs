@@ -96,10 +96,10 @@ export function CategoriasPage() {
 
       <Tarjeta titulo="Nueva categoría" className="max-w-xl">
         <form onSubmit={crear} className="flex flex-wrap items-end gap-3 p-4">
-          <div className="min-w-48 flex-1">
+          <div className="min-w-0 flex-1">
             <Campo etiqueta="Nombre" required value={nombre} onChange={(e) => setNombre(e.target.value)} />
           </div>
-          <BotonPrimario type="submit" disabled={guardando}>
+          <BotonPrimario type="submit" disabled={guardando} className="w-full sm:w-auto">
             {guardando ? 'Guardando…' : 'Agregar'}
           </BotonPrimario>
         </form>
@@ -127,7 +127,7 @@ export function CategoriasPage() {
                           autoFocus
                           value={editando.nombre}
                           onChange={(e) => setEditando({ ...editando, nombre: e.target.value })}
-                          className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                          className="min-w-0 flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm"
                         />
                         <BotonChico type="submit">Guardar</BotonChico>
                         <BotonChico type="button" onClick={() => setEditando(null)}>

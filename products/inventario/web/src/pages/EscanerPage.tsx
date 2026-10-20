@@ -8,6 +8,7 @@ import {
   Campo,
   Etiqueta,
   FilaVacia,
+  Modal,
   NotaError,
   PageHeader,
   Select,
@@ -355,7 +356,7 @@ export function EscanerPage() {
                     key={m.id}
                     type="button"
                     onClick={() => setModo(m.id)}
-                    className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                    className={`min-h-11 rounded-lg border px-3 py-2 text-sm font-medium transition-colors sm:min-h-0 ${
                       modo === m.id
                         ? 'border-brand-500 bg-brand-50 text-brand-700'
                         : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
@@ -392,7 +393,7 @@ export function EscanerPage() {
                         type="button"
                         aria-label="Menos"
                         onClick={() => cambiarCantidad(l.itemId, l.quantity - 1)}
-                        className="h-8 w-8 rounded-md border border-slate-300 text-slate-600 hover:bg-slate-50"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-slate-300 text-slate-600 hover:bg-slate-50 sm:h-8 sm:w-8"
                       >
                         −
                       </button>
@@ -407,7 +408,7 @@ export function EscanerPage() {
                         type="button"
                         aria-label="Más"
                         onClick={() => cambiarCantidad(l.itemId, l.quantity + 1)}
-                        className="h-8 w-8 rounded-md border border-slate-300 text-slate-600 hover:bg-slate-50"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-slate-300 text-slate-600 hover:bg-slate-50 sm:h-8 sm:w-8"
                       >
                         +
                       </button>
@@ -415,7 +416,7 @@ export function EscanerPage() {
                     <button
                       type="button"
                       onClick={() => setCarrito((lineas) => lineas.filter((x) => x.itemId !== l.itemId))}
-                      className="text-xs text-slate-400 hover:text-red-600"
+                      className="inline-flex min-h-11 items-center text-xs text-slate-400 hover:text-red-600 sm:min-h-0"
                     >
                       Quitar
                     </button>
@@ -456,7 +457,7 @@ export function EscanerPage() {
                     <button
                       type="button"
                       onClick={() => borrarIncidencia(i.id)}
-                      className="text-xs text-slate-400 hover:text-red-600"
+                      className="inline-flex min-h-11 items-center text-xs text-slate-400 hover:text-red-600 sm:min-h-0"
                     >
                       Borrar
                     </button>
@@ -470,16 +471,12 @@ export function EscanerPage() {
 
       {/* Alta rápida de un código desconocido */}
       {desconocido ? (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4 sm:items-center">
-          <div className="my-8 w-full max-w-lg rounded-xl bg-white shadow-2xl">
-            <div className="border-b border-slate-100 px-5 py-3.5">
-              <h3 className="text-base font-semibold text-slate-900">Producto desconocido</h3>
-              <p className="mt-1 text-sm text-slate-500">
-                Código <span className="font-mono text-slate-700">{desconocido.code}</span> no está en el catálogo.
-              </p>
-            </div>
-            <div className="space-y-4 px-5 py-4">
-              <form onSubmit={crearProducto} className="space-y-3">
+        <Modal titulo="Producto desconocido" onCerrar={() => setDesconocido(null)} ancho="max-w-lg">
+          <div className="space-y-4">
+            <p className="text-sm text-slate-500">
+              Código <span className="font-mono text-slate-700">{desconocido.code}</span> no está en el catálogo.
+            </p>
+            <form onSubmit={crearProducto} className="space-y-3">
                 <Campo
                   etiqueta="Nombre"
                   required
@@ -487,7 +484,7 @@ export function EscanerPage() {
                   value={nuevo.name ?? ''}
                   onChange={(e) => setNuevo((c) => ({ ...c, name: e.target.value }))}
                 />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   <Campo
                     etiqueta="Unidad"
                     value={nuevo.unit ?? ''}
@@ -506,7 +503,7 @@ export function EscanerPage() {
                     ))}
                   </Select>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid gap-3 sm:grid-cols-3">
                   <Campo
                     etiqueta="Stock inicial"
                     type="number"
@@ -553,12 +550,11 @@ export function EscanerPage() {
                   </div>
                 </div>
               </form>
-              <div>
-                <Etiqueta texto="El stock inicial se registra como una entrada" tono="neutro" />
-              </div>
+            <div>
+              <Etiqueta texto="El stock inicial se registra como una entrada" tono="neutro" />
             </div>
           </div>
-        </div>
+        </Modal>
       ) : null}
 
       <Aviso mensaje={aviso?.mensaje ?? null} tono={aviso?.tono} onLimpiar={limpiarAviso} />

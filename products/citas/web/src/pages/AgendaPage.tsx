@@ -316,7 +316,7 @@ export function AgendaPage() {
                   key={v.id}
                   type="button"
                   onClick={() => setVista(v.id)}
-                  className={`px-3 py-2 text-sm font-medium transition-colors ${
+                  className={`min-h-11 px-3 py-2 text-sm font-medium transition-colors sm:min-h-0 ${
                     vista === v.id ? 'bg-brand-600 text-white' : 'text-slate-600 hover:bg-slate-50'
                   }`}
                 >

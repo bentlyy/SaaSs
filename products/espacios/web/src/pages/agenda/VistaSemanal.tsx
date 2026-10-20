@@ -61,10 +61,10 @@ export function VistaSemanal({ reservas, lunes, espacios, estados, abrirEnHora }
   const colorDe = (spaceId: string) => espacios.find((e) => e.id === spaceId)?.color ?? '#94a3b8';
 
   return (
-    <div className="overflow-x-auto">
+    <div className="tabla-scroll" tabIndex={0} aria-label="Agenda semanal, deslizá para ver todos los días">
       <div className="min-w-[70rem]">
         <div className="grid grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] border-b border-slate-200">
-          <div />
+          <div className="sticky left-0 z-10 bg-white" />
           {dias.map((fecha, i) => {
             const [, m, d] = fecha.split('-').map(Number);
             return (
@@ -80,7 +80,7 @@ export function VistaSemanal({ reservas, lunes, espacios, estados, abrirEnHora }
 
         {horas.map((hora) => (
           <div key={hora} className="grid grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] border-b border-slate-100">
-            <div className="px-2 py-1 text-right text-xs font-medium text-slate-400">
+            <div className="sticky left-0 z-10 bg-white px-2 py-1 text-right text-xs font-medium text-slate-400">
               {String(hora).padStart(2, '0')}:00
             </div>
             {dias.map((fecha) => {
@@ -132,7 +132,8 @@ export function VistaSemanal({ reservas, lunes, espacios, estados, abrirEnHora }
         ))}
       </div>
       <p className="mt-2 text-xs text-slate-400">
-        Tocá un hueco vacío para reservar a esa hora. El color de cada ficha es el del espacio.
+        Deslizá para ver la semana completa. Tocá un hueco vacío para reservar a esa hora. El color de
+        cada ficha es del espacio.
       </p>
     </div>
   );

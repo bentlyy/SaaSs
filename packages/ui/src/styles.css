@@ -27,3 +27,42 @@ body {
 * {
   scrollbar-width: thin;
 }
+
+/* En iOS, un control con fuente menor a 16px hace zoom al enfocarse y descoloca
+   la pantalla. Los controles de texto suben a 16px solo en pantallas chicas. */
+@media (max-width: 639px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Las tablas hacen scroll horizontal dentro de su tarjeta, sin arrastrar la
+   página. Si la última columna es de acciones, queda fija a la derecha. */
+.tabla-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tabla-acciones-fijas th:last-child,
+.tabla-acciones-fijas tbody tr > td:last-child:not([colspan]) {
+  position: sticky;
+  right: 0;
+  background-color: #fff;
+}
+
+.tabla-acciones-fijas th:last-child {
+  z-index: 2;
+}
+
+.tabla-acciones-fijas tbody tr > td:last-child:not([colspan]) {
+  z-index: 1;
+  box-shadow: -10px 0 14px -14px rgb(15 23 42 / 45%);
+}
+
+.tabla-acciones-fijas tbody tr:hover > td:last-child:not([colspan]) {
+  background-color: #f8fafc;
+}

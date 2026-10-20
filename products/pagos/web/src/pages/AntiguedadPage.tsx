@@ -59,13 +59,13 @@ export function AntiguedadPage() {
 
       <Tarjeta titulo="Antigüedad de la cartera" className="mt-6">
         <div className="flex flex-wrap items-end gap-3 border-b border-slate-100 p-4">
-          <div className="w-44">
+          <div className="w-full sm:w-44">
             <Campo etiqueta="Emitidos desde" type="date" value={from} onChange={alCambiar(setFrom)} />
           </div>
-          <div className="w-44">
+          <div className="w-full sm:w-44">
             <Campo etiqueta="Emitidos hasta" type="date" value={to} onChange={alCambiar(setTo)} />
           </div>
-          <BotonPrimario type="button" onClick={calcular}>
+          <BotonPrimario type="button" onClick={calcular} className="w-full sm:w-auto">
             Calcular
           </BotonPrimario>
         </div>

@@ -384,16 +384,16 @@ export function CotizacionesPage() {
             </div>
 
             <div className="flex flex-col items-end gap-1 rounded-lg bg-slate-50 p-4 text-sm">
-              <div className="flex w-64 justify-between"><span className="text-slate-500">Subtotal</span><span>{dinero(subtotalPreview, { simbolo })}</span></div>
-              <div className="flex w-64 justify-between">
+              <div className="flex w-full justify-between sm:w-64"><span className="text-slate-500">Subtotal</span><span>{dinero(subtotalPreview, { simbolo })}</span></div>
+              <div className="flex w-full justify-between sm:w-64">
                 <span className="text-slate-500">Descuento</span>
                 <span className={descuentoInvalido ? 'text-red-600' : ''}>-{dinero(descuentoPreview, { simbolo })}</span>
               </div>
-              <div className="flex w-64 justify-between">
+              <div className="flex w-full justify-between sm:w-64">
                 <span className="text-slate-500">Impuesto ({porcentaje(tasaPreview)})</span>
                 <span>{dinero(impuestoPreview, { simbolo })}</span>
               </div>
-              <div className="flex w-64 justify-between border-t border-slate-200 pt-1 text-base font-medium"><span>Total</span><span>{dinero(totalPreview, { simbolo })}</span></div>
+              <div className="flex w-full justify-between border-t border-slate-200 pt-1 text-base font-medium sm:w-64"><span>Total</span><span>{dinero(totalPreview, { simbolo })}</span></div>
               {descuentoInvalido && <p className="text-xs text-red-600">El descuento no puede superar el subtotal.</p>}
             </div>
 

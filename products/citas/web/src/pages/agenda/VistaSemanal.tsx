@@ -60,11 +60,11 @@ export function VistaSemanal({ citas, lunes, z, estados, profesionales, verDetal
     (staffId ? profesionales.find((p) => p.id === staffId)?.color : null) ?? '#94a3b8';
 
   return (
-    <div className="overflow-x-auto">
+    <div className="tabla-scroll" tabIndex={0} aria-label="Agenda semanal, deslizá para ver todos los días">
       <div className="min-w-[70rem]">
         {/* Encabezado: día de la semana + fecha */}
         <div className="grid grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] border-b border-slate-200">
-          <div />
+          <div className="sticky left-0 z-10 bg-white" />
           {dias.map((fecha, i) => {
             const [, m, d] = fecha.split('-').map(Number);
             return (
@@ -81,7 +81,7 @@ export function VistaSemanal({ citas, lunes, z, estados, profesionales, verDetal
         {/* Filas: una por hora */}
         {horas.map((hora) => (
           <div key={hora} className="grid grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] border-b border-slate-100">
-            <div className="px-2 py-1 text-right text-xs font-medium text-slate-400">
+            <div className="sticky left-0 z-10 bg-white px-2 py-1 text-right text-xs font-medium text-slate-400">
               {String(hora).padStart(2, '0')}:00
             </div>
             {dias.map((fecha) => {
@@ -145,7 +145,8 @@ export function VistaSemanal({ citas, lunes, z, estados, profesionales, verDetal
         ))}
       </div>
       <p className="mt-2 text-xs text-slate-400">
-        Tocá un hueco vacío para agendar a esa hora; tocá una cita para ver su detalle.
+        Deslizá para ver la semana completa. Tocá un hueco vacío para agendar a esa hora; tocá una cita
+        para ver su detalle.
       </p>
     </div>
   );

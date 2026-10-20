@@ -4,45 +4,49 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 
 export function PageHeader({ titulo, subtitulo, acciones }: { titulo: string; subtitulo?: string; acciones?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{titulo}</h1>
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+      <div className="min-w-0">
+        <h1 className="break-words text-2xl font-semibold tracking-tight text-slate-900">{titulo}</h1>
         {subtitulo ? <p className="mt-1 text-sm text-slate-500">{subtitulo}</p> : null}
       </div>
-      {acciones ? <div className="flex shrink-0 flex-wrap items-center gap-2">{acciones}</div> : null}
+      {acciones ? (
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end [&>*]:max-w-full">
+          {acciones}
+        </div>
+      ) : null}
     </div>
   );
 }
 
 /* ── botones ─────────────────────────────────────────────────────────── */
 
-export function BotonPrimario({ children, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+export function BotonPrimario({ children, className = '', ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       {...rest}
-      className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0 ${className}`}
     >
       {children}
     </button>
   );
 }
 
-export function BotonSecundario({ children, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+export function BotonSecundario({ children, className = '', ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       {...rest}
-      className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0 ${className}`}
     >
       {children}
     </button>
   );
 }
 
-export function BotonPeligro({ children, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+export function BotonPeligro({ children, className = '', ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       {...rest}
-      className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3.5 py-2 text-sm font-medium text-red-600 shadow-sm transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-3.5 py-2 text-sm font-medium text-red-600 shadow-sm transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0 ${className}`}
     >
       {children}
     </button>
@@ -56,12 +60,13 @@ export function BotonPeligro({ children, ...rest }: React.ButtonHTMLAttributes<H
 export function BotonChico({
   children,
   peligro = false,
+  className = '',
   ...rest
 }: { peligro?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       {...rest}
-      className={`inline-flex items-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`inline-flex min-h-11 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0 sm:px-2 sm:py-1 ${className} ${
         peligro ? 'text-red-600 hover:bg-red-50' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
       }`}
     >
@@ -89,7 +94,7 @@ export function Buscador({
       placeholder={placeholder}
       autoComplete="off"
       onChange={(e) => onChange(e.target.value)}
-      className={`w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:w-60 ${className}`}
+      className={`min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base shadow-sm transition-colors placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:min-h-0 sm:w-60 sm:text-sm ${className}`}
     />
   );
 }
@@ -118,11 +123,11 @@ export function Tarjeta({
     <Caja className={className}>
       {titulo ? (
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
-          <div className="flex items-baseline gap-2">
+          <div className="flex min-w-0 flex-wrap items-baseline gap-2">
             <h2 className="text-sm font-semibold text-slate-900">{titulo}</h2>
             {nota ? <span className="text-xs text-slate-400">{nota}</span> : null}
           </div>
-          {acciones ? <div className="flex items-center gap-2">{acciones}</div> : null}
+          {acciones ? <div className="flex flex-wrap items-center gap-2">{acciones}</div> : null}
         </div>
       ) : null}
       {children}
@@ -136,8 +141,11 @@ export function Tarjeta({
 export type Columna = string | { titulo: string; num?: boolean };
 
 export function Tabla({ columnas, children }: { columnas: Columna[]; children: ReactNode }) {
+  const ultima = columnas[columnas.length - 1];
+  const tituloUltima = typeof ultima === 'string' ? ultima : ultima?.titulo;
+  const accionesFijas = columnas.length > 1 && (tituloUltima === 'Acciones' || tituloUltima === '');
   return (
-    <div className="overflow-x-auto">
+    <div className={`tabla-scroll ${accionesFijas ? 'tabla-acciones-fijas' : ''}`}>
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
@@ -324,7 +332,11 @@ export function Aviso({
       >
         <span>{mensaje}</span>
         {onLimpiar ? (
-          <button onClick={onLimpiar} aria-label="Cerrar aviso" className="shrink-0 opacity-60 hover:opacity-100">
+          <button
+            onClick={onLimpiar}
+            aria-label="Cerrar aviso"
+            className="-my-2 -mr-2 inline-flex h-11 w-11 shrink-0 items-center justify-center opacity-60 hover:opacity-100 sm:h-6 sm:w-6"
+          >
             ✕
           </button>
         ) : null}
@@ -358,7 +370,7 @@ export function Campo({ etiqueta, ...rest }: { etiqueta: string } & React.InputH
       <span className="mb-1 block text-sm font-medium text-slate-700">{etiqueta}</span>
       <input
         {...rest}
-        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+        className="min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 text-base shadow-sm transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:min-h-0 sm:text-sm"
       />
     </label>
   );
@@ -370,7 +382,7 @@ export function Textarea({ etiqueta, ...rest }: { etiqueta: string } & React.Tex
       <span className="mb-1 block text-sm font-medium text-slate-700">{etiqueta}</span>
       <textarea
         {...rest}
-        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+        className="min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 text-base shadow-sm transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:min-h-0 sm:text-sm"
       />
     </label>
   );
@@ -382,7 +394,7 @@ export function Select({ etiqueta, children, ...rest }: { etiqueta: string } & R
       <span className="mb-1 block text-sm font-medium text-slate-700">{etiqueta}</span>
       <select
         {...rest}
-        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+        className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base shadow-sm transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:min-h-0 sm:text-sm"
       >
         {children}
       </select>
@@ -417,15 +429,29 @@ export function Modal({
   children: ReactNode;
   ancho?: string;
 }) {
+  useEffect(() => {
+    if (!cerrable) return;
+    const alEscapar = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') onCerrar();
+    };
+    document.addEventListener('keydown', alEscapar);
+    return () => document.removeEventListener('keydown', alEscapar);
+  }, [cerrable, onCerrar]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4 sm:items-center">
-      <div className={`my-8 w-full ${ancho} rounded-xl bg-white shadow-2xl`}>
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
-          <h3 className="text-base font-semibold text-slate-900">{titulo}</h3>
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-hidden bg-slate-900/40 p-2 sm:items-center sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={titulo}
+    >
+      <div className={`my-2 flex max-h-[calc(100dvh-1rem)] w-full flex-col ${ancho} rounded-xl bg-white shadow-2xl sm:my-8 sm:max-h-[calc(100dvh-4rem)]`}>
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-3.5">
+          <h3 className="min-w-0 break-words text-base font-semibold text-slate-900">{titulo}</h3>
           {cerrable ? (
             <button
               onClick={onCerrar}
-              className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+              className="-mr-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 sm:h-9 sm:w-9"
               aria-label="Cerrar"
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current">
@@ -434,7 +460,7 @@ export function Modal({
             </button>
           ) : null}
         </div>
-        <div className="px-5 py-4">{children}</div>
+        <div className="min-h-0 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">{children}</div>
       </div>
     </div>
   );

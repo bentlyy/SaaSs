@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { iniciales } from '../lib/format';
@@ -43,21 +43,48 @@ export interface PropsLayout {
 export function Layout({ nombre, subtitulo, logo, grupos, sinSalir, extrasPie }: PropsLayout) {
   const { cuenta, zona, error } = useApp();
   const [abierto, setAbierto] = useState(false);
+  const panelRef = useRef<HTMLElement>(null);
+  const disparadorRef = useRef<HTMLButtonElement>(null);
+  const cerrarRef = useRef<HTMLButtonElement>(null);
+
+  const cerrar = () => {
+    setAbierto(false);
+    disparadorRef.current?.focus();
+  };
 
   useEffect(() => {
     if (!abierto) return;
-    const alEscapar = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') setAbierto(false);
+    cerrarRef.current?.focus();
+
+    const alPresionar = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') {
+        cerrar();
+        return;
+      }
+      if (ev.key !== 'Tab') return;
+
+      const enfocables = panelRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!enfocables?.length) return;
+      const primero = enfocables[0];
+      const ultimo = enfocables[enfocables.length - 1];
+      if (ev.shiftKey && document.activeElement === primero) {
+        ev.preventDefault();
+        ultimo.focus();
+      } else if (!ev.shiftKey && document.activeElement === ultimo) {
+        ev.preventDefault();
+        primero.focus();
+      }
     };
-    document.addEventListener('keydown', alEscapar);
-    return () => document.removeEventListener('keydown', alEscapar);
+
+    document.addEventListener('keydown', alPresionar);
+    return () => document.removeEventListener('keydown', alPresionar);
   }, [abierto]);
 
   const usuario = cuenta?.usuario.nombre || cuenta?.usuario.email || '';
   const empresa = cuenta?.organizacion.nombre || cuenta?.organizacion.slug || '';
   const otras = (cuenta?.herramientas ?? []).filter((h) => h.slug !== cuenta?.herramienta);
-
-  const cerrar = () => setAbierto(false);
 
   const navItem = (n: ItemNav) => (
     <NavLink
@@ -84,8 +111,11 @@ export function Layout({ nombre, subtitulo, logo, grupos, sinSalir, extrasPie }:
       ) : null}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r border-slate-200 bg-white transition-transform lg:translate-x-0 ${
-          abierto ? 'translate-x-0' : '-translate-x-full'
+        ref={panelRef}
+        id="navegacion-lateral"
+        aria-label={`Navegación de ${nombre}`}
+        className={`fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r border-slate-200 bg-white transition-[transform,visibility] lg:visible lg:translate-x-0 ${
+          abierto ? 'visible translate-x-0' : 'invisible -translate-x-full'
         }`}
       >
         <div className="flex items-center gap-2.5 px-5 py-4">
@@ -96,6 +126,17 @@ export function Layout({ nombre, subtitulo, logo, grupos, sinSalir, extrasPie }:
             <div className="truncate text-sm font-semibold text-slate-800">{nombre}</div>
             <div className="truncate text-[11px] text-slate-400">{subtitulo ?? empresa}</div>
           </div>
+          <button
+            ref={cerrarRef}
+            type="button"
+            onClick={cerrar}
+            aria-label="Cerrar navegación"
+            className="ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 lg:hidden"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current">
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+            </svg>
+          </button>
         </div>
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2" aria-label={`Secciones de ${nombre}`}>
@@ -164,14 +205,16 @@ export function Layout({ nombre, subtitulo, logo, grupos, sinSalir, extrasPie }:
         </div>
       </aside>
 
-      <main className="lg:pl-60">
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-slate-200 bg-white px-4 lg:hidden">
+      <main className="min-w-0 overflow-x-hidden lg:pl-60">
+        <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-slate-200 bg-white px-2 sm:px-4 lg:hidden">
           <button
+            ref={disparadorRef}
             type="button"
             onClick={() => setAbierto(true)}
             aria-label="Abrir navegación"
             aria-expanded={abierto}
-            className="rounded-md p-2 text-slate-600 transition-colors hover:bg-slate-100"
+            aria-controls="navegacion-lateral"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md text-slate-600 transition-colors hover:bg-slate-100"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current">
               <path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z" />
