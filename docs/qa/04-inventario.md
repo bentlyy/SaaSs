@@ -157,7 +157,7 @@ organizacional, restaurarlo y anotarlo en la sección 9.
    responde `403` con `{ "error": "sin-acceso" }`
    (`packages/auth-client/src/middleware.ts:98`).
 5. **No hay login local.** Este producto no pide usuario ni contraseña: la sesión vive en el
-   Core. Se entra por `desarrollo.amgdeveloper.cl` (puerto `3108`) y el Core devuelve al
+   Core. Se entra por `amgdeveloper.cl` (puerto `3108`) y el Core devuelve al
    producto. Que el producto redirija al login del Core es el flujo correcto, no un error de Auth
    (convención 5.3).
 6. Tester tipea sus credenciales. Nunca se le piden ni se anotan (convención 5.2).
@@ -1166,4 +1166,4 @@ entorno, porque los resultados de `INV-REG-05` cambian entre desarrollo y produc
 | INV-LST-01 | FALLA | KPI de tablero pinta `$ 14.530` (clase `ui-kpi__cifra`, con espacio); shared `dinero(1453000)` = `$14.530` sin espacio y con formato CLP uniforme | R-S-08: tres formatos de dinero en el portfolio (inventario/activos/pagos ≠ shared). |
 | INV-SIST-02 | FALLA | Sin sesión: `/`,`/app.js`,`/style.css` → 302; **`/amigo.css` → 200 público** (cotizaciones/crm/activos); `/api/*` → 401 | 401 sin campo `message` (Doc 10 REG-SES-01). Fuga de `amigo.css` en 3 productos. |
 | INV-SIST-06 | PARCIAL | Headers `RateLimit` draft-7 presentes; ráfaga en pagos: `429` + 23×`503` + episodio transitorio de `404` en todas las rutas API (recuperó al recargar) | Límite no uniforme (600 vs 1000 en ventanas distintas). |
-| INV-SIST-07 | FALLA | Clic `Salir` → `302` `desarrollo.amgdeveloper.cl/api/logout?redirect=…` → **`404 {"error":"No existe GET /api/logout"}`**; sesión sigue viva | Core sin ruta de logout. Rompe REG-SES-07 y REG-UI-07 en los nueve productos. |
+| INV-SIST-07 | FALLA | Clic `Salir` → `302` `amgdeveloper.cl/api/logout?redirect=…` → **`404 {"error":"No existe GET /api/logout"}`**; sesión sigue viva | Core sin ruta de logout. Rompe REG-SES-07 y REG-UI-07 en los nueve productos. |

@@ -127,7 +127,7 @@ borrar los extras y horarios que no se usen. Las reservas se pueden borrar con
 3. La organización de QA tiene la suscripción a `espacios` activa. Sin ella, el middleware
    responde `403` con `{ "error": "sin-acceso" }` (`packages/auth-client/src/middleware.ts:98`).
 4. **No hay login local.** Este producto no pide usuario ni contraseña: la sesión vive en el
-   Core. Se entra por `desarrollo.amgdeveloper.cl` (puerto `3108`) y el Core devuelve al
+   Core. Se entra por `amgdeveloper.cl` (puerto `3108`) y el Core devuelve al
    producto. Que el producto redirija al login del Core es el flujo correcto, no un error de
    Auth (convención 5.3).
 5. Tester tipea sus credenciales. Nunca se le piden ni se anotan (convención 5.2).

@@ -250,6 +250,7 @@ export function createPlatformApp(options: PlatformAppOptions = {}): Express {
     app.get('/precios', page('productos.html'));
     app.get('/demos', page('contacto.html'));
     app.get('/contacto', page('contacto.html'));
+    app.get('/privacy', page('privacy.html'));
     app.get('/productos/:slug', page('producto.html'));
 
     // Autenticación

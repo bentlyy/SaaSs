@@ -124,7 +124,7 @@ siempre la causa es una corrida de una vuelta anterior que quedó sin borrar, o 
 duplicada dos veces.
 ## 3. Precondiciones
 
-1. **Sesión abierta en el Core** en `https://desarrollo.amgdeveloper.cl`, con el producto ya
+1. **Sesión abierta en el Core** en `https://amgdeveloper.cl`, con el producto ya
    habilitado para la organización de pruebas. La sesión dura 15 minutos: si el producto
    redirige a `/api/sso/authorize`, hay que volver al Core y reintentar, no recargar la URL del
    producto.

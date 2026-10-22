@@ -63,7 +63,7 @@ regla que `catalog.test.ts` verifica para los nueve.
 
 Los subdominios anteriores (`canchas`, `agenda`, `ordenes`, `stock`,
 `presupuestos`, `docs`, `recordatorios`) quedan como redirects a los nuevos. La
-plataforma es `desarrollo.amgdeveloper.cl` y no es un producto más: no tiene fila
+plataforma es `amgdeveloper.cl` y no es un producto más: no tiene fila
 en `products` ni volumen propio.
 
 ## clientes sin clients.json

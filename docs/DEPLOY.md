@@ -106,8 +106,8 @@ Este archivo usa un `map $host → upstream` en vez de un bloque por dominio. La
 tabla del principio es la única fuente de verdad de qué puerto abre cada
 dominio, y tiene que coincidir con los `ports:` de `docker-compose.yml`.
 
-`desarrollo.amgdeveloper.cl` **no** se toca: vive en `desarrollo.conf`, con su
-propio certificado, y ya apunta a 3108.
+`amgdeveloper.cl` y `www` viven en `amgdeveloper.conf`, con su certificado
+Origin CA, y apuntan a 3108. `desarrollo.conf` se retiró tras el cutover.
 
 Para probar la sintaxis **sin** tocar el que está corriendo: copiar el archivo,
 `nginx -t`, y restaurar. No hace falta recargar; la configuración en memoria del

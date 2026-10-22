@@ -200,7 +200,7 @@ de QA descartable y dejar los cargos con prefijo `QA-PAG-`.
 3. La organización de QA tiene la suscripción a `pagos` activa. Sin ella el middleware responde
    `403` con `{ "error": "sin-acceso" }` (`packages/auth-client/src/middleware.ts:98`).
 4. **No hay login local.** Este producto no pide usuario ni contraseña: la sesión vive en el Core.
-   Se entra por `desarrollo.amgdeveloper.cl` (puerto `3108`). Que el producto redirija al login del
+   Se entra por `amgdeveloper.cl` (puerto `3108`). Que el producto redirija al login del
    Core es el flujo correcto, no un error de Auth (convención 5.3).
 5. Tester tipea sus credenciales. Nunca se le piden ni se anotan (convención 5.2).
 6. **La sesión dura 15 minutos.** Al expirar, cualquier `/api/*` responde
@@ -1121,6 +1121,6 @@ Lista concreta de lo que hay que mirar en pantalla.
 | PAG-SIST-03 | PASA | `/api/me` → `200` con `user`/`organization`/`role`/`product`; `/api/inicio` → `usuario`/`organizacion`/`rol`/`herramienta`/`herramientas`; canal pinta empresa/correo/avatar/otras | La API trae `rol`; el shell no lo pinta (comportamiento descrito, R-05). |
 | PAG-CRUD-01 | PARCIAL | `POST /api/charges` → `200 {charge}` (no 201 plano). `DELETE /api/charges/<id>` → hard delete (`deleted:true`; GET posterior → 404) | Contrato distinto a customers (`201` plano + borrado archivado). |
 | PAG-CRUD-02 | FALLA | `PATCH /api/charges/<id>` con `totalCents`/`paidCents` → `200` y los campos **descartados**; `amountCents` bajo lo cobrado → `409` con mensaje de negocio | R-S-09: descarte silencioso inconsistente con customers (400 "Campo desconocido"). |
-| REG-SES-07 | FALLA | Clic `Salir` → `302` `https://desarrollo.amgdeveloper.cl/api/logout?redirect=<producto>` → **`404 {"error":"No existe GET /api/logout"}`**; GET y POST no existen; sesión sigue viva | Core sin ruta de logout. Productos sin poder cerrar sesión. |
+| REG-SES-07 | FALLA | Clic `Salir` → `302` `https://amgdeveloper.cl/api/logout?redirect=<producto>` → **`404 {"error":"No existe GET /api/logout"}`**; GET y POST no existen; sesión sigue viva | Core sin ruta de logout. Productos sin poder cerrar sesión. |
 | REG-SES-08 | FALLA | Ráfaga de ~650 peticiones: `429` con `ratelimit:"600-in-15min"; r=0; t=335` y cuerpo plain text "Too many requests, please try again later."; 23×`503`; episodio transitorio: **todas las rutas API 404** hasta recargar (solo `/health` vivo) | Cuerpo del 429 no es JSON. Límite no uniforme: ventana previa mostró `"1000-in-15min"`. 503 y el episodio 404 no están en el plan. |
 

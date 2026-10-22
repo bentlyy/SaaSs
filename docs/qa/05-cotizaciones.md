@@ -190,7 +190,7 @@ y restaurar los ajustes a moneda `$`, zona `America/Santiago`, impuesto `0`, vig
    este producto.` (`packages/auth-client/src/middleware.ts:98`,
    `packages/auth-client/src/login.ts:52`).
 4. **No hay login local.** Este producto no pide usuario ni contraseña: la sesión vive en el
-   Core. Se entra por `desarrollo.amgdeveloper.cl` (puerto `3108`) y el Core devuelve al
+   Core. Se entra por `amgdeveloper.cl` (puerto `3108`) y el Core devuelve al
    producto. Que el producto redirija al login del Core es el flujo correcto, no un error de
    Auth (convención 5.3). El HTML se sirve **después** de la identidad: sin sesión no baja ni el
    documento (`tests/cotizaciones.test.ts:79-83`).

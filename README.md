@@ -46,7 +46,7 @@ cada request. Una SQLite por producto, aislada por `organization_id`. Ver
 | Gestión de Clientes | `crm.amgdeveloper.cl` | 3105 |
 | Control de Activos | `activos.amgdeveloper.cl` | 3106 |
 | Checklists e Inspecciones | `checklists.amgdeveloper.cl` | 3107 |
-| Core | `desarrollo.amgdeveloper.cl` | 3108 |
+| Core | `amgdeveloper.cl` | 3108 |
 | Control de Pagos | `pagos.amgdeveloper.cl` | 3109 |
 
 Los subdominios viejos (`agenda`, `canchas`, `ordenes`, `stock`,

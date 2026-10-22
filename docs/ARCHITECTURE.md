@@ -21,7 +21,7 @@ donde una contraseña se filtra. Ahora la contraseña existe en un solo lado.
 | Base | `core.sqlite` | `data/<x>/app.db` |
 | Guarda | usuarios, organizaciones, membresías, sesiones, catálogo, suscripciones, pagos, SSO | lo de su dominio: citas, stock, órdenes... |
 | Puerto | `3108` (host) | `3100`-`3109` (host) |
-| Dominio | `desarrollo.amgdeveloper.cl` | un subdominio por producto |
+| Dominio | `amgdeveloper.cl` | un subdominio por producto |
 | Contraseñas | sí, es el único | **no tiene** |
 
 ### Paquetes
@@ -90,7 +90,7 @@ Lo que necesita atención al desplegar:
    ```
 
 2. **`AMG_SSO_ROOT_SECRET` es la raíz de todos los secretos SSO.** Si cambia, deja de validar el secreto de cada producto y hay que volver a pedir los nueve. No se rota por debajo de la mesa.
-3. **`CORE_URL` tiene que ser la URL real** (`https://desarrollo.amgdeveloper.cl`). Es la que va en los enlaces de recuperación y en el `iss` de los tokens SSO. Con `localhost` los correos mandan al lugar equivocado y los productos rechazan el token por `issuer`.
+3. **`CORE_URL` tiene que ser la URL real** (`https://amgdeveloper.cl`). Es la que va en los enlaces de recuperación y en el `iss` de los tokens SSO. Con `localhost` los correos mandan al lugar equivocado y los productos rechazan el token por `issuer`.
 4. **El Core escucha en `127.0.0.1:3108`.** El binding a loopback es a propósito: nadie entra al Core desde internet sin pasar por el reverse proxy, que es el único que debe terminar TLS.
 5. **El volumen del Core es `saasmini_data_core`**, en `/app/data/core/core.sqlite`. El `Dockerfile` crea ese directorio con `node` como dueño antes de montar: si no, `better-sqlite3` no puede crear el archivo y el arranque falla.
 6. **Sin `CORE_DIAGNOSTICO_KEY`, `/api/_diagnostico` no existe** en producción (404). Con la clave, se puede consultar por header.

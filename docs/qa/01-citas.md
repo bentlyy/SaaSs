@@ -8,7 +8,7 @@
 | Dominio | `citas.amgdeveloper.cl` |
 | Puerto producción | `3100` (`docker-compose.yml`) |
 | Puerto local | `3021` (`products/citas/.env`) |
-| Core (SSO) | `desarrollo.amgdeveloper.cl`, puerto `3108`. Es el emisor de SSO por diseño, no un entorno de desarrollo. |
+| Core (SSO) | `amgdeveloper.cl`, puerto `3108`. Es el emisor de SSO por diseño, no un entorno de desarrollo. |
 | Color de marca | `#c2571a` |
 | Paneles | 7: `agenda`, `clientes`, `servicios`, `profesionales`, `horarios`, `avisos`, `config` |
 | Diálogos | `#dlg` (cita), `#dlg-cli` (cliente), `#dlg-srv` (servicio), `#dlg-per` (profesional) |

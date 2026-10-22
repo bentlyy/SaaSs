@@ -98,7 +98,7 @@ Estas aplican a todos los productos yexplain el 80% de los falsos positivos.
    "loginUrl":...}` y el navegador salta al login del Core. No es un bug del producto.
    Volver a entrar y anotar en el registro que hubo corte.
 2. **Nunca pedir credenciales.** El tester las tipea. La sesión se crea desde el Core
-   (`desarrollo.amgdeveloper.cl`, puerto 3108), que es el emisor de SSO por diseño.
+   (`amgdeveloper.cl`, puerto 3108), que es el emisor de SSO por diseño.
 3. **Login directo a un subdominio redirige al Core.** Si el producto abre el login de
    entrada, es el flujo correcto, no un error de Auth.
 4. **Límite de tasa: 600 peticiones / 15 min por IP.** Un caso que recorra la tabla entera

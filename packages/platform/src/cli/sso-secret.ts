@@ -55,5 +55,5 @@ console.log('');
 console.log('  En el .env del producto:');
 console.log(`    AMG_SSO_CLIENT_ID=${client.clientId}`);
 console.log(`    AMG_SSO_CLIENT_SECRET=${client.secret}`);
-console.log(`    CORE_URL=${process.env.CORE_URL ?? 'https://desarrollo.amgdeveloper.cl'}`);
+console.log(`    CORE_URL=${process.env.CORE_URL ?? 'https://amgdeveloper.cl'}`);
 console.log('');

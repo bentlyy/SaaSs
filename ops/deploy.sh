@@ -356,7 +356,7 @@ cat <<FIN
 
   Empresa:  $ORG_NAME  ($ORG_SLUG)
   Usuario:  $ORG_EMAIL
-  Entrar:   https://${PLATAFORMA:-desarrollo.amgdeveloper.cl}
+  Entrar:   https://${PLATAFORMA:-amgdeveloper.cl}
 
   El usuario ya tiene suscripcion a los ${#PRODUCTOS[@]} productos. La contrasena
   es la de AMG_BOOTSTRAP_PASSWORD y no se ha cambiado ni se muestra aqui.

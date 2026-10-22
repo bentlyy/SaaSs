@@ -59,7 +59,7 @@ prueba de que un panel funciona.**
 
 Estas aplican a los diez documentos. Están también en el §3 de cada uno.
 
-1. **Sesión en el Core** (`desarrollo.amgdeveloper.cl`, puerto 3108). Es el emisor de SSO por
+1. **Sesión en el Core** (`amgdeveloper.cl`, puerto 3108). Es el emisor de SSO por
    diseño, no un entorno de desarrollo: que un producto autentique contra ahí es la
    arquitectura, no un bug. Cada subdominio tiene su propia cookie y la obtiene del SSO.
 2. **Nunca pedir credenciales.** Quien las tipea.

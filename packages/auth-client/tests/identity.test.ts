@@ -6,7 +6,7 @@ import { buildLoginUrl, isSafeReturnTo, redirectUriFor } from '../src/login.js';
 import { encodeIdentityCookie, decodeIdentityCookie } from '../src/session.js';
 import type { AmgConfig } from '../src/config.js';
 
-const CORE = 'https://desarrollo.amgdeveloper.cl';
+const CORE = 'https://amgdeveloper.cl';
 const ISSUER = CORE;
 
 function config(clientId: string, secret: string): AmgConfig {

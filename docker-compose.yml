@@ -30,7 +30,7 @@
 #   3105    crm.amgdeveloper.cl                crm
 #   3106    activos.amgdeveloper.cl            activos
 #   3107    checklists.amgdeveloper.cl         checklists
-#   3108    desarrollo.amgdeveloper.cl         Core
+#   3108    amgdeveloper.cl + www   Core
 #   3109    pagos.amgdeveloper.cl              pagos
 
 # El rango 3100-3109 queda COMPLETO a proposito: los productos que ocupaban 3105
@@ -90,7 +90,7 @@ services:
       DB_SCHEMA_VERSION: "3"
       APP_NAME: Espacios
       APP_URL: https://espacios.amgdeveloper.cl
-      CORE_URL: https://desarrollo.amgdeveloper.cl
+      CORE_URL: https://amgdeveloper.cl
       AMG_SSO_CLIENT_ID: espacios
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_ESPACIOS_SECRET:?falta AMG_SSO_ESPACIOS_SECRET en .env}
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
@@ -113,7 +113,7 @@ services:
       DB_SCHEMA_VERSION: "2"
       APP_NAME: Solicitudes y Ordenes
       APP_URL: https://solicitudes.amgdeveloper.cl
-      CORE_URL: https://desarrollo.amgdeveloper.cl
+      CORE_URL: https://amgdeveloper.cl
       AMG_SSO_CLIENT_ID: solicitudes
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_SOLICITUDES_SECRET:?falta AMG_SSO_SOLICITUDES_SECRET en .env}
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
@@ -138,7 +138,7 @@ services:
       DB_SCHEMA_VERSION: "2"
       APP_NAME: Inventario
       APP_URL: https://inventario.amgdeveloper.cl
-      CORE_URL: https://desarrollo.amgdeveloper.cl
+      CORE_URL: https://amgdeveloper.cl
       AMG_SSO_CLIENT_ID: inventario
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_INVENTARIO_SECRET:?falta AMG_SSO_INVENTARIO_SECRET en .env}
       # Corta el acceso al instante si le cancelan la suscripción, a costa de una
@@ -161,7 +161,7 @@ services:
       DB_SCHEMA_VERSION: "3"
       APP_NAME: Citas
       APP_URL: https://citas.amgdeveloper.cl
-      CORE_URL: https://desarrollo.amgdeveloper.cl
+      CORE_URL: https://amgdeveloper.cl
       AMG_SSO_CLIENT_ID: citas
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_CITAS_SECRET:?falta AMG_SSO_CITAS_SECRET en .env}
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
@@ -183,7 +183,7 @@ services:
       DB_SCHEMA_VERSION: "2"
       APP_NAME: Cotizaciones
       APP_URL: https://cotizaciones.amgdeveloper.cl
-      CORE_URL: https://desarrollo.amgdeveloper.cl
+      CORE_URL: https://amgdeveloper.cl
       AMG_SSO_CLIENT_ID: cotizaciones
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_COTIZACIONES_SECRET:?falta AMG_SSO_COTIZACIONES_SECRET en .env}
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
@@ -207,7 +207,7 @@ services:
       DB_SCHEMA_VERSION: "1"
       APP_NAME: Clientes
       APP_URL: https://crm.amgdeveloper.cl
-      CORE_URL: https://desarrollo.amgdeveloper.cl
+      CORE_URL: https://amgdeveloper.cl
       AMG_SSO_CLIENT_ID: crm
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_CRM_SECRET:?falta AMG_SSO_CRM_SECRET en .env}
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
@@ -230,7 +230,7 @@ services:
       DB_SCHEMA_VERSION: "2"
       APP_NAME: Activos
       APP_URL: https://activos.amgdeveloper.cl
-      CORE_URL: https://desarrollo.amgdeveloper.cl
+      CORE_URL: https://amgdeveloper.cl
       AMG_SSO_CLIENT_ID: activos
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_ACTIVOS_SECRET:?falta AMG_SSO_ACTIVOS_SECRET en .env}
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
@@ -253,7 +253,7 @@ services:
       DB_SCHEMA_VERSION: "2"
       APP_NAME: Checklists e Inspecciones
       APP_URL: https://checklists.amgdeveloper.cl
-      CORE_URL: https://desarrollo.amgdeveloper.cl
+      CORE_URL: https://amgdeveloper.cl
       AMG_SSO_CLIENT_ID: checklists
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_CHECKLISTS_SECRET:?falta AMG_SSO_CHECKLISTS_SECRET en .env}
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
@@ -282,7 +282,7 @@ services:
       DB_SCHEMA_VERSION: "2"
       APP_NAME: Control de Pagos
       APP_URL: https://pagos.amgdeveloper.cl
-      CORE_URL: https://desarrollo.amgdeveloper.cl
+      CORE_URL: https://amgdeveloper.cl
       AMG_SSO_CLIENT_ID: pagos
       AMG_SSO_CLIENT_SECRET: ${AMG_SSO_PAGOS_SECRET:?falta AMG_SSO_PAGOS_SECRET en .env}
       AMG_SSO_INTROSPECT: ${AMG_SSO_INTROSPECT:-1}
@@ -305,13 +305,13 @@ services:
       CORE_DB_PATH: /app/data/core/core.sqlite
       # URL pública real: aparece en los enlaces de SSO y de recuperación de
       # contraseña. Con esto en localhost, los correos mandan al lugar errado.
-      CORE_URL: https://desarrollo.amgdeveloper.cl
+      CORE_URL: https://amgdeveloper.cl
       # Dos secretos y ninguno con valor por defecto en produccion (fail-fast).
       # AMG_SSO_ROOT_SECRET es la raiz de la que sale el secreto de cada producto
       # (HKDF): cambiarlo invalida todos los clientes SSO a la vez.
       AMG_SESSION_SECRET: ${AMG_SESSION_SECRET:?falta AMG_SESSION_SECRET en .env}
       AMG_SSO_ROOT_SECRET: ${AMG_SSO_ROOT_SECRET:?falta AMG_SSO_ROOT_SECRET en .env}
-      CORE_RETURN_URL_HOSTS: amgdeveloper.cl,localhost
+      CORE_RETURN_URL_HOSTS: amgdeveloper.cl,www.amgdeveloper.cl,localhost
       APP_NAME: AMG
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}

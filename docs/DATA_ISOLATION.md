@@ -105,7 +105,7 @@ Lo único que cruza de un producto al Core es la **identidad**, y cruza por SSO:
 - El Core nunca ve los datos del producto; el producto nunca ve la contraseña.
 
 El producto no recibe ni la cookie del Core ni el token de sesión central. La
-cookie del Core es host-only en `desarrollo.amgdeveloper.cl`: por diseño, un
+cookie del Core es host-only en `amgdeveloper.cl`: por diseño, un
 subdominio no puede leerla.
 
 Y al revés: el token de un producto no sirve en otro (`aud` + secreto distinto).

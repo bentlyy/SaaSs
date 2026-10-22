@@ -205,7 +205,7 @@ segunda organización no tiene nada con prefijo `QA-SOL-`.
    responde `403 {"error":"sin-acceso","message":"Tu organización no tiene acceso a este
    producto.","loginUrl":…}` (`packages/auth-client/src/middleware.ts:98`).
 4. **No hay login local.** Este producto no pide usuario ni contraseña: la sesión vive en el
-   Core. Se entra por `desarrollo.amgdeveloper.cl` (puerto `3108`) y el Core devuelve al
+   Core. Se entra por `amgdeveloper.cl` (puerto `3108`) y el Core devuelve al
    producto. Que el producto redirija al login del Core es el flujo correcto, no un error de
    Auth (convención 5.3). `public/index.html` no tiene ningún `input[type=password]`.
 5. Tester tipea sus credenciales. Nunca se le piden ni se anotan (convención 5.2).

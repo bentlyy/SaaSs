@@ -6,7 +6,7 @@ versiones** (son solo carpetas en el servidor).
 
 | Archivo | Sirve a | Puerto interno | Proyecto |
 |---|---|---|---|
-| `desarrollo.conf` | desarrollo.amgdeveloper.cl | 3108 | saas-mini (Core) |
+| `amgdeveloper.conf` | amgdeveloper.cl + www.amgdeveloper.cl | 3108 | saas-mini (Core) |
 | `gateway.conf` | agrobot.amgdeveloper.cl | 5173 | AgroBot-Alert |
 | `gateway.conf` | taller.amgdeveloper.cl | 3043 | TallerMecanico |
 | `transallendes.conf` | Transporte.amgdeveloper.cl | 3004 | transallendes |
