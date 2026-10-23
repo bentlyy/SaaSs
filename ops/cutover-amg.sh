@@ -27,5 +27,5 @@ curl -ksS -o /dev/null -w 'apex / -> %{http_code}\n' --resolve amgdeveloper.cl:4
 curl -ksS -o /dev/null -w 'apex /privacy -> %{http_code}\n' --resolve amgdeveloper.cl:443:127.0.0.1 https://amgdeveloper.cl/privacy
 curl -ksS -o /dev/null -w 'www /privacy -> %{http_code}\n' --resolve www.amgdeveloper.cl:443:127.0.0.1 https://www.amgdeveloper.cl/privacy
 
-echo "Corte aplicado. desarrollo.amgdeveloper.cl retirado."
+echo "Corte aplicado. Subdominio anterior retirado."
 echo "Backup compose: $APP/docker-compose.yml.bak.$STAMP"
